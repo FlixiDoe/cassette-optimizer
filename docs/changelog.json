@@ -6,6 +6,30 @@
   "local": "http://127.0.0.1:8787/",
   "spotify_client_id": "[REMOVED_SPOTIFY_CLIENT_ID]",
   "spotify_redirect_uri": "http://127.0.0.1:8787/callback",
+  "tape_formats": [
+    "C30",
+    "C46",
+    "C50",
+    "C54",
+    "C60",
+    "C64",
+    "C70",
+    "C74",
+    "C80",
+    "C90",
+    "C100",
+    "C110",
+    "C120"
+  ],
+  "features": [
+    "Spotify OAuth PKCE without a backend",
+    "Playlist picker plus manual playlist URL/ID input",
+    "Cassette inventory checkboxes for owned tape formats",
+    "Smallest-available-tape recommendation",
+    "Side A / Side B split without cutting tracks",
+    "Spotify playlist reorder sync",
+    "Playback start, countdown, auto-pause, and flip banner"
+  ],
   "steps": [
     {
       "id": 1,

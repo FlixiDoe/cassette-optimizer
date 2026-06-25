@@ -42,6 +42,7 @@
 
     h1, h2, p { margin: 0; }
     h1 { font-size: clamp(26px, 4vw, 46px); }
+    h2 { color: var(--green); font-size: 16px; margin-bottom: 10px; text-transform: uppercase; }
     a { color: var(--green); }
 
     .bar {
@@ -64,6 +65,30 @@
     .timeline {
       display: grid;
       gap: 10px;
+    }
+
+    .overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 14px;
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+    }
+
+    .card ul {
+      margin: 0;
+      padding-left: 18px;
     }
 
     details {
@@ -113,6 +138,21 @@
       <p id="count">0 of 15 steps completed</p>
     </header>
     <div class="bar" aria-label="Build progress"><span id="progress"></span></div>
+    <section class="overview">
+      <div class="card">
+        <h2>Local Setup</h2>
+        <p id="localUrl">Local URL pending</p>
+        <p id="redirectUri">Redirect URI pending</p>
+      </div>
+      <div class="card">
+        <h2>Current Features</h2>
+        <ul id="features"></ul>
+      </div>
+      <div class="card">
+        <h2>Tape Formats</h2>
+        <p id="formats">Formats pending</p>
+      </div>
+    </section>
     <section id="timeline" class="timeline" aria-live="polite"></section>
   </main>
 
@@ -129,6 +169,10 @@
       document.getElementById("repo").textContent = data.repo || "GitHub repository pending";
       document.getElementById("repo").href = data.repo || "#";
       document.getElementById("site").textContent = `Visibility: ${data.visibility || "private"} · Pages: ${data.pages || "disabled"} · Local: ${data.local || "http://127.0.0.1:8787/"}`;
+      document.getElementById("localUrl").textContent = data.local || "http://127.0.0.1:8787/";
+      document.getElementById("redirectUri").textContent = `Spotify redirect: ${data.spotify_redirect_uri || "http://127.0.0.1:8787/callback"}`;
+      document.getElementById("formats").textContent = (data.tape_formats || []).join(", ") || "C30 through C120";
+      document.getElementById("features").innerHTML = (data.features || []).map(feature => `<li>${escapeHtml(feature)}</li>`).join("");
       document.getElementById("count").textContent = `${done} of ${data.steps.length} steps completed`;
       document.getElementById("progress").style.width = `${done / data.steps.length * 100}%`;
       document.getElementById("timeline").innerHTML = data.steps.map(step => `

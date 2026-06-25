@@ -22,6 +22,8 @@ Use this Spotify redirect URI:
 http://127.0.0.1:8787/callback
 ```
 
+Keep the local server running while Spotify redirects back to the app. If the server is stopped, Spotify will show `ERR_CONNECTION_REFUSED` after login.
+
 ## Re-enable Publishing
 
 To publish again later, restore a Pages workflow, enable Pages for the repository, and add the GitHub Pages callback URL back to Spotify.

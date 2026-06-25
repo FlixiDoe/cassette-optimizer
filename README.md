@@ -8,8 +8,8 @@ Spotify Client ID: `[REMOVED_SPOTIFY_CLIENT_ID]`
 
 ## Setup
 
-1. Create a Spotify app in the Spotify Developer Dashboard.
-2. Add these redirect URIs:
+1. Create or open a Spotify app in the Spotify Developer Dashboard.
+2. Add this redirect URI:
    - `http://127.0.0.1:8787/callback`
 3. Start a local static server from this folder:
 
@@ -28,6 +28,19 @@ You can also start the local server with:
 ```powershell
 .\start-local.ps1
 ```
+
+## Usage
+
+1. Open `http://127.0.0.1:8787`.
+2. Click `Connect Spotify`.
+3. Click `Refresh` in `Your Spotify playlists`.
+4. Choose a playlist from the dropdown or paste a playlist URL/ID manually.
+5. Check the cassette formats you actually have under `Tapes you have`.
+6. Choose the tape format you want to plan for in `Tape format`.
+7. Click `Load playlist`.
+8. Review total runtime, recommended cassette format, Side A, and Side B.
+9. Use `Apply to Spotify` only if you want to sync the calculated order back to Spotify.
+10. Use `Start Side A` and `Start Side B` when recording.
 
 ## Spotify Scopes
 
@@ -52,6 +65,24 @@ You can also start the local server with:
 - Shows Side A countdown, current Spotify track, cassette fill, and auto-pauses at the end of Side A.
 - Shows a flashing `FLIP THE CASSETTE!` banner.
 - Explains how to fix no-active-device Spotify player errors.
+
+## Cassette Logic
+
+- The optimizer never cuts tracks.
+- Track order is preserved.
+- Side A is filled until the next full track would exceed half of the selected tape.
+- Side B contains the remaining tracks.
+- The recommendation checks only the cassette formats selected under `Tapes you have`.
+- It recommends the smallest available format where the total runtime and Side B both fit cleanly.
+- If total runtime fits a cassette but one side does not, the app warns that manual rebalancing would be needed.
+- If the playlist exceeds the largest selected cassette, the app reports how much audio must be removed.
+
+## Troubleshooting
+
+- `ERR_CONNECTION_REFUSED` after Spotify login: start `.\start-local.ps1` and reload the callback URL. The local server must keep running during login.
+- `OAuth callback rejected`: start from `http://127.0.0.1:8787` and connect again. Spotify auth codes are short-lived.
+- `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
+- `Connect Spotify` from `file://` will not work. Use `http://127.0.0.1:8787`.
 
 ## Dynamic Docs
 
