@@ -1057,6 +1057,20 @@
       return spotifyFetch(`/me/player/play${deviceQuery}`, options);
     }
 
+    async function preparePlaybackOrder() {
+      const deviceQuery = state.selectedDeviceId ? `&device_id=${encodeURIComponent(state.selectedDeviceId)}` : "";
+      try {
+        await spotifyFetch(`/me/player/shuffle?state=false${deviceQuery}`, { method: "PUT" });
+      } catch (error) {
+        log(`Could not disable shuffle: ${error.message}`);
+      }
+      try {
+        await spotifyFetch(`/me/player/repeat?state=off${deviceQuery}`, { method: "PUT" });
+      } catch (error) {
+        log(`Could not disable repeat: ${error.message}`);
+      }
+    }
+
     async function fetchAccounts(body) {
       const response = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
@@ -1243,10 +1257,9 @@
         state.recordMode = "recording_a";
         state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
-        await playSpotify(resuming ? { method: "PUT" } : {
-          method: "PUT",
-          body: JSON.stringify({ uris: sideA().map(track => track.uri), offset: { position: 0 }, position_ms: 0 })
-        });
+        el.currentTrack.textContent = resuming ? "Resuming Side A..." : "Starting Side A from track 1...";
+        if (!resuming) await preparePlaybackOrder();
+        await playSpotify(resuming ? { method: "PUT" } : buildPlaybackPayload(0));
         startTimer();
         startPollingPlayback();
         renderRecordMode();
@@ -1279,10 +1292,9 @@
         state.recordMode = "recording_b";
         state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
-        await playSpotify(resuming ? { method: "PUT" } : {
-          method: "PUT",
-          body: JSON.stringify({ uris: sideB().map(track => track.uri), offset: { position: 0 }, position_ms: 0 })
-        });
+        el.currentTrack.textContent = resuming ? "Resuming Side B..." : `Starting Side B from track ${state.splitIndex + 1}...`;
+        if (!resuming) await preparePlaybackOrder();
+        await playSpotify(resuming ? { method: "PUT" } : buildPlaybackPayload(state.splitIndex));
         startTimer();
         startPollingPlayback();
         renderRecordMode();
@@ -1325,6 +1337,17 @@
       if (state.cueTimerId) clearInterval(state.cueTimerId);
       state.cueTimerId = null;
       el.recordCue.classList.remove("show");
+    }
+
+    function buildPlaybackPayload(position) {
+      return {
+        method: "PUT",
+        body: JSON.stringify({
+          context_uri: `spotify:playlist:${state.playlistId}`,
+          offset: { position },
+          position_ms: 0
+        })
+      };
     }
 
     async function pausePlayback() {
@@ -1446,15 +1469,20 @@
         schedulePlaybackPoll(8000);
         return;
       }
-      state.spotifySideElapsedMs = elapsed;
-      if (elapsed > state.lastSideProgressMs) {
+      const localElapsed = getLocalRecordElapsed();
+      const driftMs = elapsed - localElapsed;
+      if (driftMs > -2000 && driftMs < 10000) {
+        state.spotifySideElapsedMs = elapsed;
+      }
+      if (elapsed > state.lastSideProgressMs && driftMs > -2000 && driftMs < 10000) {
         state.lastSideProgressMs = elapsed;
         state.lastProgressUpdatedAt = Date.now();
       }
-      if (state.recordMode === "recording_a" && state.spotifySideElapsedMs >= duration(sideA()) - 750 && !state.autoPauseDone) {
+      const effectiveElapsed = getProjectedRecordElapsed();
+      if (state.recordMode === "recording_a" && effectiveElapsed >= duration(sideA()) - 750 && !state.autoPauseDone) {
         completeSideA();
         return;
-      } else if (state.recordMode === "recording_b" && state.spotifySideElapsedMs >= duration(sideB()) - 750 && !state.autoPauseDone) {
+      } else if (state.recordMode === "recording_b" && effectiveElapsed >= duration(sideB()) - 750 && !state.autoPauseDone) {
         completeSideB();
         return;
       }
@@ -1484,10 +1512,11 @@
     }
 
     function getProjectedRecordElapsed() {
-      const base = Math.max(getLocalRecordElapsed(), state.spotifySideElapsedMs, state.lastSideProgressMs);
-      const isRecording = state.recordMode === "recording_a" || state.recordMode === "recording_b";
-      if (!isRecording || !state.lastProgressUpdatedAt) return base;
-      return Math.max(base, state.lastSideProgressMs + Date.now() - state.lastProgressUpdatedAt);
+      const localElapsed = getLocalRecordElapsed();
+      if (!state.spotifySideElapsedMs) return localElapsed;
+      const driftMs = state.spotifySideElapsedMs - localElapsed;
+      if (driftMs > 0 && driftMs < 10000) return state.spotifySideElapsedMs;
+      return localElapsed;
     }
 
     async function completeSideA() {

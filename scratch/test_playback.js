@@ -36,6 +36,10 @@ contains("Side B Spotify completion check", /state\.recordMode === "recording_b"
 contains("Resume Side A text", "Resume Side A");
 contains("Resume Side B text", "Resume Side B");
 contains("Resume uses play without payload", /resuming \? \{ method: "PUT" \}/);
+contains("Playlist context playback", "context_uri: `spotify:playlist:${state.playlistId}`");
+contains("Side B starts at split index", "buildPlaybackPayload(state.splitIndex)");
+contains("Shuffle disabled before recording", "/me/player/shuffle?state=false");
+contains("Repeat disabled before recording", "/me/player/repeat?state=off");
 containsHtml("Device selector markup", 'id="deviceSelect"');
 contains("Device fetch endpoint", 'spotifyFetch("/me/player/devices")');
 contains("Play uses selected device id", /device_id=\$\{encodeURIComponent\(state\.selectedDeviceId\)\}/);

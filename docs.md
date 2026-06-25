@@ -72,6 +72,8 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - The Playback panel can load Spotify Connect devices via `/me/player/devices`.
 - If a device is selected, playback commands use that device with `device_id`; otherwise Spotify uses the default active device.
 - `Start Side A` starts Spotify playback with the calculated Side A queue.
+- Playback starts from the playlist context and side offset, so Spotify follows the real playlist order instead of a short temporary URI queue.
+- For fresh side starts, the app disables Spotify shuffle and repeat before playback so Side A/B does not jump to later songs.
 - Before Spotify starts, the app shows `PRESS RECORD NOW - SIDE A` for 5 seconds so you can start recording first.
 - If Side A is paused, the button changes to `Resume Side A` and resumes Spotify without resetting the queue.
 - The app polls Spotify playback state while recording.
@@ -81,7 +83,7 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - If Spotify returns rate limit `429`, the app respects the `Retry-After` delay before polling again.
 - Current Spotify track and track remaining time stay visible.
 - Side elapsed time is calculated from Spotify's current track position plus previous tracks on that side.
-- Duplicate tracks are handled by choosing the plausible later occurrence, and Record Mode progress is kept monotonic to avoid timer jumps.
+- Duplicate tracks are handled conservatively, and the local recording timer stays authoritative so stale Spotify positions cannot jump the display forward by minutes.
 - A local monotonic timer keeps the countdown moving between Spotify polls and prevents stale playback positions from moving the display backward.
 - At the end of Side A, the app pauses Spotify automatically.
 - The UI switches to `Flip cassette` and shows `FLIP THE CASSETTE!`.
