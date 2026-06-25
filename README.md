@@ -21,6 +21,13 @@ python -m http.server 8787 --bind 127.0.0.1
 5. Confirm the prefilled Spotify Client ID and connect Spotify.
 
 Do not open `index.html` via `file://` for Spotify login. PKCE redirects require the local HTTP URL above.
+Keep the local server running until Spotify redirects back to `http://127.0.0.1:8787/callback`.
+
+You can also start the local server with:
+
+```powershell
+.\start-local.ps1
+```
 
 ## Spotify Scopes
 
