@@ -40,7 +40,7 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 6. Click `Load playlist`.
 7. Review total runtime, tape recommendation, Side A, and Side B.
 8. Use `Apply to Spotify` only when you want to sync the order to Spotify.
-9. Use `Start Side A`, wait for auto-pause, flip the cassette, then use `Start Side B`.
+9. Use `Start Side A` to enter Record Mode, wait for auto-pause, flip the cassette, then use `Start Side B`.
 
 ## Supported Tape Formats
 
@@ -56,6 +56,17 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - The app recommends the smallest available format where total runtime and Side B fit cleanly.
 - If total runtime fits but one side does not, the app warns that manual rebalancing would be needed.
 - If the playlist exceeds the largest selected tape, the app reports how much audio must be removed.
+
+## Record Mode
+
+- `Start Side A` starts Spotify playback with the calculated Side A queue.
+- The app polls Spotify playback state while recording.
+- Current Spotify track and track remaining time stay visible.
+- Side elapsed time is calculated from Spotify's current track position plus previous tracks on that side.
+- At the end of Side A, the app pauses Spotify automatically.
+- The UI switches to `Flip cassette` and shows `FLIP THE CASSETTE!`.
+- `Start Side B` is unlocked after the Side A auto-pause/flip state and starts the calculated Side B queue.
+- If Spotify reports no active device, open Spotify on desktop/mobile and start playback once.
 
 ## Spotify Scopes
 

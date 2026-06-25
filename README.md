@@ -40,7 +40,7 @@ You can also start the local server with:
 7. Click `Load playlist`.
 8. Review total runtime, recommended cassette format, Side A, and Side B.
 9. Use `Apply to Spotify` only if you want to sync the calculated order back to Spotify.
-10. Use `Start Side A` and `Start Side B` when recording.
+10. Use Record Mode with `Start Side A` and `Start Side B` when recording.
 
 ## Spotify Scopes
 
@@ -62,7 +62,7 @@ You can also start the local server with:
 - Displays Side A and Side B tracklists with timestamps.
 - Reorders the Spotify playlist with `PUT /v1/playlists/{id}/tracks`.
 - Starts Side A and Side B playback with `PUT /v1/me/player/play`.
-- Shows Side A countdown, current Spotify track, cassette fill, and auto-pauses at the end of Side A.
+- Shows Record Mode state, Side countdown, current Spotify track, cassette fill, and auto-pauses at the end of Side A.
 - Shows a flashing `FLIP THE CASSETTE!` banner.
 - Explains how to fix no-active-device Spotify player errors.
 

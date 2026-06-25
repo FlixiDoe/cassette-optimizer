@@ -395,6 +395,40 @@
 
     .track-now b { color: var(--ink); display: block; }
 
+    .record-mode {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #11150f;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .record-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .record-row b {
+      color: var(--green);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .record-mode.recording {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(156,255,106,.08);
+    }
+
+    .record-mode.flip-ready {
+      border-color: var(--amber);
+      background: rgba(255,191,73,.09);
+    }
+
     .flip {
       display: none;
       border: 2px solid var(--amber);
@@ -561,9 +595,14 @@
 
       <aside class="panel transport">
         <h2>Playback</h2>
+        <div class="record-mode" id="recordModePanel">
+          <div class="record-row"><span>Record mode</span><b id="recordModeStatus">Idle</b></div>
+          <div class="record-row"><span>Active side</span><b id="recordSide">-</b></div>
+          <div class="record-row"><span>Monitor</span><b id="recordMonitor">Waiting</b></div>
+        </div>
         <div class="timer">
           <strong id="countdown">00:00</strong>
-          <span>left on Side A</span>
+          <span id="countdownLabel">left on Side A</span>
         </div>
         <div class="progress"><i id="playProgress"></i></div>
         <div class="track-now" id="currentTrack">No active playback.</div>
@@ -618,6 +657,10 @@
       splitIndex: 0,
       sideAStartedAt: 0,
       sideAElapsedBeforePause: 0,
+      spotifySideElapsedMs: 0,
+      recordMode: "idle",
+      activeRecordSide: null,
+      autoPauseDone: false,
       timerId: null,
       pollingId: null
     };
@@ -633,6 +676,7 @@
       bindEvents();
       renderAuth();
       renderSplit();
+      renderRecordMode();
       warnIfFileProtocol();
     }
 
@@ -911,6 +955,10 @@
       try {
         if (!sideA().length) throw new Error("Side A has no tracks.");
         el.flipBanner.classList.remove("show");
+        state.recordMode = "recording_a";
+        state.activeRecordSide = "A";
+        state.spotifySideElapsedMs = 0;
+        state.autoPauseDone = false;
         state.sideAElapsedBeforePause = 0;
         state.sideAStartedAt = Date.now();
         await spotifyFetch("/me/player/play", {
@@ -919,6 +967,7 @@
         });
         startTimer();
         startPollingPlayback();
+        renderRecordMode();
         log("Started Side A.");
       } catch (error) {
         log(error.message);
@@ -929,11 +978,16 @@
       try {
         if (!sideB().length) throw new Error("Side B has no tracks.");
         el.flipBanner.classList.remove("show");
+        state.recordMode = "recording_b";
+        state.activeRecordSide = "B";
+        state.spotifySideElapsedMs = 0;
+        state.autoPauseDone = false;
         await spotifyFetch("/me/player/play", {
           method: "PUT",
           body: JSON.stringify({ uris: sideB().map(track => track.uri), offset: { position: 0 }, position_ms: 0 })
         });
         startPollingPlayback();
+        renderRecordMode();
         log("Started Side B.");
       } catch (error) {
         log(error.message);
@@ -948,6 +1002,8 @@
           state.sideAStartedAt = 0;
         }
         stopTimer();
+        state.recordMode = "paused";
+        renderRecordMode();
         log("Playback paused.");
       } catch (error) {
         log(error.message);
@@ -969,28 +1025,24 @@
     }
 
     async function updateTimer() {
-      const total = duration(sideA());
-      const elapsed = state.sideAElapsedBeforePause + (state.sideAStartedAt ? Date.now() - state.sideAStartedAt : 0);
+      const currentSide = state.activeRecordSide === "B" ? sideB() : sideA();
+      const total = duration(currentSide);
+      const localElapsed = state.sideAElapsedBeforePause + (state.sideAStartedAt ? Date.now() - state.sideAStartedAt : 0);
+      const elapsed = state.spotifySideElapsedMs || localElapsed;
       const remaining = Math.max(0, total - elapsed);
       el.countdown.textContent = formatTime(remaining);
+      el.countdownLabel.textContent = `left on Side ${state.activeRecordSide || "A"}`;
       el.playProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
       el.tapeProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
-      if (total && remaining <= 0 && state.timerId) {
-        stopTimer();
-        try {
-          await spotifyFetch("/me/player/pause", { method: "PUT" });
-          log("Side A complete. Spotify paused automatically.");
-        } catch (error) {
-          log(error.message);
-        }
-        el.flipBanner.classList.add("show");
-        el.startB.disabled = !sideB().length;
+      if (state.recordMode === "recording_a" && total && remaining <= 0 && !state.autoPauseDone) {
+        await completeSideA();
       }
+      renderRecordMode();
     }
 
     function startPollingPlayback() {
       if (state.pollingId) clearInterval(state.pollingId);
-      state.pollingId = setInterval(readPlaybackState, 5000);
+      state.pollingId = setInterval(readPlaybackState, 1000);
       readPlaybackState();
     }
 
@@ -999,13 +1051,70 @@
         const data = await spotifyFetch("/me/player");
         if (!data || !data.item) {
           el.currentTrack.textContent = "No active playback. Open Spotify first if playback commands fail.";
+          state.spotifySideElapsedMs = 0;
+          renderRecordMode("No device");
           return;
         }
         const remain = Math.max(0, data.item.duration_ms - data.progress_ms);
         el.currentTrack.innerHTML = `<b>${escapeHtml(data.item.name)}</b>${escapeHtml((data.item.artists || []).map(a => a.name).join(", "))} · ${formatTime(remain)} remaining`;
+        syncRecordProgressFromSpotify(data);
       } catch (error) {
         el.currentTrack.textContent = error.message;
+        renderRecordMode("Monitor error");
       }
+    }
+
+    function syncRecordProgressFromSpotify(playback) {
+      const tracks = state.activeRecordSide === "B" ? sideB() : sideA();
+      if (!tracks.length || !playback.item?.uri) {
+        renderRecordMode("Waiting");
+        return;
+      }
+      const index = tracks.findIndex(track => track.uri === playback.item.uri);
+      if (index === -1) {
+        renderRecordMode("Outside side");
+        return;
+      }
+      const previousMs = duration(tracks.slice(0, index));
+      state.spotifySideElapsedMs = previousMs + (playback.progress_ms || 0);
+      if (state.recordMode === "recording_a" && state.spotifySideElapsedMs >= duration(sideA()) - 750 && !state.autoPauseDone) {
+        completeSideA();
+        return;
+      }
+      renderRecordMode(playback.is_playing ? "Monitoring" : "Paused");
+      updateTimer();
+    }
+
+    async function completeSideA() {
+      if (state.autoPauseDone) return;
+      state.autoPauseDone = true;
+      stopTimer();
+      try {
+        await spotifyFetch("/me/player/pause", { method: "PUT" });
+        log("Record Mode: Side A complete. Spotify paused automatically.");
+      } catch (error) {
+        log(error.message);
+      }
+      state.recordMode = "flip";
+      state.activeRecordSide = "A";
+      el.flipBanner.classList.add("show");
+      el.startB.disabled = !sideB().length;
+      renderRecordMode("Flip now");
+    }
+
+    function renderRecordMode(monitorText) {
+      const labels = {
+        idle: "Idle",
+        recording_a: "Recording",
+        recording_b: "Recording",
+        paused: "Paused",
+        flip: "Flip cassette"
+      };
+      el.recordModeStatus.textContent = labels[state.recordMode] || "Idle";
+      el.recordSide.textContent = state.activeRecordSide || "-";
+      el.recordMonitor.textContent = monitorText || (state.recordMode === "idle" ? "Waiting" : "Monitoring");
+      el.recordModePanel.classList.toggle("recording", state.recordMode === "recording_a" || state.recordMode === "recording_b");
+      el.recordModePanel.classList.toggle("flip-ready", state.recordMode === "flip");
     }
 
     function setTapeLength(minutes) {
@@ -1086,7 +1195,7 @@
       renderTapeRecommendation(totalMs);
       el.applyBtn.disabled = !state.tracks.length || !state.token;
       el.startA.disabled = !a.length || !state.token;
-      el.startB.disabled = !b.length || !state.token;
+      el.startB.disabled = !b.length || !state.token || !(state.recordMode === "flip" || state.recordMode === "recording_b");
       el.pauseBtn.disabled = !state.token;
       el.loadPlaylistsBtn.disabled = !state.token;
       el.playlistSelect.disabled = !state.token || !state.playlists.length;
