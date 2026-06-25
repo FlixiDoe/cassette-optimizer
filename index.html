@@ -368,6 +368,15 @@
 
     .timer span { color: var(--muted); }
 
+    .timer .finish-time {
+      display: block;
+      margin-top: 8px;
+      color: var(--amber);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
     .progress {
       height: 12px;
       border-radius: 999px;
@@ -791,6 +800,7 @@
         <div class="timer">
           <strong id="countdown">00:00</strong>
           <span id="countdownLabel">left on Side A</span>
+          <span id="finishTime" class="finish-time">Finish time pending</span>
         </div>
         <div class="progress"><i id="playProgress"></i></div>
         <div class="track-now" id="currentTrack">No active playback.</div>
@@ -1331,6 +1341,8 @@
     function showRecordCue(side, remaining) {
       el.recordCue.textContent = `PRESS RECORD NOW - SIDE ${side} - SPOTIFY STARTS IN ${remaining}`;
       el.recordCue.classList.add("show");
+      const currentSide = side === "B" ? sideB() : sideA();
+      renderFinishTime(Math.max(0, duration(currentSide) - getProjectedRecordElapsed()));
       renderRecordMode(`Record now ${remaining}s`);
     }
 
@@ -1360,8 +1372,8 @@
         }
         state.lastSideProgressMs = getProjectedRecordElapsed();
         state.lastProgressUpdatedAt = Date.now();
-        stopTimer();
         state.recordMode = "paused";
+        stopTimer();
         renderRecordMode();
         schedulePlaybackPoll(getPlaybackPollDelay());
         log("Playback paused.");
@@ -1394,6 +1406,7 @@
       const remaining = Math.max(0, total - elapsed);
       el.countdown.textContent = formatTime(remaining);
       el.countdownLabel.textContent = `left on Side ${state.activeRecordSide || "A"}`;
+      renderFinishTime(remaining);
       el.playProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
       el.tapeProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
       if (state.recordMode === "recording_a" && total && remaining <= 0 && !state.autoPauseDone) {
@@ -1402,6 +1415,27 @@
         await completeSideB();
       }
       renderRecordMode();
+    }
+
+    function renderFinishTime(remainingMs) {
+      const activeSide = state.activeRecordSide || "A";
+      const cueing = state.recordMode === "cue_a" || state.recordMode === "cue_b";
+      const recording = state.recordMode === "recording_a" || state.recordMode === "recording_b";
+      const paused = state.recordMode === "paused";
+      const playable = cueing || recording || paused;
+      if (!playable || !duration(activeSide === "B" ? sideB() : sideA())) {
+        el.finishTime.textContent = "Finish time pending";
+        return;
+      }
+      const cueExtraMs = cueing ? getCueRemainingMs() : 0;
+      const finishAt = new Date(Date.now() + remainingMs + cueExtraMs);
+      const prefix = paused ? "After resume" : `Side ${activeSide} done`;
+      el.finishTime.textContent = `${prefix} ca. ${formatClockTime(finishAt)}`;
+    }
+
+    function getCueRemainingMs() {
+      const match = el.recordCue.textContent.match(/IN\s+(\d+)/i);
+      return match ? Number(match[1]) * 1000 : 0;
     }
 
     function startPollingPlayback() {
@@ -1697,6 +1731,7 @@
       el.sideACount.textContent = `${a.length} tracks`;
       el.sideBCount.textContent = `${b.length} tracks`;
       el.countdown.textContent = formatTime(aMs);
+      el.finishTime.textContent = state.tracks.length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + aMs))}` : "Finish time pending";
       renderTapeRecommendation(totalMs);
       el.applyBtn.disabled = !state.tracks.length || !state.token;
       el.pauseBtn.disabled = !state.token;
@@ -1919,6 +1954,14 @@
       const seconds = totalSeconds % 60;
       if (!hours) return `${minutes}:${String(seconds).padStart(2, "0")}`;
       return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function formatClockTime(date) {
+      return new Intl.DateTimeFormat(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }).format(date);
     }
 
     function parsePlaylistId(value) {

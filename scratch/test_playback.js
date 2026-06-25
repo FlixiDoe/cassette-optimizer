@@ -49,6 +49,8 @@ containsHtml("Record cue banner", 'id="recordCue"');
 contains("Record cue text", "PRESS RECORD NOW");
 contains("Start Side A enters cue state", 'state.recordMode = "cue_a"');
 contains("Start Side B enters cue state", 'state.recordMode = "cue_b"');
+containsHtml("Finish time display", 'id="finishTime"');
+contains("Finish time renderer", "function renderFinishTime");
 
 assert.deepEqual(buttonState("idle", null), {
   startAText: "Start Side A",

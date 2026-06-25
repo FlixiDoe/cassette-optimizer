@@ -83,6 +83,7 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - In paused, flip, idle, no-device, or outside-side states, polling slows down.
 - If Spotify returns rate limit `429`, the app respects the `Retry-After` delay before polling again.
 - Current Spotify track and track remaining time stay visible.
+- The timer also shows the estimated local clock time when the currently active side will finish.
 - Side elapsed time is calculated from Spotify's current track position plus previous tracks on that side.
 - Duplicate tracks are handled conservatively, and the local recording timer stays authoritative so stale Spotify positions cannot jump the display forward by minutes.
 - A local monotonic timer keeps the countdown moving between Spotify polls and prevents stale playback positions from moving the display backward.
