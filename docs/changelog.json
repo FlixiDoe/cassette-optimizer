@@ -33,9 +33,9 @@
     {
       "id": 5,
       "commit": "feat: render Side A and Side B tracklists in UI",
-      "status": "pending",
-      "description": "Side A and Side B tracklists render with timestamps and durations.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Rendered Side A and Side B lists with track numbers, timestamps, artists, and durations.",
+      "timestamp": "2026-06-25T11:38:20+02:00"
     },
     {
       "id": 6,
