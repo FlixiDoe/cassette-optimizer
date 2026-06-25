@@ -65,13 +65,9 @@ Do not use `file://` for Spotify login. OAuth PKCE requires the local HTTP origi
 
 ## Spotify App Configuration
 
-Default development client ID:
+Create your own Spotify app and paste its Client ID into the app UI. The repository does not ship with a default Client ID.
 
-```text
-[REMOVED_SPOTIFY_CLIENT_ID]
-```
-
-The app does not use a Spotify client secret. Do not add client secrets, GitHub tokens, OAuth access tokens, or refresh tokens to the repository.
+The app does not use a Spotify client secret. Do not add Spotify Client IDs, client secrets, GitHub tokens, OAuth access tokens, or refresh tokens to the repository.
 
 Required scopes:
 

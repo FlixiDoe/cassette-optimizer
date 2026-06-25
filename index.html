@@ -714,7 +714,7 @@
         <h2>Input</h2>
         <div>
           <label class="label" for="clientId">Spotify Client ID</label>
-          <input id="clientId" autocomplete="off" value="[REMOVED_SPOTIFY_CLIENT_ID]" placeholder="[REMOVED_SPOTIFY_CLIENT_ID]">
+          <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID">
         </div>
         <div>
           <label class="label" for="playlistInput">Playlist URL or ID</label>
@@ -842,7 +842,7 @@
   </main>
 
   <script>
-    const DEFAULT_SPOTIFY_CLIENT_ID = "[REMOVED_SPOTIFY_CLIENT_ID]";
+    const DEFAULT_SPOTIFY_CLIENT_ID = "";
     const APP_BASE_URL = getAppBaseUrl();
     const REDIRECT_URI = `${APP_BASE_URL}callback`;
     const REQUIRED_SCOPES = [

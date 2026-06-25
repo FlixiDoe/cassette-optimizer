@@ -20,7 +20,7 @@ Do not make the repository public until this checklist is reviewed.
 rg -n "secret|token|ghp_|github_pat_|sk-|client_secret|refresh_token|access_token" .
 ```
 
-2. Keep only the Spotify Client ID in source. Client IDs are public identifiers; client secrets are not.
+2. Do not keep personal Spotify Client IDs in source. Users should create their own Spotify app and paste the Client ID locally.
 3. Confirm `README.md` uses neutral cassette-workflow language and does not describe the project as a ripping tool.
 4. Confirm `README.md` includes the responsible-use notice.
 5. Confirm `LICENSE` is present.
@@ -42,6 +42,7 @@ Local Spotify playlist optimizer and cassette recording controller
 ## Do Not Publish
 
 - Spotify client secrets
+- Personal Spotify Client IDs
 - GitHub tokens
 - OAuth access tokens
 - OAuth refresh tokens
