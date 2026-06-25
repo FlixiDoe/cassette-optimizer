@@ -89,9 +89,9 @@
     {
       "id": 13,
       "commit": "fix: error handling for no active device",
-      "status": "pending",
-      "description": "Player errors explain how to activate a Spotify device.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Added user-facing recovery instructions when Spotify has no active playback device.",
+      "timestamp": "2026-06-25T11:38:22+02:00"
     },
     {
       "id": 14,
