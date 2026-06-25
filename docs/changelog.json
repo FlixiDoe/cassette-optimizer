@@ -19,9 +19,9 @@
     {
       "id": 3,
       "commit": "feat: fetch playlist tracks from Spotify API",
-      "status": "pending",
-      "description": "Playlist tracks can be fetched with durations from Spotify.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Added playlist ID parsing and paginated Spotify track fetching with duration data.",
+      "timestamp": "2026-06-25T11:38:19+02:00"
     },
     {
       "id": 4,
