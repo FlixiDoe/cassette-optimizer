@@ -36,8 +36,9 @@ contains("Side B Spotify completion check", /state\.recordMode === "recording_b"
 contains("Resume Side A text", "Resume Side A");
 contains("Resume Side B text", "Resume Side B");
 contains("Resume uses play without payload", /resuming \? \{ method: "PUT" \}/);
-contains("Playlist context playback", "context_uri: `spotify:playlist:${state.playlistId}`");
-contains("Side B starts at split index", "buildPlaybackPayload(state.splitIndex)");
+contains("Explicit side URI playback", "uris: tracks.map(track => track.uri)");
+contains("Side B starts with side track list", "buildSidePlaybackPayload(sideB(), 0, 0)");
+contains("Unexpected track correction", "correctUnexpectedPlaybackTrack");
 contains("Shuffle disabled before recording", "/me/player/shuffle?state=false");
 contains("Repeat disabled before recording", "/me/player/repeat?state=off");
 containsHtml("Device selector markup", 'id="deviceSelect"');
