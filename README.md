@@ -19,7 +19,7 @@ For the safest use, record only music you own, created yourself, or are otherwis
 ## Features
 
 - Single static HTML app, no backend and no build step.
-- Spotify OAuth 2.0 PKCE flow with no client secret.
+- Spotify OAuth 2.0 PKCE flow. An optional client secret field enables Basic Auth for Spotify apps that require it.
 - Playlist input by Spotify URL/ID or account playlist picker.
 - Fetches all playlist tracks and durations.
 - Supports cassette formats from `C30` through `C120`.
@@ -34,7 +34,7 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Red `PRESS RECORD NOW` cue before playback starts.
 - Automatic shuffle/repeat disable before fresh side starts.
 - Conservative playback correction if Spotify jumps to an unexpected track.
-- Optional LAN status server so another device can open the same UI and monitor the current state.
+- Optional LAN status server so another device can open the same UI and monitor the current state in read-only mode.
 - Printable J-card cassette inlay from playlist title, cover, side tracks, and runtime.
 
 ## Local Setup
@@ -65,23 +65,23 @@ http://127.0.0.1:8787/
 
 Do not use `file://` for Spotify login. OAuth PKCE requires the local HTTP origin, and the server must stay running until Spotify redirects back to `/callback`.
 
-## LAN Status Mode
+## LAN Monitor Mode
 
-For monitoring from another device on the same network, use the optional Node server instead of the Python static server:
+For monitoring from another device on the same network, use the optional Node server:
 
 ```powershell
 .\start-lan.ps1
 ```
 
-It serves the same app on all network interfaces and adds a small `/api/status` endpoint. The main browser posts safe status data only; Spotify tokens are not shared.
-
-The server prints LAN URLs such as:
+It serves the same app on all network interfaces and adds a small `/api/status` endpoint. The server prints LAN URLs such as:
 
 ```text
 http://192.168.x.x:8787/
 ```
 
-Open that URL on your phone to see the same playback status. The phone does not start from `0:00`; it mirrors the last status posted by the main app.
+Open that URL on your phone or any other device to see the current playback status in real time.
+
+> **Monitor-only on LAN:** Spotify OAuth requires `http://127.0.0.1:8787` as the redirect URI. LAN IP addresses (e.g. `192.168.x.x`) are not accepted by Spotify as redirect targets. Therefore, the Connect Spotify button, Client ID/Secret fields, and playlist picker are automatically hidden when the app is opened via a LAN IP — those devices can only monitor, not control. All controlling must be done from `http://127.0.0.1:8787` on the host machine.
 
 Keep this LAN server on a trusted private network only. Do not expose it directly to the public internet.
 
@@ -89,7 +89,9 @@ Keep this LAN server on a trusted private network only. Do not expose it directl
 
 Create your own Spotify app and paste its Client ID into the app UI. The repository does not ship with a default Client ID.
 
-The app does not use a Spotify client secret. Do not add Spotify Client IDs, client secrets, GitHub tokens, OAuth access tokens, or refresh tokens to the repository.
+The app supports an optional **Client Secret** field. Leave it blank to use the default PKCE flow (no secret needed). Fill it in only if your Spotify app is configured for the Authorization Code flow with a secret.
+
+Do not add Spotify Client IDs, client secrets, GitHub tokens, OAuth access tokens, or refresh tokens to the repository.
 
 Required scopes:
 
@@ -154,6 +156,7 @@ These checks validate the important playback-control code paths and UI state rul
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
 - Wrong target device: click `Refresh` under `Spotify device`, select the intended Spotify Connect device, then retry.
 - Playlist list is empty: reconnect Spotify and ensure the token has `playlist-read-private`.
+- Connect Spotify not visible on phone/LAN: this is by design. Spotify OAuth does not accept LAN IPs as redirect URIs. Open `http://127.0.0.1:8787` on the host machine to log in.
 
 ## Security
 

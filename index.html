@@ -704,23 +704,32 @@
       <div class="status" aria-live="polite">
         <span id="authDot" class="dot"></span>
         <span id="authStatus">Disconnected</span>
-        <button id="connectBtn" class="primary">Connect Spotify</button>
-        <button id="logoutBtn">Reset token</button>
+        <span id="lanNotice" class="small" hidden>Monitor only &mdash; login at <code>http://127.0.0.1:8787</code></span>
+        <div id="authControls">
+          <button id="connectBtn" class="primary">Connect Spotify</button>
+          <button id="logoutBtn">Reset token</button>
+        </div>
       </div>
     </header>
 
     <section class="grid">
       <aside class="panel stack">
         <h2>Input</h2>
-        <div>
-          <label class="label" for="clientId">Spotify Client ID</label>
-          <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID">
+        <div id="credentialsPanel">
+          <div>
+            <label class="label" for="clientId">Spotify Client ID</label>
+            <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID">
+          </div>
+          <div>
+            <label class="label" for="clientSecret">Spotify Client Secret (Optional)</label>
+            <input id="clientSecret" type="password" autocomplete="off" placeholder="Paste your Spotify app client secret">
+          </div>
         </div>
         <div>
           <label class="label" for="playlistInput">Playlist URL or ID</label>
-          <input id="playlistInput" value="4fZv3BFRfEFNMViOqUVLmH" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
+          <input id="playlistInput" value="" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
         </div>
-        <div>
+        <div id="playlistPickerPanel">
           <label class="label" for="playlistSelect">Your Spotify playlists</label>
           <div class="row">
             <select id="playlistSelect" disabled>
@@ -860,7 +869,7 @@
       token: null,
       refreshToken: null,
       expiresAt: 0,
-      playlistId: "4fZv3BFRfEFNMViOqUVLmH",
+      playlistId: "",
       playlistName: "",
       playlistCoverUrl: "",
       tracks: [],
@@ -868,7 +877,7 @@
       devices: [],
       selectedDeviceId: localStorage.getItem("spotify_device_id") || "",
       tapeMinutes: 90,
-      availableTapeFormats: [...TAPE_FORMATS],
+      availableTapeFormats: [60, 90],
       splitIndex: 0,
       sideAStartedAt: 0,
       sideAElapsedBeforePause: 0,
@@ -905,6 +914,8 @@
 
     function init() {
       el.clientId.value = localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
+      el.clientSecret.value = localStorage.getItem("spotify_client_secret") || "";
+      applyHostMode();
       restoreToken();
       handleCallback();
       bindEvents();
@@ -914,8 +925,23 @@
       warnIfFileProtocol();
     }
 
+    function isLocalhost() {
+      return location.hostname === "127.0.0.1" || location.hostname === "localhost";
+    }
+
+    function applyHostMode() {
+      if (isLocalhost()) return;
+      // Spotify OAuth only allows loopback (127.0.0.1) as redirect URI.
+      // On LAN IPs, hide all login/credential controls — device is monitor-only.
+      el.credentialsPanel.hidden = true;
+      el.authControls.hidden = true;
+      el.playlistPickerPanel.hidden = true;
+      el.lanNotice.hidden = false;
+    }
+
     function bindEvents() {
       el.clientId.addEventListener("change", () => localStorage.setItem("spotify_client_id", el.clientId.value.trim()));
+      el.clientSecret.addEventListener("change", () => localStorage.setItem("spotify_client_secret", el.clientSecret.value.trim()));
       el.connectBtn.addEventListener("click", login);
       el.logoutBtn.addEventListener("click", logout);
       el.loadBtn.addEventListener("click", loadPlaylist);
@@ -1087,10 +1113,20 @@
       }
     }
 
+    function getClientSecret() {
+      return el.clientSecret.value.trim() || localStorage.getItem("spotify_client_secret") || "";
+    }
+
     async function fetchAccounts(body) {
+      const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+      const secret = getClientSecret();
+      if (secret) {
+        const clientId = getClientId();
+        headers["Authorization"] = `Basic ${btoa(`${clientId}:${secret}`)}`;
+      }
       const response = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers,
         body
       });
       const data = await response.json();

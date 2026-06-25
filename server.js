@@ -72,6 +72,22 @@ function serveStatic(requestPath, res) {
   }
   fs.readFile(filePath, (error, data) => {
     if (error) {
+      // Fall back to <path>/index.html for directory-style routes (e.g. /callback)
+      const indexPath = path.resolve(filePath, "index.html");
+      if (indexPath.startsWith(root) && indexPath !== filePath) {
+        fs.readFile(indexPath, (err2, data2) => {
+          if (err2) {
+            sendText(res, 404, "Not found");
+            return;
+          }
+          res.writeHead(200, {
+            "Content-Type": mimeTypes[".html"],
+            "Cache-Control": "no-store"
+          });
+          res.end(data2);
+        });
+        return;
+      }
       sendText(res, 404, "Not found");
       return;
     }
