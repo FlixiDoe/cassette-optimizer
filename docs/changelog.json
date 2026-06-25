@@ -54,9 +54,9 @@
     {
       "id": 8,
       "commit": "feat: add real-time countdown timer for Side A",
-      "status": "pending",
-      "description": "A live countdown tracks the remaining Side A recording time.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Added the live Side A countdown and playback progress meter.",
+      "timestamp": "2026-06-25T11:38:21+02:00"
     },
     {
       "id": 9,
