@@ -75,9 +75,9 @@
     {
       "id": 11,
       "commit": "feat: cassette tape visual progress bar",
-      "status": "pending",
-      "description": "The cassette visual shows tape fill and side capacity.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Added cassette reel visuals with Side A, Side B, and live tape progress fills.",
+      "timestamp": "2026-06-25T11:38:22+02:00"
     },
     {
       "id": 12,
