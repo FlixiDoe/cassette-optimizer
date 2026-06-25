@@ -111,6 +111,13 @@
       "status": "done",
       "description": "Documented local setup, Spotify scopes, dynamic docs, and GitHub publishing commands.",
       "timestamp": "2026-06-25T11:38:23+02:00"
+    },
+    {
+      "id": 16,
+      "commit": "feat: add Spotify playlist picker",
+      "status": "done",
+      "description": "Added a refreshable playlist picker so signed-in users can choose which Spotify playlist to optimize.",
+      "timestamp": "2026-06-25T15:25:35+02:00"
     }
   ]
 }

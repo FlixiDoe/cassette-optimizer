@@ -59,7 +59,8 @@
     button.danger { background: #321919; border-color: #743030; color: #ffd2d2; }
     button:disabled { cursor: not-allowed; opacity: .5; }
 
-    input {
+    input,
+    select {
       width: 100%;
       min-height: 42px;
       border: 1px solid var(--line);
@@ -70,7 +71,17 @@
       outline: none;
     }
 
-    input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(156,255,106,.12); }
+    select {
+      appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--green) 50%), linear-gradient(135deg, var(--green) 50%, transparent 50%);
+      background-position: calc(100% - 18px) 18px, calc(100% - 12px) 18px;
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+      padding-right: 34px;
+    }
+
+    input:focus,
+    select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(156,255,106,.12); }
 
     .app {
       width: min(1440px, calc(100% - 32px));
@@ -437,6 +448,15 @@
           <input id="playlistInput" value="4fZv3BFRfEFNMViOqUVLmH" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
         </div>
         <div>
+          <label class="label" for="playlistSelect">Your Spotify playlists</label>
+          <div class="row">
+            <select id="playlistSelect" disabled>
+              <option value="">Connect Spotify, then load playlists</option>
+            </select>
+            <button id="loadPlaylistsBtn" type="button" disabled>Refresh</button>
+          </div>
+        </div>
+        <div>
           <span class="label">Tape length</span>
           <div class="segmented">
             <button id="tape60" type="button">C60</button>
@@ -535,6 +555,7 @@
       playlistId: "4fZv3BFRfEFNMViOqUVLmH",
       playlistName: "",
       tracks: [],
+      playlists: [],
       tapeMinutes: 90,
       splitIndex: 0,
       sideAStartedAt: 0,
@@ -562,6 +583,8 @@
       el.connectBtn.addEventListener("click", login);
       el.logoutBtn.addEventListener("click", logout);
       el.loadBtn.addEventListener("click", loadPlaylist);
+      el.loadPlaylistsBtn.addEventListener("click", loadUserPlaylists);
+      el.playlistSelect.addEventListener("change", selectUserPlaylist);
       el.applyBtn.addEventListener("click", applyToSpotify);
       el.startA.addEventListener("click", startSideA);
       el.startB.addEventListener("click", startSideB);
@@ -725,6 +748,47 @@
       } catch (error) {
         log(error.message);
       }
+    }
+
+    async function loadUserPlaylists() {
+      try {
+        log("Loading your Spotify playlists...");
+        state.playlists = await fetchUserPlaylists();
+        renderPlaylistOptions();
+        log(`Loaded ${state.playlists.length} playlists. Choose one from the list, then load it.`);
+      } catch (error) {
+        log(error.message);
+      }
+    }
+
+    async function fetchUserPlaylists() {
+      const playlists = [];
+      let url = "/me/playlists?limit=50";
+      while (url) {
+        const page = await spotifyFetch(url);
+        for (const playlist of page.items || []) {
+          if (!playlist || !playlist.id) continue;
+          playlists.push({
+            id: playlist.id,
+            name: playlist.name || playlist.id,
+            owner: playlist.owner?.display_name || "unknown owner",
+            tracks: playlist.tracks?.total ?? 0,
+            public: playlist.public
+          });
+        }
+        url = page.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
+      }
+      return playlists;
+    }
+
+    function selectUserPlaylist() {
+      const selected = state.playlists.find(playlist => playlist.id === el.playlistSelect.value);
+      if (!selected) return;
+      state.playlistId = selected.id;
+      state.playlistName = selected.name;
+      el.playlistInput.value = selected.id;
+      el.playlistTitle.textContent = selected.name;
+      log(`Selected playlist: ${selected.name}. Click Load playlist to fetch tracks.`);
     }
 
     async function fetchAllTracks(playlistId) {
@@ -916,9 +980,30 @@
       el.startA.disabled = !a.length || !state.token;
       el.startB.disabled = !b.length || !state.token;
       el.pauseBtn.disabled = !state.token;
+      el.loadPlaylistsBtn.disabled = !state.token;
+      el.playlistSelect.disabled = !state.token || !state.playlists.length;
       renderTracks(el.sideAList, a, 0);
       renderTracks(el.sideBList, b, state.splitIndex);
       renderWarnings(totalMs, tapeMs, halfMs);
+    }
+
+    function renderPlaylistOptions() {
+      if (!state.token) {
+        el.playlistSelect.innerHTML = `<option value="">Connect Spotify, then load playlists</option>`;
+        el.playlistSelect.disabled = true;
+        return;
+      }
+      if (!state.playlists.length) {
+        el.playlistSelect.innerHTML = `<option value="">No playlists loaded yet</option>`;
+        el.playlistSelect.disabled = true;
+        return;
+      }
+      el.playlistSelect.innerHTML = `<option value="">Choose a playlist...</option>` + state.playlists.map(playlist => {
+        const visibility = playlist.public ? "public" : "private";
+        const label = `${playlist.name} - ${playlist.tracks} tracks - ${visibility}`;
+        return `<option value="${escapeHtml(playlist.id)}">${escapeHtml(label)}</option>`;
+      }).join("");
+      el.playlistSelect.disabled = false;
     }
 
     function renderTracks(container, tracks, offset) {
@@ -963,6 +1048,8 @@
       el.authDot.classList.toggle("ok", connected);
       el.authStatus.textContent = connected ? "Connected" : "Disconnected";
       el.connectBtn.textContent = connected ? "Reconnect Spotify" : "Connect Spotify";
+      if (!connected) state.playlists = [];
+      renderPlaylistOptions();
       renderSplit();
     }
 

@@ -40,6 +40,7 @@ You can also start the local server with:
 ## Features
 
 - Accepts a Spotify playlist URL or ID.
+- Lets the signed-in user refresh and choose from their Spotify playlists.
 - Fetches all playlist tracks and `duration_ms` values.
 - Supports C60 and C90 tape lengths.
 - Keeps original order and finds the best split point without cutting songs.
