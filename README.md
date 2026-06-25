@@ -3,11 +3,15 @@
 Spotify playlist optimizer for cassette tape recording. The app runs as a single static HTML file with vanilla JavaScript and uses Spotify OAuth 2.0 PKCE, so no backend or client secret is needed.
 
 Repository: https://github.com/FlixiDoe/cassette-optimizer
+Published app: https://flixidoe.github.io/cassette-optimizer/
+Live docs: https://flixidoe.github.io/cassette-optimizer/docs/
 
 ## Setup
 
 1. Create a Spotify app in the Spotify Developer Dashboard.
-2. Add `http://localhost:3000/callback` as a redirect URI.
+2. Add these redirect URIs:
+   - `https://flixidoe.github.io/cassette-optimizer/callback/`
+   - `http://localhost:3000/callback/`
 3. Start a local static server from this folder:
 
 ```powershell
@@ -16,6 +20,8 @@ python -m http.server 3000
 
 4. Open `http://localhost:3000`.
 5. Paste your Spotify Client ID into the app and connect Spotify.
+
+For the published version, open `https://flixidoe.github.io/cassette-optimizer/` after adding the GitHub Pages callback URL in Spotify.
 
 ## Spotify Scopes
 
@@ -40,16 +46,20 @@ python -m http.server 3000
 
 ## Dynamic Docs
 
-The live docs are at `docs/index.html`. They read `docs/changelog.json`, render a progress bar and timeline, and refresh every 30 seconds.
+The live docs are at `docs/index.html` locally and `https://flixidoe.github.io/cassette-optimizer/docs/` after publishing. They read `docs/changelog.json`, render a progress bar and timeline, and refresh every 30 seconds.
 
 ## GitHub Publishing
 
-The requested GitHub repository creation and push require a real GitHub token. With a token, create the repo:
+The repository is configured for GitHub Pages with the workflow in `.github/workflows/pages.yml`. Deployments run on every push to `main`.
 
 ```powershell
-$headers = @{ Authorization = "Bearer YOUR_GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
-$body = @{ name = "cassette-optimizer"; description = "Spotify playlist optimizer for cassette tape recording"; private = $false } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "https://api.github.com/user/repos" -Headers $headers -Body $body -ContentType "application/json"
-git remote add origin https://github.com/YOUR_USERNAME/cassette-optimizer.git
 git push -u origin main
 ```
+
+If Pages is not enabled yet:
+
+```powershell
+gh api repos/FlixiDoe/cassette-optimizer/pages -X POST -f build_type=workflow
+```
+
+See `PUBLISHING.md` for the full publishing checklist.

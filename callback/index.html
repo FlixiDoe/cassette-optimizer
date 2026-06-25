@@ -6,7 +6,8 @@
 </head>
 <body>
   <script>
-    location.replace("/?callback=1&" + location.search.slice(1));
+    const suffix = location.search ? `?callback=1&${location.search.slice(1)}` : "?callback=1";
+    location.replace(`../${suffix}`);
   </script>
 </body>
 </html>

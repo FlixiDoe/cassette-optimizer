@@ -108,6 +108,7 @@
       <div>
         <h1 id="title">cassette-optimizer</h1>
         <p><a id="repo" href="#">GitHub repository pending</a></p>
+        <p><a id="site" href="#">Published app pending</a></p>
       </div>
       <p id="count">0 of 15 steps completed</p>
     </header>
@@ -127,6 +128,8 @@
       document.getElementById("title").textContent = data.project;
       document.getElementById("repo").textContent = data.repo || "GitHub repository pending";
       document.getElementById("repo").href = data.repo || "#";
+      document.getElementById("site").textContent = data.site || "Published app pending";
+      document.getElementById("site").href = data.site || "#";
       document.getElementById("count").textContent = `${done} of ${data.steps.length} steps completed`;
       document.getElementById("progress").style.width = `${done / data.steps.length * 100}%`;
       document.getElementById("timeline").innerHTML = data.steps.map(step => `
