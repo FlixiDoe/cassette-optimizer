@@ -41,7 +41,8 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 7. Review total runtime, tape recommendation, Side A, and Side B.
 8. In `Playback`, click `Refresh` under `Spotify device` if you want to target a specific Spotify Connect device.
 9. Use `Apply to Spotify` only when you want to sync the order to Spotify.
-10. Use `Start Side A` to enter Record Mode, wait for auto-pause, flip the cassette, then use `Start Side B`.
+10. Use `Start Side A`; when the red `PRESS RECORD NOW` cue appears, start recording on your cassette/cable deck.
+11. Spotify starts automatically after the 5-second cue. Wait for auto-pause, flip the cassette, then use `Start Side B` and start recording again when the cue appears.
 
 ## Supported Tape Formats
 
@@ -71,6 +72,7 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - The Playback panel can load Spotify Connect devices via `/me/player/devices`.
 - If a device is selected, playback commands use that device with `device_id`; otherwise Spotify uses the default active device.
 - `Start Side A` starts Spotify playback with the calculated Side A queue.
+- Before Spotify starts, the app shows `PRESS RECORD NOW - SIDE A` for 5 seconds so you can start recording first.
 - If Side A is paused, the button changes to `Resume Side A` and resumes Spotify without resetting the queue.
 - The app polls Spotify playback state while recording.
 - Polling is adaptive to avoid unnecessary Spotify API load.
@@ -84,6 +86,7 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - At the end of Side A, the app pauses Spotify automatically.
 - The UI switches to `Flip cassette` and shows `FLIP THE CASSETTE!`.
 - `Start Side B` is unlocked after the Side A auto-pause/flip state and starts the calculated Side B queue.
+- Before Side B playback starts, the app shows `PRESS RECORD NOW - SIDE B` for 5 seconds.
 - If Side B is paused, the button changes to `Resume Side B` and resumes Spotify without resetting the queue.
 - At the end of Side B, the app pauses Spotify automatically and returns Record Mode to `Idle`.
 - If Spotify reports no active device, open Spotify on desktop/mobile and start playback once.

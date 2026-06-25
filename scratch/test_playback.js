@@ -20,12 +20,13 @@ function buttonState(recordMode, activeRecordSide, hasToken = true) {
   const pausedA = recordMode === "paused" && activeRecordSide === "A";
   const pausedB = recordMode === "paused" && activeRecordSide === "B";
   const recording = recordMode === "recording_a" || recordMode === "recording_b";
+  const cueing = recordMode === "cue_a" || recordMode === "cue_b";
   return {
     startAText: pausedA ? "Resume Side A" : "Start Side A",
     startBText: pausedB ? "Resume Side B" : "Start Side B",
-    startADisabled: !hasToken || !(recordMode === "idle" || pausedA),
-    startBDisabled: !hasToken || !(recordMode === "flip" || pausedB),
-    pauseDisabled: !hasToken || !recording
+    startADisabled: cueing || !hasToken || !(recordMode === "idle" || pausedA),
+    startBDisabled: cueing || !hasToken || !(recordMode === "flip" || pausedB),
+    pauseDisabled: cueing || !hasToken || !recording
   };
 }
 
@@ -38,6 +39,11 @@ contains("Resume uses play without payload", /resuming \? \{ method: "PUT" \}/);
 containsHtml("Device selector markup", 'id="deviceSelect"');
 contains("Device fetch endpoint", 'spotifyFetch("/me/player/devices")');
 contains("Play uses selected device id", /device_id=\$\{encodeURIComponent\(state\.selectedDeviceId\)\}/);
+contains("Record cue delay", "const RECORD_CUE_SECONDS = 5");
+containsHtml("Record cue banner", 'id="recordCue"');
+contains("Record cue text", "PRESS RECORD NOW");
+contains("Start Side A enters cue state", 'state.recordMode = "cue_a"');
+contains("Start Side B enters cue state", 'state.recordMode = "cue_b"');
 
 assert.deepEqual(buttonState("idle", null), {
   startAText: "Start Side A",
@@ -53,6 +59,14 @@ assert.deepEqual(buttonState("recording_a", "A"), {
   startADisabled: true,
   startBDisabled: true,
   pauseDisabled: false
+});
+
+assert.deepEqual(buttonState("cue_a", "A"), {
+  startAText: "Start Side A",
+  startBText: "Start Side B",
+  startADisabled: true,
+  startBDisabled: true,
+  pauseDisabled: true
 });
 
 assert.deepEqual(buttonState("paused", "A"), {

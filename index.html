@@ -429,6 +429,27 @@
       background: rgba(255,191,73,.09);
     }
 
+    .record-mode.cue-ready {
+      border-color: var(--red);
+      background: rgba(255,91,91,.12);
+      box-shadow: 0 0 0 3px rgba(255,91,91,.08);
+    }
+
+    .record-cue {
+      display: none;
+      border: 2px solid var(--red);
+      color: #fff;
+      background: #5b1515;
+      border-radius: 6px;
+      padding: 14px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 18px;
+      animation: flash .65s steps(2, jump-none) infinite;
+    }
+
+    .record-cue.show { display: block; }
+
     .flip {
       display: none;
       border: 2px solid var(--amber);
@@ -775,6 +796,7 @@
         <div class="track-now" id="currentTrack">No active playback.</div>
         <button id="startA" class="primary" disabled>Start Side A</button>
         <button id="pauseBtn" class="danger" disabled>Pause</button>
+        <div id="recordCue" class="record-cue" aria-live="assertive">PRESS RECORD NOW</div>
         <div id="flipBanner" class="flip">FLIP THE CASSETTE!</div>
         <button id="startB" class="warn" disabled>Start Side B</button>
       </aside>
@@ -821,6 +843,7 @@
       "user-modify-playback-state"
     ];
     const TAPE_FORMATS = [30, 46, 50, 54, 60, 64, 70, 74, 80, 90, 100, 110, 120];
+    const RECORD_CUE_SECONDS = 5;
 
     const state = {
       token: null,
@@ -845,6 +868,7 @@
       activeRecordSide: null,
       autoPauseDone: false,
       timerId: null,
+      cueTimerId: null,
       pollingId: null,
       pollingDelayMs: 5000,
       pollingPausedUntil: 0,
@@ -1202,19 +1226,22 @@
     }
 
     async function startSideA() {
+      let resuming = false;
       try {
         if (!sideA().length) throw new Error("Side A has no tracks.");
-        const resuming = state.recordMode === "paused" && state.activeRecordSide === "A";
+        resuming = state.recordMode === "paused" && state.activeRecordSide === "A";
         el.flipBanner.classList.remove("show");
-        state.recordMode = "recording_a";
+        state.recordMode = "cue_a";
         state.activeRecordSide = "A";
         if (!resuming) {
           state.sideAElapsedBeforePause = 0;
           state.spotifySideElapsedMs = 0;
           state.lastSideProgressMs = 0;
         }
-        state.lastProgressUpdatedAt = Date.now();
         state.autoPauseDone = false;
+        await runRecordCue("A");
+        state.recordMode = "recording_a";
+        state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
         await playSpotify(resuming ? { method: "PUT" } : {
           method: "PUT",
@@ -1225,24 +1252,32 @@
         renderRecordMode();
         log(resuming ? "Resumed Side A." : "Started Side A.");
       } catch (error) {
+        clearRecordCue();
+        stopTimer();
+        state.recordMode = resuming ? "paused" : "idle";
+        state.activeRecordSide = resuming ? "A" : null;
+        renderRecordMode("Start failed");
         log(error.message);
       }
     }
 
     async function startSideB() {
+      let resuming = false;
       try {
         if (!sideB().length) throw new Error("Side B has no tracks.");
-        const resuming = state.recordMode === "paused" && state.activeRecordSide === "B";
+        resuming = state.recordMode === "paused" && state.activeRecordSide === "B";
         el.flipBanner.classList.remove("show");
-        state.recordMode = "recording_b";
+        state.recordMode = "cue_b";
         state.activeRecordSide = "B";
         if (!resuming) {
           state.spotifySideElapsedMs = 0;
           state.sideAElapsedBeforePause = 0;
           state.lastSideProgressMs = 0;
         }
-        state.lastProgressUpdatedAt = Date.now();
         state.autoPauseDone = false;
+        await runRecordCue("B");
+        state.recordMode = "recording_b";
+        state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
         await playSpotify(resuming ? { method: "PUT" } : {
           method: "PUT",
@@ -1253,8 +1288,43 @@
         renderRecordMode();
         log(resuming ? "Resumed Side B." : "Started Side B.");
       } catch (error) {
+        clearRecordCue();
+        stopTimer();
+        state.recordMode = resuming ? "paused" : "flip";
+        state.activeRecordSide = resuming ? "B" : "A";
+        renderRecordMode("Start failed");
         log(error.message);
       }
+    }
+
+    function runRecordCue(side) {
+      clearRecordCue();
+      let remaining = RECORD_CUE_SECONDS;
+      showRecordCue(side, remaining);
+      log(`Cue Side ${side}: press record now. Spotify starts in ${RECORD_CUE_SECONDS}s.`);
+      return new Promise(resolve => {
+        state.cueTimerId = setInterval(() => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            clearRecordCue();
+            resolve();
+            return;
+          }
+          showRecordCue(side, remaining);
+        }, 1000);
+      });
+    }
+
+    function showRecordCue(side, remaining) {
+      el.recordCue.textContent = `PRESS RECORD NOW - SIDE ${side} - SPOTIFY STARTS IN ${remaining}`;
+      el.recordCue.classList.add("show");
+      renderRecordMode(`Record now ${remaining}s`);
+    }
+
+    function clearRecordCue() {
+      if (state.cueTimerId) clearInterval(state.cueTimerId);
+      state.cueTimerId = null;
+      el.recordCue.classList.remove("show");
     }
 
     async function pausePlayback() {
@@ -1457,6 +1527,8 @@
     function renderRecordMode(monitorText) {
       const labels = {
         idle: "Idle",
+        cue_a: "Cue",
+        cue_b: "Cue",
         recording_a: "Recording",
         recording_b: "Recording",
         paused: "Paused",
@@ -1466,6 +1538,8 @@
       el.recordSide.textContent = state.activeRecordSide || "-";
       const defaultMonitor = {
         idle: "Waiting",
+        cue_a: "Record now",
+        cue_b: "Record now",
         paused: "Paused",
         flip: "Flip now",
         recording_a: "Monitoring",
@@ -1473,6 +1547,7 @@
       };
       el.recordMonitor.textContent = monitorText || defaultMonitor[state.recordMode] || "Waiting";
       el.recordModePanel.classList.toggle("recording", state.recordMode === "recording_a" || state.recordMode === "recording_b");
+      el.recordModePanel.classList.toggle("cue-ready", state.recordMode === "cue_a" || state.recordMode === "cue_b");
       el.recordModePanel.classList.toggle("flip-ready", state.recordMode === "flip");
 
       // Synchronize play button labels and states
@@ -1481,11 +1556,12 @@
       const pausedA = state.recordMode === "paused" && state.activeRecordSide === "A";
       const pausedB = state.recordMode === "paused" && state.activeRecordSide === "B";
       const recording = state.recordMode === "recording_a" || state.recordMode === "recording_b";
+      const cueing = state.recordMode === "cue_a" || state.recordMode === "cue_b";
       el.startA.textContent = pausedA ? "Resume Side A" : "Start Side A";
       el.startB.textContent = pausedB ? "Resume Side B" : "Start Side B";
-      el.startA.disabled = !a.length || !state.token || !(state.recordMode === "idle" || pausedA);
-      el.startB.disabled = !b.length || !state.token || !(state.recordMode === "flip" || pausedB);
-      el.pauseBtn.disabled = !state.token || !recording;
+      el.startA.disabled = cueing || !a.length || !state.token || !(state.recordMode === "idle" || pausedA);
+      el.startB.disabled = cueing || !b.length || !state.token || !(state.recordMode === "flip" || pausedB);
+      el.pauseBtn.disabled = cueing || !state.token || !recording;
     }
 
     function setTapeLength(minutes) {
