@@ -5,9 +5,9 @@
     {
       "id": 1,
       "commit": "feat: init project structure and index.html skeleton",
-      "status": "pending",
-      "description": "Project structure is ready for the cassette optimizer app.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Created the app shell, documentation shell, README, and static callback helper.",
+      "timestamp": "2026-06-25T11:38:18+02:00"
     },
     {
       "id": 2,
