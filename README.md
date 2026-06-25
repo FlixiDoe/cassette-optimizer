@@ -1,48 +1,79 @@
 # Cassette Optimizer
 
-Spotify playlist optimizer for cassette tape recording. The app runs as a single static HTML file with vanilla JavaScript and uses Spotify OAuth 2.0 PKCE, so no backend or client secret is needed.
+A local-first Spotify playlist planner and playback controller for recording mixtapes to cassette.
 
-Repository: https://github.com/FlixiDoe/cassette-optimizer
-Status: private repository, GitHub Pages disabled
-Spotify Client ID: `[REMOVED_SPOTIFY_CLIENT_ID]`
+Cassette Optimizer keeps a playlist in order, calculates the best Side A / Side B split for common cassette lengths, shows a recording countdown, and controls Spotify playback so the user can record one side at a time.
 
-## Setup
+Repository: https://github.com/FlixiDoe/cassette-optimizer  
+Current visibility: private  
+GitHub Pages: disabled
 
-1. Create or open a Spotify app in the Spotify Developer Dashboard.
-2. Add this redirect URI:
-   - `http://127.0.0.1:8787/callback`
-3. Start a local static server from this folder:
+## Responsible Use
 
-```powershell
-python -m http.server 8787 --bind 127.0.0.1
+This project is a cassette workflow tool, not a music ripping or redistribution tool.
+
+You are responsible for complying with Spotify's terms, copyright law, and the rules that apply in your country. Do not use this project to bypass DRM, copy-protection, access controls, or licensing restrictions. Do not distribute recordings unless you have the rights to do so.
+
+For the safest use, record only music you own, created yourself, or are otherwise licensed to copy.
+
+## Features
+
+- Single static HTML app, no backend and no build step.
+- Spotify OAuth 2.0 PKCE flow with no client secret.
+- Playlist input by Spotify URL/ID or account playlist picker.
+- Fetches all playlist tracks and durations.
+- Supports cassette formats from `C30` through `C120`.
+- Lets you select which tape formats you physically have.
+- Calculates Side A / Side B without cutting tracks.
+- Keeps original track order.
+- Shows total runtime, cassette recommendation, side fill, tracklists, timestamps, and warnings.
+- Optional `Apply to Spotify` button to sync the calculated order back to the playlist.
+- Spotify Connect device selector.
+- Record Mode with Side A / Side B start, pause, resume, automatic side-end pause, flip cue, and finish-time estimate.
+- Red `PRESS RECORD NOW` cue before playback starts.
+- Automatic shuffle/repeat disable before fresh side starts.
+- Conservative playback correction if Spotify jumps to an unexpected track.
+- Printable J-card cassette inlay from playlist title, cover, side tracks, and runtime.
+
+## Local Setup
+
+Create or open a Spotify app in the Spotify Developer Dashboard and add this redirect URI:
+
+```text
+http://127.0.0.1:8787/callback
 ```
 
-4. Open `http://127.0.0.1:8787`.
-5. Confirm the prefilled Spotify Client ID and connect Spotify.
-
-Do not open `index.html` via `file://` for Spotify login. PKCE redirects require the local HTTP URL above.
-Keep the local server running until Spotify redirects back to `http://127.0.0.1:8787/callback`.
-
-You can also start the local server with:
+Start the local server:
 
 ```powershell
 .\start-local.ps1
 ```
 
-## Usage
+Or manually:
 
-1. Open `http://127.0.0.1:8787`.
-2. Click `Connect Spotify`.
-3. Click `Refresh` in `Your Spotify playlists`.
-4. Choose a playlist from the dropdown or paste a playlist URL/ID manually.
-5. Check the cassette formats you actually have under `Tapes you have`.
-6. Choose the tape format you want to plan for in `Tape format`.
-7. Click `Load playlist`.
-8. Review total runtime, recommended cassette format, Side A, and Side B.
-9. Use `Apply to Spotify` only if you want to sync the calculated order back to Spotify.
-10. Use Record Mode with `Start Side A` and `Start Side B` when recording.
+```powershell
+python -m http.server 8787 --bind 127.0.0.1
+```
 
-## Spotify Scopes
+Open:
+
+```text
+http://127.0.0.1:8787/
+```
+
+Do not use `file://` for Spotify login. OAuth PKCE requires the local HTTP origin, and the server must stay running until Spotify redirects back to `/callback`.
+
+## Spotify App Configuration
+
+Default development client ID:
+
+```text
+[REMOVED_SPOTIFY_CLIENT_ID]
+```
+
+The app does not use a Spotify client secret. Do not add client secrets, GitHub tokens, OAuth access tokens, or refresh tokens to the repository.
+
+Required scopes:
 
 - `playlist-read-private`
 - `playlist-modify-private`
@@ -50,46 +81,68 @@ You can also start the local server with:
 - `user-read-playback-state`
 - `user-modify-playback-state`
 
-## Features
+## Usage
 
-- Accepts a Spotify playlist URL or ID.
-- Lets the signed-in user refresh and choose from their Spotify playlists.
-- Fetches all playlist tracks and `duration_ms` values.
-- Supports common cassette lengths from C30 through C120.
-- Lets you mark which cassette formats you have available.
-- Shows total playlist length and recommends the smallest available cassette format that fits cleanly.
-- Generates a printable J-card cassette inlay from playlist cover, title, sides, tracks, and runtime.
-- Keeps original order and finds the best split point without cutting songs.
-- Displays Side A and Side B tracklists with timestamps.
-- Reorders the Spotify playlist with `PUT /v1/playlists/{id}/tracks`.
-- Starts Side A and Side B playback with `PUT /v1/me/player/play`.
-- Shows Record Mode state, Side countdown, current Spotify track, cassette fill, and auto-pauses at the end of Side A.
-- Uses adaptive Spotify playback polling and respects rate-limit retry delays.
-- Shows a flashing `FLIP THE CASSETTE!` banner.
-- Explains how to fix no-active-device Spotify player errors.
+1. Open `http://127.0.0.1:8787/`.
+2. Click `Connect Spotify`.
+3. Click `Refresh` under `Your Spotify playlists`.
+4. Choose a playlist from the dropdown or paste a playlist URL/ID.
+5. Select the cassette formats you have under `Tapes you have`.
+6. Choose a tape format.
+7. Click `Load playlist`.
+8. Review total runtime, recommendation, Side A, Side B, and warnings.
+9. Optional: refresh Spotify devices and choose the target device.
+10. Use `Apply to Spotify` only if you want to sync the order back to Spotify.
+11. Click `Start Side A`.
+12. When the red `PRESS RECORD NOW` cue appears, start recording on your deck.
+13. Spotify starts automatically after the 5-second cue.
+14. Wait for auto-pause, flip the cassette, then use `Start Side B`.
 
-## Cassette Logic
+## Record Mode Notes
 
-- The optimizer never cuts tracks.
-- Track order is preserved.
-- Side A is filled until the next full track would exceed half of the selected tape.
-- Side B contains the remaining tracks.
-- The recommendation checks only the cassette formats selected under `Tapes you have`.
-- It recommends the smallest available format where the total runtime and Side B both fit cleanly.
-- If total runtime fits a cassette but one side does not, the app warns that manual rebalancing would be needed.
-- If the playlist exceeds the largest selected cassette, the app reports how much audio must be removed.
+- Side starts are sent to Spotify as an explicit side queue.
+- Fresh side starts disable shuffle and repeat first.
+- The local record timer is authoritative for the side countdown.
+- Spotify playback state is polled sparingly to avoid unnecessary API load.
+- If Spotify jumps to a wrong track, the app attempts to correct playback to the track expected from the local recording time.
+- The app shows the estimated local clock time when the current side will finish.
+
+## J-Card
+
+After loading a playlist, use `Print J-Card` to print a cassette inlay. The J-card includes:
+
+- Playlist name
+- Playlist cover
+- Selected tape format
+- Total runtime
+- Side A and Side B runtime
+- Side A and Side B tracklists
+
+## Regression Test
+
+Run the lightweight playback regression checks:
+
+```powershell
+node scratch/test_playback.js
+```
+
+These checks validate the important playback-control code paths and UI state rules. They do not replace a real Spotify device test.
 
 ## Troubleshooting
 
-- `ERR_CONNECTION_REFUSED` after Spotify login: start `.\start-local.ps1` and reload the callback URL. The local server must keep running during login.
-- `OAuth callback rejected`: start from `http://127.0.0.1:8787` and connect again. Spotify auth codes are short-lived.
+- `ERR_CONNECTION_REFUSED` after Spotify login: start `.\start-local.ps1` and reload the callback URL.
+- `OAuth callback rejected`: start from `http://127.0.0.1:8787/` and connect again.
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
-- `Connect Spotify` from `file://` will not work. Use `http://127.0.0.1:8787`.
+- Wrong target device: click `Refresh` under `Spotify device`, select the intended Spotify Connect device, then retry.
+- Playlist list is empty: reconnect Spotify and ensure the token has `playlist-read-private`.
 
-## Docs
+## Security
 
-Project docs are in `docs.md`.
+- Do not commit secrets.
+- Do not commit Spotify access/refresh tokens.
+- Do not commit GitHub tokens.
+- Keep the app local unless you have reviewed the OAuth redirect URI and public-hosting implications.
 
-## GitHub Visibility
+## License
 
-This repository is private and GitHub Pages is disabled. The app is intended to run locally at `http://127.0.0.1:8787`.
+MIT. See [LICENSE](LICENSE).

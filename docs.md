@@ -1,6 +1,10 @@
 # Cassette Optimizer Docs
 
-Private local web app for optimizing Spotify playlists for cassette recording.
+Local web app for optimizing Spotify playlists for cassette recording workflows.
+
+## Responsible Use
+
+This project is a cassette workflow tool, not a music ripping or redistribution tool. Users are responsible for complying with Spotify's terms, copyright law, and the rules that apply in their country. Do not use it to bypass DRM, copy-protection, access controls, or licensing restrictions.
 
 ## Local Setup
 
@@ -124,3 +128,4 @@ node scratch/test_playback.js
 - Repository: `https://github.com/FlixiDoe/cassette-optimizer`
 - Visibility: private
 - GitHub Pages: disabled
+- Open-source preparation: README, MIT license, and publishing checklist are prepared, but the repository has not been made public.
