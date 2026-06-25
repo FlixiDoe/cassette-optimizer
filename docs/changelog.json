@@ -26,9 +26,9 @@
     {
       "id": 4,
       "commit": "feat: implement cassette split algorithm",
-      "status": "pending",
-      "description": "The split algorithm keeps track order and chooses the longest Side A that fits.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Added the split algorithm that keeps original order and fills Side A without cutting tracks.",
+      "timestamp": "2026-06-25T11:38:19+02:00"
     },
     {
       "id": 5,
