@@ -1,0 +1,111 @@
+{
+  "project": "cassette-optimizer",
+  "repo": "",
+  "steps": [
+    {
+      "id": 1,
+      "commit": "feat: init project structure and index.html skeleton",
+      "status": "pending",
+      "description": "Project structure is ready for the cassette optimizer app.",
+      "timestamp": ""
+    },
+    {
+      "id": 2,
+      "commit": "feat: add Spotify OAuth PKCE flow",
+      "status": "pending",
+      "description": "Spotify OAuth PKCE authentication is implemented without a backend.",
+      "timestamp": ""
+    },
+    {
+      "id": 3,
+      "commit": "feat: fetch playlist tracks from Spotify API",
+      "status": "pending",
+      "description": "Playlist tracks can be fetched with durations from Spotify.",
+      "timestamp": ""
+    },
+    {
+      "id": 4,
+      "commit": "feat: implement cassette split algorithm",
+      "status": "pending",
+      "description": "The split algorithm keeps track order and chooses the longest Side A that fits.",
+      "timestamp": ""
+    },
+    {
+      "id": 5,
+      "commit": "feat: render Side A and Side B tracklists in UI",
+      "status": "pending",
+      "description": "Side A and Side B tracklists render with timestamps and durations.",
+      "timestamp": ""
+    },
+    {
+      "id": 6,
+      "commit": "feat: add apply-to-spotify reorder button",
+      "status": "pending",
+      "description": "The app can send the optimized playlist order back to Spotify.",
+      "timestamp": ""
+    },
+    {
+      "id": 7,
+      "commit": "feat: implement playback start via Spotify API",
+      "status": "pending",
+      "description": "Playback can start Side A through the Spotify player API.",
+      "timestamp": ""
+    },
+    {
+      "id": 8,
+      "commit": "feat: add real-time countdown timer for Side A",
+      "status": "pending",
+      "description": "A live countdown tracks the remaining Side A recording time.",
+      "timestamp": ""
+    },
+    {
+      "id": 9,
+      "commit": "feat: auto-pause at Side A end and show flip banner",
+      "status": "pending",
+      "description": "The app pauses automatically at the end of Side A and shows the flip prompt.",
+      "timestamp": ""
+    },
+    {
+      "id": 10,
+      "commit": "feat: add Start Side B resume button",
+      "status": "pending",
+      "description": "Side B can be started separately after flipping the cassette.",
+      "timestamp": ""
+    },
+    {
+      "id": 11,
+      "commit": "feat: cassette tape visual progress bar",
+      "status": "pending",
+      "description": "The cassette visual shows tape fill and side capacity.",
+      "timestamp": ""
+    },
+    {
+      "id": 12,
+      "commit": "feat: dark mode UI and retro styling",
+      "status": "pending",
+      "description": "The app uses a minimal dark retro monospace interface.",
+      "timestamp": ""
+    },
+    {
+      "id": 13,
+      "commit": "fix: error handling for no active device",
+      "status": "pending",
+      "description": "Player errors explain how to activate a Spotify device.",
+      "timestamp": ""
+    },
+    {
+      "id": 14,
+      "commit": "fix: token refresh handling",
+      "status": "pending",
+      "description": "Expired Spotify access tokens refresh through the PKCE refresh token.",
+      "timestamp": ""
+    },
+    {
+      "id": 15,
+      "commit": "docs: add README with setup instructions",
+      "status": "pending",
+      "description": "Setup and usage instructions are documented.",
+      "timestamp": ""
+    }
+  ]
+}

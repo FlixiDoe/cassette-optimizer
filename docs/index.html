@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cassette Optimizer Docs</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10120f;
+      --panel: #171b15;
+      --ink: #f2f0df;
+      --muted: #9da092;
+      --line: #333b2f;
+      --green: #9cff6a;
+      --amber: #ffbf49;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    main {
+      width: min(960px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 24px;
+    }
+
+    h1, h2, p { margin: 0; }
+    h1 { font-size: clamp(26px, 4vw, 46px); }
+    a { color: var(--green); }
+
+    .bar {
+      height: 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #080a07;
+      overflow: hidden;
+      margin: 12px 0 24px;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green), var(--amber));
+      transition: width .3s ease;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 12px 14px;
+    }
+
+    summary {
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .badge.done {
+      color: #10120f;
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .desc {
+      color: var(--muted);
+      margin: 10px 0 0 56px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1 id="title">cassette-optimizer</h1>
+        <p><a id="repo" href="#">GitHub repository pending</a></p>
+      </div>
+      <p id="count">0 of 15 steps completed</p>
+    </header>
+    <div class="bar" aria-label="Build progress"><span id="progress"></span></div>
+    <section id="timeline" class="timeline" aria-live="polite"></section>
+  </main>
+
+  <script>
+    async function loadChangelog() {
+      const response = await fetch("./changelog.json", { cache: "no-store" });
+      const data = await response.json();
+      render(data);
+    }
+
+    function render(data) {
+      const done = data.steps.filter(step => step.status === "done").length;
+      document.getElementById("title").textContent = data.project;
+      document.getElementById("repo").textContent = data.repo || "GitHub repository pending";
+      document.getElementById("repo").href = data.repo || "#";
+      document.getElementById("count").textContent = `${done} of ${data.steps.length} steps completed`;
+      document.getElementById("progress").style.width = `${done / data.steps.length * 100}%`;
+      document.getElementById("timeline").innerHTML = data.steps.map(step => `
+        <details ${step.status === "done" ? "open" : ""}>
+          <summary>
+            <strong>#${step.id}</strong>
+            <span>${escapeHtml(step.commit)}</span>
+            <span class="badge ${step.status}">${step.status}</span>
+          </summary>
+          <p class="desc">${escapeHtml(step.description)}<br>${escapeHtml(step.timestamp || "pending")}</p>
+        </details>
+      `).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    loadChangelog().catch(error => {
+      document.getElementById("timeline").textContent = `Failed to load changelog: ${error.message}`;
+    });
+    setInterval(loadChangelog, 30000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Spotify Callback</title>
+</head>
+<body>
+  <script>
+    location.replace("/?callback=1&" + location.search.slice(1));
+  </script>
+</body>
+</html>
