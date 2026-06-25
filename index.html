@@ -828,6 +828,7 @@
       sideAStartedAt: 0,
       sideAElapsedBeforePause: 0,
       spotifySideElapsedMs: 0,
+      lastSideProgressMs: 0,
       recordMode: "idle",
       activeRecordSide: null,
       autoPauseDone: false,
@@ -1145,6 +1146,7 @@
         state.recordMode = "recording_a";
         state.activeRecordSide = "A";
         state.spotifySideElapsedMs = 0;
+        state.lastSideProgressMs = 0;
         state.autoPauseDone = false;
         state.sideAElapsedBeforePause = 0;
         state.sideAStartedAt = Date.now();
@@ -1168,6 +1170,7 @@
         state.recordMode = "recording_b";
         state.activeRecordSide = "B";
         state.spotifySideElapsedMs = 0;
+        state.lastSideProgressMs = 0;
         state.autoPauseDone = false;
         await spotifyFetch("/me/player/play", {
           method: "PUT",
@@ -1289,14 +1292,14 @@
         schedulePlaybackPoll(10000);
         return;
       }
-      const index = tracks.findIndex(track => track.uri === playback.item.uri);
-      if (index === -1) {
+      const elapsed = getSpotifySideElapsed(tracks, playback.item.uri, playback.progress_ms || 0);
+      if (elapsed === null) {
         renderRecordMode("Outside side");
         schedulePlaybackPoll(8000);
         return;
       }
-      const previousMs = duration(tracks.slice(0, index));
-      state.spotifySideElapsedMs = previousMs + (playback.progress_ms || 0);
+      state.spotifySideElapsedMs = elapsed;
+      state.lastSideProgressMs = Math.max(state.lastSideProgressMs, elapsed);
       if (state.recordMode === "recording_a" && state.spotifySideElapsedMs >= duration(sideA()) - 750 && !state.autoPauseDone) {
         completeSideA();
         return;
@@ -1304,6 +1307,20 @@
       renderRecordMode(playback.is_playing ? "Monitoring" : "Paused");
       updateTimer();
       schedulePlaybackPoll(getPlaybackPollDelay());
+    }
+
+    function getSpotifySideElapsed(tracks, uri, progressMs) {
+      const candidates = [];
+      let running = 0;
+      for (const track of tracks) {
+        if (track.uri === uri) candidates.push(running + progressMs);
+        running += track.duration_ms;
+      }
+      if (!candidates.length) return null;
+      const floor = Math.max(0, state.lastSideProgressMs - 5000);
+      const forward = candidates.filter(value => value >= floor).sort((a, b) => a - b);
+      const selected = forward[0] ?? Math.max(...candidates);
+      return Math.max(floor, selected);
     }
 
     async function completeSideA() {
