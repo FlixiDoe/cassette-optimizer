@@ -68,9 +68,9 @@
     {
       "id": 10,
       "commit": "feat: add Start Side B resume button",
-      "status": "pending",
-      "description": "Side B can be started separately after flipping the cassette.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Added Side B playback start after the cassette flip prompt.",
+      "timestamp": "2026-06-25T11:38:21+02:00"
     },
     {
       "id": 11,
