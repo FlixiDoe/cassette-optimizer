@@ -84,9 +84,9 @@ You can also start the local server with:
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
 - `Connect Spotify` from `file://` will not work. Use `http://127.0.0.1:8787`.
 
-## Dynamic Docs
+## Docs
 
-The live docs are at `docs/index.html` locally. They read `docs/changelog.json`, render a progress bar and timeline, and refresh every 30 seconds.
+Project docs are in `docs.md`.
 
 ## GitHub Visibility
 
