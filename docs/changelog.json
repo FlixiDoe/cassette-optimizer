@@ -61,9 +61,9 @@
     {
       "id": 9,
       "commit": "feat: auto-pause at Side A end and show flip banner",
-      "status": "pending",
-      "description": "The app pauses automatically at the end of Side A and shows the flip prompt.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Added automatic pause at Side A completion and the flip cassette banner.",
+      "timestamp": "2026-06-25T11:38:21+02:00"
     },
     {
       "id": 10,
