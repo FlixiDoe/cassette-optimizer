@@ -554,6 +554,7 @@
       bindEvents();
       renderAuth();
       renderSplit();
+      warnIfFileProtocol();
     }
 
     function bindEvents() {
@@ -572,6 +573,10 @@
 
     async function login() {
       const clientId = getClientId();
+      if (location.protocol === "file:") {
+        log("Open http://127.0.0.1:8787 instead. Spotify OAuth cannot complete from a file:// page.");
+        return;
+      }
       if (!clientId) return log("Add your Spotify Client ID first.");
       const verifier = base64Url(randomBytes(64));
       const challenge = await sha256Base64Url(verifier);
@@ -994,6 +999,11 @@
       if (location.protocol === "file:") return "http://127.0.0.1:8787/";
       const path = location.pathname.replace(/(?:callback\/?|index\.html)?$/, "");
       return `${location.origin}${path.endsWith("/") ? path : `${path}/`}`;
+    }
+
+    function warnIfFileProtocol() {
+      if (location.protocol !== "file:") return;
+      log("Run python -m http.server 8787 --bind 127.0.0.1, then open http://127.0.0.1:8787. Spotify OAuth will not complete from file://.");
     }
 
     function randomBytes(length) {
