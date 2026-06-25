@@ -3,14 +3,12 @@
 Spotify playlist optimizer for cassette tape recording. The app runs as a single static HTML file with vanilla JavaScript and uses Spotify OAuth 2.0 PKCE, so no backend or client secret is needed.
 
 Repository: https://github.com/FlixiDoe/cassette-optimizer
-Published app: https://flixidoe.github.io/cassette-optimizer/
-Live docs: https://flixidoe.github.io/cassette-optimizer/docs/
+Status: private repository, GitHub Pages disabled
 
 ## Setup
 
 1. Create a Spotify app in the Spotify Developer Dashboard.
 2. Add these redirect URIs:
-   - `https://flixidoe.github.io/cassette-optimizer/callback/`
    - `http://localhost:3000/callback/`
 3. Start a local static server from this folder:
 
@@ -20,8 +18,6 @@ python -m http.server 3000
 
 4. Open `http://localhost:3000`.
 5. Paste your Spotify Client ID into the app and connect Spotify.
-
-For the published version, open `https://flixidoe.github.io/cassette-optimizer/` after adding the GitHub Pages callback URL in Spotify.
 
 ## Spotify Scopes
 
@@ -46,20 +42,8 @@ For the published version, open `https://flixidoe.github.io/cassette-optimizer/`
 
 ## Dynamic Docs
 
-The live docs are at `docs/index.html` locally and `https://flixidoe.github.io/cassette-optimizer/docs/` after publishing. They read `docs/changelog.json`, render a progress bar and timeline, and refresh every 30 seconds.
+The live docs are at `docs/index.html` locally. They read `docs/changelog.json`, render a progress bar and timeline, and refresh every 30 seconds.
 
-## GitHub Publishing
+## GitHub Visibility
 
-The repository is configured for GitHub Pages with the workflow in `.github/workflows/pages.yml`. Deployments run on every push to `main`.
-
-```powershell
-git push -u origin main
-```
-
-If Pages is not enabled yet:
-
-```powershell
-gh api repos/FlixiDoe/cassette-optimizer/pages -X POST -f build_type=workflow
-```
-
-See `PUBLISHING.md` for the full publishing checklist.
+This repository is private and GitHub Pages is disabled.

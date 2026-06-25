@@ -1,9 +1,8 @@
 {
   "project": "cassette-optimizer",
   "repo": "https://github.com/FlixiDoe/cassette-optimizer",
-  "site": "https://flixidoe.github.io/cassette-optimizer/",
-  "docs": "https://flixidoe.github.io/cassette-optimizer/docs/",
-  "callback": "https://flixidoe.github.io/cassette-optimizer/callback/",
+  "visibility": "private",
+  "pages": "disabled",
   "steps": [
     {
       "id": 1,

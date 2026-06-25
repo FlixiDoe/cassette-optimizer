@@ -1,30 +1,27 @@
-# Publishing
+# Publishing Disabled
 
-This repository is ready for GitHub Pages.
+This repository is private and GitHub Pages is disabled.
 
-## Public URLs
+## Current State
 
-- App: https://flixidoe.github.io/cassette-optimizer/
-- Docs: https://flixidoe.github.io/cassette-optimizer/docs/
-- Spotify callback: https://flixidoe.github.io/cassette-optimizer/callback/
+- Repository visibility: private
+- GitHub Pages: disabled
+- Public app/docs URLs: offline
 
-## Spotify Redirect URIs
+## Local Use
 
-Add these redirect URIs in the Spotify Developer Dashboard:
+Use the app locally:
+
+```powershell
+python -m http.server 3000
+```
+
+Use this Spotify redirect URI:
 
 ```text
-https://flixidoe.github.io/cassette-optimizer/callback/
 http://localhost:3000/callback/
 ```
 
-The app computes the callback URL from the current origin, so the same `index.html` works on GitHub Pages and on a local `python -m http.server 3000` server.
+## Re-enable Publishing
 
-## GitHub Pages
-
-The workflow at `.github/workflows/pages.yml` deploys the repository root on every push to `main`. If Pages is not enabled yet, run:
-
-```powershell
-gh api repos/FlixiDoe/cassette-optimizer/pages -X POST -f build_type=workflow
-```
-
-If Pages already exists, this command can return an error; the workflow deployment is still the source of truth.
+To publish again later, restore a Pages workflow, enable Pages for the repository, and add the GitHub Pages callback URL back to Spotify.
