@@ -12,9 +12,9 @@
     {
       "id": 2,
       "commit": "feat: add Spotify OAuth PKCE flow",
-      "status": "pending",
-      "description": "Spotify OAuth PKCE authentication is implemented without a backend.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Implemented Spotify OAuth 2.0 PKCE login, callback handling, and local token storage.",
+      "timestamp": "2026-06-25T11:38:19+02:00"
     },
     {
       "id": 3,
