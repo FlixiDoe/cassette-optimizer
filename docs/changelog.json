@@ -132,6 +132,13 @@
       "status": "done",
       "description": "Added common cassette formats from C30 to C120 and updated recommendations to choose the smallest clean fit.",
       "timestamp": "2026-06-25T15:33:40+02:00"
+    },
+    {
+      "id": 19,
+      "commit": "feat: add cassette inventory checkboxes",
+      "status": "done",
+      "description": "Added checkboxes for selecting owned cassette formats and scoped recommendations to available tapes.",
+      "timestamp": "2026-06-25T15:36:35+02:00"
     }
   ]
 }

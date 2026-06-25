@@ -160,6 +160,37 @@
       font-weight: 700;
     }
 
+    .tape-inventory {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+      gap: 8px;
+    }
+
+    .tape-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 8px;
+      background: #11150f;
+      color: var(--ink);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .tape-check input {
+      width: 14px;
+      min-height: 14px;
+      accent-color: var(--green);
+    }
+
+    .tape-check:has(input:checked) {
+      border-color: var(--green);
+      background: rgba(156,255,106,.09);
+    }
+
     .meta {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -480,6 +511,10 @@
           <label class="label" for="tapeSelect">Tape format</label>
           <select id="tapeSelect"></select>
         </div>
+        <div>
+          <span class="label">Tapes you have</span>
+          <div class="tape-inventory" id="tapeInventory"></div>
+        </div>
         <button id="loadBtn" class="primary">Load playlist</button>
         <button id="applyBtn" class="warn" disabled>Apply to Spotify</button>
         <div class="warnings" id="warnings"></div>
@@ -579,6 +614,7 @@
       tracks: [],
       playlists: [],
       tapeMinutes: 90,
+      availableTapeFormats: [...TAPE_FORMATS],
       splitIndex: 0,
       sideAStartedAt: 0,
       sideAElapsedBeforePause: 0,
@@ -612,8 +648,11 @@
       el.startB.addEventListener("click", startSideB);
       el.pauseBtn.addEventListener("click", pausePlayback);
       el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
+      el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
       window.addEventListener("beforeunload", persistToken);
+      restoreTapeInventory();
       renderTapeOptions();
+      renderTapeInventory();
     }
 
     async function login() {
@@ -977,10 +1016,51 @@
     }
 
     function renderTapeOptions() {
-      el.tapeSelect.innerHTML = TAPE_FORMATS.map(minutes => {
+      const formats = getAvailableTapeFormats();
+      if (!formats.includes(state.tapeMinutes)) {
+        state.tapeMinutes = formats.includes(90) ? 90 : formats[0];
+        el.tapeLabel.textContent = `C${state.tapeMinutes}`;
+      }
+      el.tapeSelect.innerHTML = formats.map(minutes => {
         const selected = minutes === state.tapeMinutes ? " selected" : "";
         return `<option value="${minutes}"${selected}>C${minutes} - ${formatLongTime(minutes * 60 * 1000)} total / ${formatLongTime(minutes * 30 * 1000)} per side</option>`;
       }).join("");
+    }
+
+    function renderTapeInventory() {
+      const available = new Set(getAvailableTapeFormats());
+      el.tapeInventory.innerHTML = TAPE_FORMATS.map(minutes => {
+        const checked = available.has(minutes) ? " checked" : "";
+        return `<label class="tape-check"><input type="checkbox" value="${minutes}"${checked}>C${minutes}</label>`;
+      }).join("");
+    }
+
+    function updateAvailableTapeFormats() {
+      const checked = [...el.tapeInventory.querySelectorAll("input:checked")].map(input => Number(input.value));
+      state.availableTapeFormats = checked.length ? checked : [state.tapeMinutes];
+      localStorage.setItem("available_tape_formats", JSON.stringify(state.availableTapeFormats));
+      renderTapeOptions();
+      computeSplit();
+      renderSplit();
+      renderTapeInventory();
+    }
+
+    function restoreTapeInventory() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("available_tape_formats") || "null");
+        if (Array.isArray(saved)) {
+          const valid = saved.map(Number).filter(minutes => TAPE_FORMATS.includes(minutes));
+          if (valid.length) state.availableTapeFormats = valid;
+        }
+      } catch {
+        localStorage.removeItem("available_tape_formats");
+      }
+    }
+
+    function getAvailableTapeFormats() {
+      return [...new Set(state.availableTapeFormats)]
+        .filter(minutes => TAPE_FORMATS.includes(minutes))
+        .sort((a, b) => a - b);
     }
 
     function renderSplit() {
@@ -1017,11 +1097,12 @@
 
     function renderTapeRecommendation(totalMs) {
       if (!state.tracks.length) {
-        el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>Load a playlist to compare common cassette formats from C30 to C120.</span>`;
+        el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>Load a playlist to compare the cassette formats you marked as available.</span>`;
         return;
       }
 
-      const fits = TAPE_FORMATS.map(minutes => ({ minutes, ...analyzeTapeFit(minutes) }));
+      const availableFormats = getAvailableTapeFormats();
+      const fits = availableFormats.map(minutes => ({ minutes, ...analyzeTapeFit(minutes) }));
       const cleanFit = fits.find(format => totalMs <= format.minutes * 60 * 1000 && format.sideBFits);
       const totalOnlyFit = fits.find(format => totalMs <= format.minutes * 60 * 1000);
       let recommendation;
@@ -1035,9 +1116,9 @@
         recommendation = `Use C${totalOnlyFit.minutes}, but rebalance manually`;
         reason = `Total ${formatLongTime(totalMs)} fits C${totalOnlyFit.minutes}, but keeping original order makes one side exceed ${formatLongTime(totalOnlyFit.minutes * 30 * 1000)}.`;
       } else {
-        const longest = TAPE_FORMATS[TAPE_FORMATS.length - 1];
+        const longest = availableFormats[availableFormats.length - 1];
         recommendation = `Too long for C${longest}`;
-        reason = `Total ${formatLongTime(totalMs)} exceeds C${longest}. Remove about ${formatLongTime(totalMs - longest * 60 * 1000)} or record across more tapes.`;
+        reason = `Total ${formatLongTime(totalMs)} exceeds your largest selected tape, C${longest}. Select a longer tape or remove about ${formatLongTime(totalMs - longest * 60 * 1000)}.`;
       }
 
       el.tapeRecommendation.innerHTML = `<b>${escapeHtml(recommendation)}</b><span>${escapeHtml(reason)}</span>`;

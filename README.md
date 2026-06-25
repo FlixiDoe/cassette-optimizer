@@ -43,7 +43,8 @@ You can also start the local server with:
 - Lets the signed-in user refresh and choose from their Spotify playlists.
 - Fetches all playlist tracks and `duration_ms` values.
 - Supports common cassette lengths from C30 through C120.
-- Shows total playlist length and recommends the smallest cassette format that fits cleanly.
+- Lets you mark which cassette formats you have available.
+- Shows total playlist length and recommends the smallest available cassette format that fits cleanly.
 - Keeps original order and finds the best split point without cutting songs.
 - Displays Side A and Side B tracklists with timestamps.
 - Reorders the Spotify playlist with `PUT /v1/playlists/{id}/tracks`.
