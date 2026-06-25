@@ -63,6 +63,7 @@ You can also start the local server with:
 - Reorders the Spotify playlist with `PUT /v1/playlists/{id}/tracks`.
 - Starts Side A and Side B playback with `PUT /v1/me/player/play`.
 - Shows Record Mode state, Side countdown, current Spotify track, cassette fill, and auto-pauses at the end of Side A.
+- Uses adaptive Spotify playback polling and respects rate-limit retry delays.
 - Shows a flashing `FLIP THE CASSETTE!` banner.
 - Explains how to fix no-active-device Spotify player errors.
 

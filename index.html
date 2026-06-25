@@ -662,8 +662,21 @@
       activeRecordSide: null,
       autoPauseDone: false,
       timerId: null,
-      pollingId: null
+      pollingId: null,
+      pollingDelayMs: 5000,
+      pollingPausedUntil: 0,
+      lastRateLimitLogAt: 0
     };
+
+    class SpotifyApiError extends Error {
+      constructor(message, response, data) {
+        super(message);
+        this.name = "SpotifyApiError";
+        this.status = response.status;
+        this.retryAfter = Number(response.headers.get("Retry-After") || 0);
+        this.data = data;
+      }
+    }
 
     const el = Object.fromEntries([...document.querySelectorAll("[id]")].map(node => [node.id, node]));
 
@@ -823,7 +836,7 @@
         if (/NO_ACTIVE_DEVICE|Player command failed/i.test(message)) {
           throw new Error("No active Spotify device found. Open Spotify on desktop/mobile, start any song once, then try again.");
         }
-        throw new Error(message);
+        throw new SpotifyApiError(message, response, data);
       }
       return data;
     }
@@ -1004,6 +1017,7 @@
         stopTimer();
         state.recordMode = "paused";
         renderRecordMode();
+        schedulePlaybackPoll(getPlaybackPollDelay());
         log("Playback paused.");
       } catch (error) {
         log(error.message);
@@ -1041,9 +1055,26 @@
     }
 
     function startPollingPlayback() {
-      if (state.pollingId) clearInterval(state.pollingId);
-      state.pollingId = setInterval(readPlaybackState, 1000);
-      readPlaybackState();
+      stopPollingPlayback();
+      schedulePlaybackPoll(0);
+    }
+
+    function stopPollingPlayback() {
+      if (state.pollingId) clearTimeout(state.pollingId);
+      state.pollingId = null;
+    }
+
+    function schedulePlaybackPoll(delayMs = getPlaybackPollDelay()) {
+      stopPollingPlayback();
+      state.pollingDelayMs = delayMs;
+      state.pollingId = setTimeout(readPlaybackState, delayMs);
+    }
+
+    function getPlaybackPollDelay(reason) {
+      if (reason === "rate_limit") return Math.max(1000, state.pollingPausedUntil - Date.now());
+      if (state.recordMode === "recording_a" || state.recordMode === "recording_b") return 2000;
+      if (state.recordMode === "flip" || state.recordMode === "paused") return 8000;
+      return 10000;
     }
 
     async function readPlaybackState() {
@@ -1053,14 +1084,27 @@
           el.currentTrack.textContent = "No active playback. Open Spotify first if playback commands fail.";
           state.spotifySideElapsedMs = 0;
           renderRecordMode("No device");
+          schedulePlaybackPoll(10000);
           return;
         }
         const remain = Math.max(0, data.item.duration_ms - data.progress_ms);
         el.currentTrack.innerHTML = `<b>${escapeHtml(data.item.name)}</b>${escapeHtml((data.item.artists || []).map(a => a.name).join(", "))} · ${formatTime(remain)} remaining`;
         syncRecordProgressFromSpotify(data);
       } catch (error) {
+        if (error instanceof SpotifyApiError && error.status === 429) {
+          const retryMs = Math.max(1000, (error.retryAfter || 5) * 1000);
+          state.pollingPausedUntil = Date.now() + retryMs;
+          renderRecordMode(`Rate limited ${Math.ceil(retryMs / 1000)}s`);
+          if (Date.now() - state.lastRateLimitLogAt > 30000) {
+            log(`Spotify rate limit hit. Retrying monitor in ${Math.ceil(retryMs / 1000)}s.`);
+            state.lastRateLimitLogAt = Date.now();
+          }
+          schedulePlaybackPoll(retryMs);
+          return;
+        }
         el.currentTrack.textContent = error.message;
         renderRecordMode("Monitor error");
+        schedulePlaybackPoll(10000);
       }
     }
 
@@ -1068,11 +1112,13 @@
       const tracks = state.activeRecordSide === "B" ? sideB() : sideA();
       if (!tracks.length || !playback.item?.uri) {
         renderRecordMode("Waiting");
+        schedulePlaybackPoll(10000);
         return;
       }
       const index = tracks.findIndex(track => track.uri === playback.item.uri);
       if (index === -1) {
         renderRecordMode("Outside side");
+        schedulePlaybackPoll(8000);
         return;
       }
       const previousMs = duration(tracks.slice(0, index));
@@ -1083,6 +1129,7 @@
       }
       renderRecordMode(playback.is_playing ? "Monitoring" : "Paused");
       updateTimer();
+      schedulePlaybackPoll(getPlaybackPollDelay());
     }
 
     async function completeSideA() {
@@ -1100,6 +1147,7 @@
       el.flipBanner.classList.add("show");
       el.startB.disabled = !sideB().length;
       renderRecordMode("Flip now");
+      schedulePlaybackPoll(getPlaybackPollDelay());
     }
 
     function renderRecordMode(monitorText) {

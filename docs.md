@@ -61,6 +61,10 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 
 - `Start Side A` starts Spotify playback with the calculated Side A queue.
 - The app polls Spotify playback state while recording.
+- Polling is adaptive to avoid unnecessary Spotify API load.
+- During recording, playback is checked about every 2 seconds.
+- In paused, flip, idle, no-device, or outside-side states, polling slows down.
+- If Spotify returns rate limit `429`, the app respects the `Retry-After` delay before polling again.
 - Current Spotify track and track remaining time stay visible.
 - Side elapsed time is calculated from Spotify's current track position plus previous tracks on that side.
 - At the end of Side A, the app pauses Spotify automatically.
