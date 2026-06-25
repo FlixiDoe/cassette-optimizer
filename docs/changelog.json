@@ -118,6 +118,13 @@
       "status": "done",
       "description": "Added a refreshable playlist picker so signed-in users can choose which Spotify playlist to optimize.",
       "timestamp": "2026-06-25T15:25:35+02:00"
+    },
+    {
+      "id": 17,
+      "commit": "feat: add tape length recommendation",
+      "status": "done",
+      "description": "Added total playlist runtime display and a C60/C90 recommendation based on cassette fit.",
+      "timestamp": "2026-06-25T15:31:05+02:00"
     }
   ]
 }

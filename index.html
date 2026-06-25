@@ -176,6 +176,26 @@
     .metric b { display: block; font-size: 18px; color: var(--ink); }
     .metric span { color: var(--muted); font-size: 11px; text-transform: uppercase; }
 
+    .recommendation {
+      border: 1px solid #45633c;
+      border-radius: 6px;
+      padding: 12px;
+      background: rgba(156,255,106,.08);
+      color: var(--ink);
+    }
+
+    .recommendation b {
+      display: block;
+      color: var(--green);
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .recommendation span {
+      color: var(--muted);
+      display: block;
+    }
+
     .warnings {
       min-height: 44px;
       border: 1px dashed #735d28;
@@ -500,6 +520,10 @@
           <div class="metric"><b id="totalTime">00:00</b><span>Total</span></div>
           <div class="metric"><b id="trackCount">0</b><span>Tracks</span></div>
           <div class="metric"><b id="splitPoint">-</b><span>Split after</span></div>
+        </div>
+        <div class="recommendation" id="tapeRecommendation">
+          <b>Tape recommendation pending</b>
+          <span>Load a playlist to compare C60 and C90 fit.</span>
         </div>
       </section>
 
@@ -966,7 +990,7 @@
       const bMs = duration(b);
 
       el.playlistTitle.textContent = state.playlistName || "No playlist loaded";
-      el.totalTime.textContent = formatTime(totalMs);
+      el.totalTime.textContent = formatLongTime(totalMs);
       el.trackCount.textContent = String(state.tracks.length);
       el.splitPoint.textContent = state.splitIndex ? `#${state.splitIndex}` : "-";
       el.sideATime.textContent = `${formatTime(aMs)} / ${formatTime(halfMs)}`;
@@ -976,6 +1000,7 @@
       el.sideACount.textContent = `${a.length} tracks`;
       el.sideBCount.textContent = `${b.length} tracks`;
       el.countdown.textContent = formatTime(aMs);
+      renderTapeRecommendation(totalMs);
       el.applyBtn.disabled = !state.tracks.length || !state.token;
       el.startA.disabled = !a.length || !state.token;
       el.startB.disabled = !b.length || !state.token;
@@ -985,6 +1010,55 @@
       renderTracks(el.sideAList, a, 0);
       renderTracks(el.sideBList, b, state.splitIndex);
       renderWarnings(totalMs, tapeMs, halfMs);
+    }
+
+    function renderTapeRecommendation(totalMs) {
+      if (!state.tracks.length) {
+        el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>Load a playlist to compare C60 and C90 fit.</span>`;
+        return;
+      }
+
+      const c60 = analyzeTapeFit(60);
+      const c90 = analyzeTapeFit(90);
+      let recommendation;
+      let reason;
+
+      if (totalMs <= 60 * 60 * 1000 && c60.sideBFits) {
+        recommendation = "Use C60";
+        reason = `Total ${formatLongTime(totalMs)} fits on C60 with less blank tape than C90.`;
+      } else if (totalMs <= 90 * 60 * 1000 && c90.sideBFits) {
+        recommendation = "Use C90";
+        reason = c60.sideBFits
+          ? `C90 gives more margin. Total ${formatLongTime(totalMs)} also fits C60, but side balance is tighter.`
+          : `Total ${formatLongTime(totalMs)} does not fit cleanly on C60 sides, but fits C90.`;
+      } else if (totalMs <= 90 * 60 * 1000) {
+        recommendation = "Use C90, but rebalance manually";
+        reason = `Total ${formatLongTime(totalMs)} is under 90 minutes, but keeping original order makes one side exceed 45:00.`;
+      } else {
+        recommendation = "Too long for C90";
+        reason = `Total ${formatLongTime(totalMs)} exceeds 90 minutes. Remove about ${formatLongTime(totalMs - 90 * 60 * 1000)} or record across more tapes.`;
+      }
+
+      el.tapeRecommendation.innerHTML = `<b>${escapeHtml(recommendation)}</b><span>${escapeHtml(reason)}</span>`;
+    }
+
+    function analyzeTapeFit(minutes) {
+      const halfMs = minutes * 60 * 1000 / 2;
+      let sideAMs = 0;
+      let split = 0;
+      for (let i = 0; i < state.tracks.length; i += 1) {
+        const next = sideAMs + state.tracks[i].duration_ms;
+        if (next > halfMs) break;
+        sideAMs = next;
+        split = i + 1;
+      }
+      const sideBMs = duration(state.tracks.slice(split));
+      return {
+        split,
+        sideAMs,
+        sideBMs,
+        sideBFits: sideBMs <= halfMs
+      };
     }
 
     function renderPlaylistOptions() {
@@ -1070,6 +1144,15 @@
       const minutes = Math.floor(totalSeconds / 60);
       const seconds = totalSeconds % 60;
       return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function formatLongTime(ms) {
+      const totalSeconds = Math.max(0, Math.round(ms / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (!hours) return `${minutes}:${String(seconds).padStart(2, "0")}`;
+      return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     }
 
     function parsePlaylistId(value) {
