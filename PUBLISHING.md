@@ -13,13 +13,13 @@ This repository is private and GitHub Pages is disabled.
 Use the app locally:
 
 ```powershell
-python -m http.server 3000
+python -m http.server 8787 --bind 127.0.0.1
 ```
 
 Use this Spotify redirect URI:
 
 ```text
-http://localhost:3000/callback/
+http://127.0.0.1:8787/callback
 ```
 
 ## Re-enable Publishing

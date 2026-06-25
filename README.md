@@ -4,20 +4,21 @@ Spotify playlist optimizer for cassette tape recording. The app runs as a single
 
 Repository: https://github.com/FlixiDoe/cassette-optimizer
 Status: private repository, GitHub Pages disabled
+Spotify Client ID: `[REMOVED_SPOTIFY_CLIENT_ID]`
 
 ## Setup
 
 1. Create a Spotify app in the Spotify Developer Dashboard.
 2. Add these redirect URIs:
-   - `http://localhost:3000/callback/`
+   - `http://127.0.0.1:8787/callback`
 3. Start a local static server from this folder:
 
 ```powershell
-python -m http.server 3000
+python -m http.server 8787 --bind 127.0.0.1
 ```
 
-4. Open `http://localhost:3000`.
-5. Paste your Spotify Client ID into the app and connect Spotify.
+4. Open `http://127.0.0.1:8787`.
+5. Confirm the prefilled Spotify Client ID and connect Spotify.
 
 ## Spotify Scopes
 
@@ -46,4 +47,4 @@ The live docs are at `docs/index.html` locally. They read `docs/changelog.json`,
 
 ## GitHub Visibility
 
-This repository is private and GitHub Pages is disabled.
+This repository is private and GitHub Pages is disabled. The app is intended to run locally at `http://127.0.0.1:8787`.

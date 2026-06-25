@@ -430,7 +430,7 @@
         <h2>Input</h2>
         <div>
           <label class="label" for="clientId">Spotify Client ID</label>
-          <input id="clientId" autocomplete="off" placeholder="[INSERT]">
+          <input id="clientId" autocomplete="off" value="[REMOVED_SPOTIFY_CLIENT_ID]" placeholder="[REMOVED_SPOTIFY_CLIENT_ID]">
         </div>
         <div>
           <label class="label" for="playlistInput">Playlist URL or ID</label>
@@ -517,8 +517,9 @@
   </main>
 
   <script>
+    const DEFAULT_SPOTIFY_CLIENT_ID = "[REMOVED_SPOTIFY_CLIENT_ID]";
     const APP_BASE_URL = getAppBaseUrl();
-    const REDIRECT_URI = `${APP_BASE_URL}callback/`;
+    const REDIRECT_URI = `${APP_BASE_URL}callback`;
     const REQUIRED_SCOPES = [
       "playlist-read-private",
       "playlist-modify-private",
@@ -547,7 +548,7 @@
     init();
 
     function init() {
-      el.clientId.value = localStorage.getItem("spotify_client_id") || "";
+      el.clientId.value = localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
       restoreToken();
       handleCallback();
       bindEvents();
@@ -592,7 +593,7 @@
     }
 
     async function handleCallback() {
-      if (location.pathname !== "/callback" && !new URLSearchParams(location.search).has("callback")) return;
+      if (!location.pathname.replace(/\/$/, "").endsWith("/callback") && !new URLSearchParams(location.search).has("callback")) return;
       const params = new URLSearchParams(location.search);
       const code = params.get("code");
       const callbackState = params.get("state");
@@ -986,11 +987,11 @@
     }
 
     function getClientId() {
-      return el.clientId.value.trim() || localStorage.getItem("spotify_client_id") || "";
+      return el.clientId.value.trim() || localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
     }
 
     function getAppBaseUrl() {
-      if (location.protocol === "file:") return "http://localhost:3000/";
+      if (location.protocol === "file:") return "http://127.0.0.1:8787/";
       const path = location.pathname.replace(/(?:callback\/?|index\.html)?$/, "");
       return `${location.origin}${path.endsWith("/") ? path : `${path}/`}`;
     }

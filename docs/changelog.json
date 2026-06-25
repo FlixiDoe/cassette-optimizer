@@ -3,6 +3,9 @@
   "repo": "https://github.com/FlixiDoe/cassette-optimizer",
   "visibility": "private",
   "pages": "disabled",
+  "local": "http://127.0.0.1:8787/",
+  "spotify_client_id": "[REMOVED_SPOTIFY_CLIENT_ID]",
+  "spotify_redirect_uri": "http://127.0.0.1:8787/callback",
   "steps": [
     {
       "id": 1,
