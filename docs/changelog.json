@@ -1,6 +1,6 @@
 {
   "project": "cassette-optimizer",
-  "repo": "",
+  "repo": "https://github.com/FlixiDoe/cassette-optimizer",
   "steps": [
     {
       "id": 1,

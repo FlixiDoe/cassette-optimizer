@@ -2,6 +2,8 @@
 
 Spotify playlist optimizer for cassette tape recording. The app runs as a single static HTML file with vanilla JavaScript and uses Spotify OAuth 2.0 PKCE, so no backend or client secret is needed.
 
+Repository: https://github.com/FlixiDoe/cassette-optimizer
+
 ## Setup
 
 1. Create a Spotify app in the Spotify Developer Dashboard.
