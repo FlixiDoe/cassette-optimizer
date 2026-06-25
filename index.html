@@ -829,6 +829,7 @@
       sideAElapsedBeforePause: 0,
       spotifySideElapsedMs: 0,
       lastSideProgressMs: 0,
+      lastProgressUpdatedAt: 0,
       recordMode: "idle",
       activeRecordSide: null,
       autoPauseDone: false,
@@ -1116,6 +1117,9 @@
       }
       state.splitIndex = split;
       state.sideAElapsedBeforePause = 0;
+      state.spotifySideElapsedMs = 0;
+      state.lastSideProgressMs = 0;
+      state.lastProgressUpdatedAt = 0;
       stopTimer();
     }
 
@@ -1147,6 +1151,7 @@
         state.activeRecordSide = "A";
         state.spotifySideElapsedMs = 0;
         state.lastSideProgressMs = 0;
+        state.lastProgressUpdatedAt = Date.now();
         state.autoPauseDone = false;
         state.sideAElapsedBeforePause = 0;
         state.sideAStartedAt = Date.now();
@@ -1170,12 +1175,16 @@
         state.recordMode = "recording_b";
         state.activeRecordSide = "B";
         state.spotifySideElapsedMs = 0;
+        state.sideAElapsedBeforePause = 0;
+        state.sideAStartedAt = Date.now();
         state.lastSideProgressMs = 0;
+        state.lastProgressUpdatedAt = Date.now();
         state.autoPauseDone = false;
         await spotifyFetch("/me/player/play", {
           method: "PUT",
           body: JSON.stringify({ uris: sideB().map(track => track.uri), offset: { position: 0 }, position_ms: 0 })
         });
+        startTimer();
         startPollingPlayback();
         renderRecordMode();
         log("Started Side B.");
@@ -1191,6 +1200,8 @@
           state.sideAElapsedBeforePause += Date.now() - state.sideAStartedAt;
           state.sideAStartedAt = 0;
         }
+        state.lastSideProgressMs = getProjectedRecordElapsed();
+        state.lastProgressUpdatedAt = Date.now();
         stopTimer();
         state.recordMode = "paused";
         renderRecordMode();
@@ -1202,7 +1213,8 @@
     }
 
     function startTimer() {
-      stopTimer();
+      if (state.timerId) clearInterval(state.timerId);
+      state.timerId = null;
       el.pauseBtn.disabled = false;
       state.timerId = setInterval(updateTimer, 250);
       updateTimer();
@@ -1218,8 +1230,9 @@
     async function updateTimer() {
       const currentSide = state.activeRecordSide === "B" ? sideB() : sideA();
       const total = duration(currentSide);
-      const localElapsed = state.sideAElapsedBeforePause + (state.sideAStartedAt ? Date.now() - state.sideAStartedAt : 0);
-      const elapsed = state.spotifySideElapsedMs || localElapsed;
+      const elapsed = getProjectedRecordElapsed();
+      state.lastSideProgressMs = Math.max(state.lastSideProgressMs, elapsed);
+      state.lastProgressUpdatedAt = Date.now();
       const remaining = Math.max(0, total - elapsed);
       el.countdown.textContent = formatTime(remaining);
       el.countdownLabel.textContent = `left on Side ${state.activeRecordSide || "A"}`;
@@ -1259,7 +1272,6 @@
         const data = await spotifyFetch("/me/player");
         if (!data || !data.item) {
           el.currentTrack.textContent = "No active playback. Open Spotify first if playback commands fail.";
-          state.spotifySideElapsedMs = 0;
           renderRecordMode("No device");
           schedulePlaybackPoll(10000);
           return;
@@ -1299,7 +1311,10 @@
         return;
       }
       state.spotifySideElapsedMs = elapsed;
-      state.lastSideProgressMs = Math.max(state.lastSideProgressMs, elapsed);
+      if (elapsed > state.lastSideProgressMs) {
+        state.lastSideProgressMs = elapsed;
+        state.lastProgressUpdatedAt = Date.now();
+      }
       if (state.recordMode === "recording_a" && state.spotifySideElapsedMs >= duration(sideA()) - 750 && !state.autoPauseDone) {
         completeSideA();
         return;
@@ -1318,9 +1333,22 @@
       }
       if (!candidates.length) return null;
       const floor = Math.max(0, state.lastSideProgressMs - 5000);
-      const forward = candidates.filter(value => value >= floor).sort((a, b) => a - b);
-      const selected = forward[0] ?? Math.max(...candidates);
+      const anchor = Math.max(getLocalRecordElapsed(), floor);
+      const forward = candidates.filter(value => value >= floor);
+      const selected = (forward.length ? forward : candidates)
+        .sort((a, b) => Math.abs(a - anchor) - Math.abs(b - anchor))[0];
       return Math.max(floor, selected);
+    }
+
+    function getLocalRecordElapsed() {
+      return state.sideAElapsedBeforePause + (state.sideAStartedAt ? Date.now() - state.sideAStartedAt : 0);
+    }
+
+    function getProjectedRecordElapsed() {
+      const base = Math.max(getLocalRecordElapsed(), state.spotifySideElapsedMs, state.lastSideProgressMs);
+      const isRecording = state.recordMode === "recording_a" || state.recordMode === "recording_b";
+      if (!isRecording || !state.lastProgressUpdatedAt) return base;
+      return Math.max(base, state.lastSideProgressMs + Date.now() - state.lastProgressUpdatedAt);
     }
 
     async function completeSideA() {

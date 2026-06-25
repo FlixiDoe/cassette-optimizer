@@ -76,6 +76,7 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - Current Spotify track and track remaining time stay visible.
 - Side elapsed time is calculated from Spotify's current track position plus previous tracks on that side.
 - Duplicate tracks are handled by choosing the plausible later occurrence, and Record Mode progress is kept monotonic to avoid timer jumps.
+- A local monotonic timer keeps the countdown moving between Spotify polls and prevents stale playback positions from moving the display backward.
 - At the end of Side A, the app pauses Spotify automatically.
 - The UI switches to `Flip cassette` and shows `FLIP THE CASSETTE!`.
 - `Start Side B` is unlocked after the Side A auto-pause/flip state and starts the calculated Side B queue.
