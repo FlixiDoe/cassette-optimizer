@@ -58,6 +58,7 @@ You can also start the local server with:
 - Supports common cassette lengths from C30 through C120.
 - Lets you mark which cassette formats you have available.
 - Shows total playlist length and recommends the smallest available cassette format that fits cleanly.
+- Generates a printable J-card cassette inlay from playlist cover, title, sides, tracks, and runtime.
 - Keeps original order and finds the best split point without cutting songs.
 - Displays Side A and Side B tracklists with timestamps.
 - Reorders the Spotify playlist with `PUT /v1/playlists/{id}/tracks`.

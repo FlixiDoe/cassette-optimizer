@@ -57,6 +57,14 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - If total runtime fits but one side does not, the app warns that manual rebalancing would be needed.
 - If the playlist exceeds the largest selected tape, the app reports how much audio must be removed.
 
+## J-Card Generator
+
+- The app renders a printable cassette inlay after a playlist is loaded.
+- The J-card includes playlist name, Spotify cover image, total runtime, selected tape format, Side A tracks, and Side B tracks.
+- Use `Print J-Card` to open the browser print dialog.
+- Print CSS hides the app UI and prints only the J-card layout on A4 landscape paper.
+- Fold/cut guides are shown as dashed panel borders.
+
 ## Record Mode
 
 - `Start Side A` starts Spotify playback with the calculated Side A queue.

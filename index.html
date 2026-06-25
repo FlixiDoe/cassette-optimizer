@@ -480,6 +480,136 @@
     .track .artist { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .track .dur { color: var(--amber); font-size: 12px; }
 
+    .jcard-section {
+      margin-top: 16px;
+    }
+
+    .jcard-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .jcard-print {
+      width: min(100%, 1040px);
+      margin: 0 auto;
+      color: #111;
+      background: #f7f4e8;
+      border: 1px solid #36342f;
+      display: grid;
+      grid-template-columns: 18mm 65mm 92mm;
+      min-height: 120mm;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .j-spine {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      border-left: 1px dashed #777;
+      background: #111;
+      color: #f2f0df;
+      padding: 8mm 4mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+
+    .j-cover {
+      border-right: 1px dashed #777;
+      padding: 7mm;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 5mm;
+      background: #ebe4d2;
+    }
+
+    .j-cover-art {
+      aspect-ratio: 1;
+      border: 1px solid #222;
+      background: #222;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .j-cover-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .j-cover-art span {
+      color: #f2f0df;
+      padding: 8mm;
+      text-align: center;
+    }
+
+    .j-title {
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .j-meta {
+      font-size: 10px;
+      color: #444;
+      display: grid;
+      gap: 2mm;
+    }
+
+    .j-tracks {
+      padding: 6mm;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6mm;
+      background: #fbfaf3;
+    }
+
+    .j-side h3 {
+      color: #111;
+      border-bottom: 1px solid #111;
+      padding-bottom: 2mm;
+      margin-bottom: 3mm;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .j-side ol {
+      margin: 0;
+      padding-left: 5mm;
+      display: grid;
+      gap: 1.4mm;
+      font-size: 9px;
+      line-height: 1.2;
+    }
+
+    .j-side li {
+      break-inside: avoid;
+      padding-left: 1mm;
+    }
+
+    .j-track-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 3mm;
+    }
+
+    .j-track-line span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .j-empty {
+      color: #555;
+      font-size: 11px;
+    }
+
     .log {
       max-height: 180px;
       overflow: auto;
@@ -503,6 +633,34 @@
       .tracklists { grid-template-columns: 1fr; }
       header { align-items: flex-start; flex-direction: column; }
       .status { white-space: normal; }
+    }
+
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+
+      body {
+        background: #fff;
+      }
+
+      body * {
+        visibility: hidden;
+      }
+
+      .jcard-print,
+      .jcard-print * {
+        visibility: visible;
+      }
+
+      .jcard-print {
+        position: fixed;
+        left: 10mm;
+        top: 10mm;
+        width: 175mm;
+        box-shadow: none;
+      }
     }
   </style>
 </head>
@@ -629,6 +787,17 @@
         <div class="tracks" id="sideBList"></div>
       </div>
     </section>
+
+    <section class="panel jcard-section">
+      <div class="jcard-actions">
+        <div>
+          <h2>J-Card Generator</h2>
+          <p class="small">Printable cassette inlay from playlist cover, sides, tracks, and runtime.</p>
+        </div>
+        <button id="printJCardBtn" type="button" disabled>Print J-Card</button>
+      </div>
+      <div class="jcard-print" id="jCardPrint"></div>
+    </section>
   </main>
 
   <script>
@@ -650,6 +819,7 @@
       expiresAt: 0,
       playlistId: "4fZv3BFRfEFNMViOqUVLmH",
       playlistName: "",
+      playlistCoverUrl: "",
       tracks: [],
       playlists: [],
       tapeMinutes: 90,
@@ -704,6 +874,7 @@
       el.startA.addEventListener("click", startSideA);
       el.startB.addEventListener("click", startSideB);
       el.pauseBtn.addEventListener("click", pausePlayback);
+      el.printJCardBtn.addEventListener("click", () => window.print());
       el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
       el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
       window.addEventListener("beforeunload", persistToken);
@@ -857,8 +1028,9 @@
         state.playlistId = parsePlaylistId(el.playlistInput.value.trim());
         if (!state.playlistId) throw new Error("Paste a Spotify playlist URL or ID.");
         log(`Loading playlist ${state.playlistId}...`);
-        const playlist = await spotifyFetch(`/playlists/${state.playlistId}?fields=name,tracks(total)`);
+        const playlist = await spotifyFetch(`/playlists/${state.playlistId}?fields=name,images(url,width,height),tracks(total)`);
         state.playlistName = playlist.name || state.playlistId;
+        state.playlistCoverUrl = pickPlaylistCover(playlist.images || []);
         state.tracks = await fetchAllTracks(state.playlistId);
         computeSplit();
         renderSplit();
@@ -889,6 +1061,7 @@
           playlists.push({
             id: playlist.id,
             name: playlist.name || playlist.id,
+            coverUrl: pickPlaylistCover(playlist.images || []),
             owner: playlist.owner?.display_name || "unknown owner",
             tracks: playlist.tracks?.total ?? 0,
             public: playlist.public
@@ -904,6 +1077,7 @@
       if (!selected) return;
       state.playlistId = selected.id;
       state.playlistName = selected.name;
+      state.playlistCoverUrl = selected.coverUrl || "";
       el.playlistInput.value = selected.id;
       el.playlistTitle.textContent = selected.name;
       log(`Selected playlist: ${selected.name}. Click Load playlist to fetch tracks.`);
@@ -1249,7 +1423,48 @@
       el.playlistSelect.disabled = !state.token || !state.playlists.length;
       renderTracks(el.sideAList, a, 0);
       renderTracks(el.sideBList, b, state.splitIndex);
+      renderJCard(a, b, aMs, bMs, totalMs);
       renderWarnings(totalMs, tapeMs, halfMs);
+    }
+
+    function renderJCard(a, b, aMs, bMs, totalMs) {
+      const title = state.playlistName || "No playlist loaded";
+      const cover = state.playlistCoverUrl
+        ? `<img src="${escapeHtml(state.playlistCoverUrl)}" alt="">`
+        : `<span>No cover loaded</span>`;
+      el.printJCardBtn.disabled = !state.tracks.length;
+      el.jCardPrint.innerHTML = `
+        <div class="j-spine"><span>${escapeHtml(title)}</span><span>C${state.tapeMinutes}</span></div>
+        <div class="j-cover">
+          <div class="j-title">${escapeHtml(title)}</div>
+          <div class="j-cover-art">${cover}</div>
+          <div class="j-meta">
+            <span>Total: ${formatLongTime(totalMs)}</span>
+            <span>Side A: ${formatLongTime(aMs)}</span>
+            <span>Side B: ${formatLongTime(bMs)}</span>
+            <span>${state.tracks.length} tracks - C${state.tapeMinutes}</span>
+          </div>
+        </div>
+        <div class="j-tracks">
+          ${renderJCardSide("Side A", a, aMs, 0)}
+          ${renderJCardSide("Side B", b, bMs, state.splitIndex)}
+        </div>
+      `;
+    }
+
+    function renderJCardSide(label, tracks, totalMs, offset) {
+      if (!tracks.length) {
+        return `<div class="j-side"><h3>${label} - ${formatLongTime(totalMs)}</h3><p class="j-empty">Load a playlist to fill this side.</p></div>`;
+      }
+      const items = tracks.map(track => `
+        <li>
+          <div class="j-track-line">
+            <span>${escapeHtml(track.name)}</span>
+            <span>${formatTime(track.duration_ms)}</span>
+          </div>
+        </li>
+      `).join("");
+      return `<div class="j-side"><h3>${label} - ${formatLongTime(totalMs)} - ${offset + 1}-${offset + tracks.length}</h3><ol>${items}</ol></div>`;
     }
 
     function renderTapeRecommendation(totalMs) {
@@ -1398,6 +1613,10 @@
       if (!value) return "";
       const match = value.match(/playlist[/:]([A-Za-z0-9]+)/) || value.match(/^([A-Za-z0-9]{20,})/);
       return match ? match[1] : "";
+    }
+
+    function pickPlaylistCover(images) {
+      return [...images].sort((a, b) => (b.width || 0) - (a.width || 0))[0]?.url || "";
     }
 
     function getClientId() {
