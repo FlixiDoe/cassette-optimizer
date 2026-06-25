@@ -42,8 +42,8 @@ You can also start the local server with:
 - Accepts a Spotify playlist URL or ID.
 - Lets the signed-in user refresh and choose from their Spotify playlists.
 - Fetches all playlist tracks and `duration_ms` values.
-- Supports C60 and C90 tape lengths.
-- Shows total playlist length and recommends C60 or C90 based on fit.
+- Supports common cassette lengths from C30 through C120.
+- Shows total playlist length and recommends the smallest cassette format that fits cleanly.
 - Keeps original order and finds the best split point without cutting songs.
 - Displays Side A and Side B tracklists with timestamps.
 - Reorders the Spotify playlist with `PUT /v1/playlists/{id}/tracks`.

@@ -477,11 +477,8 @@
           </div>
         </div>
         <div>
-          <span class="label">Tape length</span>
-          <div class="segmented">
-            <button id="tape60" type="button">C60</button>
-            <button id="tape90" type="button" class="active">C90</button>
-          </div>
+          <label class="label" for="tapeSelect">Tape format</label>
+          <select id="tapeSelect"></select>
         </div>
         <button id="loadBtn" class="primary">Load playlist</button>
         <button id="applyBtn" class="warn" disabled>Apply to Spotify</button>
@@ -571,6 +568,7 @@
       "user-read-playback-state",
       "user-modify-playback-state"
     ];
+    const TAPE_FORMATS = [30, 46, 50, 54, 60, 64, 70, 74, 80, 90, 100, 110, 120];
 
     const state = {
       token: null,
@@ -613,9 +611,9 @@
       el.startA.addEventListener("click", startSideA);
       el.startB.addEventListener("click", startSideB);
       el.pauseBtn.addEventListener("click", pausePlayback);
-      el.tape60.addEventListener("click", () => setTapeLength(60));
-      el.tape90.addEventListener("click", () => setTapeLength(90));
+      el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
       window.addEventListener("beforeunload", persistToken);
+      renderTapeOptions();
     }
 
     async function login() {
@@ -973,11 +971,16 @@
 
     function setTapeLength(minutes) {
       state.tapeMinutes = minutes;
-      el.tape60.classList.toggle("active", minutes === 60);
-      el.tape90.classList.toggle("active", minutes === 90);
       el.tapeLabel.textContent = `C${minutes}`;
       computeSplit();
       renderSplit();
+    }
+
+    function renderTapeOptions() {
+      el.tapeSelect.innerHTML = TAPE_FORMATS.map(minutes => {
+        const selected = minutes === state.tapeMinutes ? " selected" : "";
+        return `<option value="${minutes}"${selected}>C${minutes} - ${formatLongTime(minutes * 60 * 1000)} total / ${formatLongTime(minutes * 30 * 1000)} per side</option>`;
+      }).join("");
     }
 
     function renderSplit() {
@@ -1014,29 +1017,27 @@
 
     function renderTapeRecommendation(totalMs) {
       if (!state.tracks.length) {
-        el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>Load a playlist to compare C60 and C90 fit.</span>`;
+        el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>Load a playlist to compare common cassette formats from C30 to C120.</span>`;
         return;
       }
 
-      const c60 = analyzeTapeFit(60);
-      const c90 = analyzeTapeFit(90);
+      const fits = TAPE_FORMATS.map(minutes => ({ minutes, ...analyzeTapeFit(minutes) }));
+      const cleanFit = fits.find(format => totalMs <= format.minutes * 60 * 1000 && format.sideBFits);
+      const totalOnlyFit = fits.find(format => totalMs <= format.minutes * 60 * 1000);
       let recommendation;
       let reason;
 
-      if (totalMs <= 60 * 60 * 1000 && c60.sideBFits) {
-        recommendation = "Use C60";
-        reason = `Total ${formatLongTime(totalMs)} fits on C60 with less blank tape than C90.`;
-      } else if (totalMs <= 90 * 60 * 1000 && c90.sideBFits) {
-        recommendation = "Use C90";
-        reason = c60.sideBFits
-          ? `C90 gives more margin. Total ${formatLongTime(totalMs)} also fits C60, but side balance is tighter.`
-          : `Total ${formatLongTime(totalMs)} does not fit cleanly on C60 sides, but fits C90.`;
-      } else if (totalMs <= 90 * 60 * 1000) {
-        recommendation = "Use C90, but rebalance manually";
-        reason = `Total ${formatLongTime(totalMs)} is under 90 minutes, but keeping original order makes one side exceed 45:00.`;
+      if (cleanFit) {
+        const blankMs = cleanFit.minutes * 60 * 1000 - totalMs;
+        recommendation = `Use C${cleanFit.minutes}`;
+        reason = `Total ${formatLongTime(totalMs)} fits cleanly on C${cleanFit.minutes}; about ${formatLongTime(blankMs)} blank tape remains.`;
+      } else if (totalOnlyFit) {
+        recommendation = `Use C${totalOnlyFit.minutes}, but rebalance manually`;
+        reason = `Total ${formatLongTime(totalMs)} fits C${totalOnlyFit.minutes}, but keeping original order makes one side exceed ${formatLongTime(totalOnlyFit.minutes * 30 * 1000)}.`;
       } else {
-        recommendation = "Too long for C90";
-        reason = `Total ${formatLongTime(totalMs)} exceeds 90 minutes. Remove about ${formatLongTime(totalMs - 90 * 60 * 1000)} or record across more tapes.`;
+        const longest = TAPE_FORMATS[TAPE_FORMATS.length - 1];
+        recommendation = `Too long for C${longest}`;
+        reason = `Total ${formatLongTime(totalMs)} exceeds C${longest}. Remove about ${formatLongTime(totalMs - longest * 60 * 1000)} or record across more tapes.`;
       }
 
       el.tapeRecommendation.innerHTML = `<b>${escapeHtml(recommendation)}</b><span>${escapeHtml(reason)}</span>`;
