@@ -806,6 +806,7 @@
         <div class="track-now" id="currentTrack">No active playback.</div>
         <button id="startA" class="primary" disabled>Start Side A</button>
         <button id="pauseBtn" class="danger" disabled>Pause</button>
+        <button id="abortBtn" class="danger" disabled>Abort Recording</button>
         <div id="recordCue" class="record-cue" aria-live="assertive">PRESS RECORD NOW</div>
         <div id="flipBanner" class="flip">FLIP THE CASSETTE!</div>
         <button id="startB" class="warn" disabled>Start Side B</button>
@@ -883,7 +884,9 @@
       pollingDelayMs: 5000,
       pollingPausedUntil: 0,
       lastRateLimitLogAt: 0,
-      lastPlaybackCorrectionAt: 0
+      lastPlaybackCorrectionAt: 0,
+      lastStatusPushAt: 0,
+      statusPollId: null
     };
 
     class SpotifyApiError extends Error {
@@ -924,10 +927,12 @@
       el.startA.addEventListener("click", startSideA);
       el.startB.addEventListener("click", startSideB);
       el.pauseBtn.addEventListener("click", pausePlayback);
+      el.abortBtn.addEventListener("click", abortRecording);
       el.printJCardBtn.addEventListener("click", () => window.print());
       el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
       el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
       window.addEventListener("beforeunload", persistToken);
+      startSharedStatusPolling();
       restoreTapeInventory();
       renderTapeOptions();
       renderTapeInventory();
@@ -1382,6 +1387,42 @@
       }
     }
 
+    async function abortRecording() {
+      try {
+        clearRecordCue();
+        stopTimer();
+        stopPollingPlayback();
+        if (state.token) {
+          try {
+            await spotifyFetch("/me/player/pause", { method: "PUT" });
+          } catch (error) {
+            log(`Abort pause warning: ${error.message}`);
+          }
+        }
+        state.recordMode = "idle";
+        state.activeRecordSide = null;
+        state.autoPauseDone = false;
+        state.sideAStartedAt = 0;
+        state.sideAElapsedBeforePause = 0;
+        state.spotifySideElapsedMs = 0;
+        state.lastSideProgressMs = 0;
+        state.lastProgressUpdatedAt = 0;
+        el.flipBanner.classList.remove("show");
+        el.recordCue.classList.remove("show");
+        el.currentTrack.textContent = "Recording aborted.";
+        el.playProgress.style.width = "0%";
+        el.tapeProgress.style.width = "0%";
+        el.countdown.textContent = formatTime(duration(sideA()));
+        el.countdownLabel.textContent = "left on Side A";
+        el.finishTime.textContent = state.tracks.length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + duration(sideA())))}` : "Finish time pending";
+        renderRecordMode("Aborted");
+        log("Recording aborted.");
+        pushSharedStatus(true);
+      } catch (error) {
+        log(error.message);
+      }
+    }
+
     function startTimer() {
       if (state.timerId) clearInterval(state.timerId);
       state.timerId = null;
@@ -1436,6 +1477,91 @@
     function getCueRemainingMs() {
       const match = el.recordCue.textContent.match(/IN\s+(\d+)/i);
       return match ? Number(match[1]) * 1000 : 0;
+    }
+
+    function getSharedStatusPayload() {
+      return {
+        updatedAt: new Date().toISOString(),
+        playlistName: state.playlistName || "",
+        playlistId: state.playlistId || "",
+        tapeMinutes: state.tapeMinutes,
+        totalTime: el.totalTime.textContent,
+        trackCount: el.trackCount.textContent,
+        splitPoint: el.splitPoint.textContent,
+        recordMode: el.recordModeStatus.textContent,
+        activeSide: el.recordSide.textContent,
+        monitor: el.recordMonitor.textContent,
+        countdown: el.countdown.textContent,
+        countdownLabel: el.countdownLabel.textContent,
+        finishTime: el.finishTime.textContent,
+        currentTrack: el.currentTrack.textContent,
+        playProgress: el.playProgress.style.width || "0%",
+        tapeProgress: el.tapeProgress.style.width || "0%",
+        sideATime: el.sideATime.textContent,
+        sideBTime: el.sideBTime.textContent,
+        sideAFill: el.sideAFill.style.width || "0%",
+        sideBFill: el.sideBFill.style.width || "0%",
+        flip: el.flipBanner.classList.contains("show"),
+        cue: el.recordCue.classList.contains("show") ? el.recordCue.textContent : "",
+        lastLog: el.log.textContent.split("\n").slice(0, 8)
+      };
+    }
+
+    function pushSharedStatus(force = false) {
+      if (location.protocol === "file:") return;
+      if (!force && Date.now() - state.lastStatusPushAt < 1000) return;
+      state.lastStatusPushAt = Date.now();
+      fetch("/api/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(getSharedStatusPayload())
+      }).catch(() => {});
+    }
+
+    function startSharedStatusPolling() {
+      if (location.protocol === "file:") return;
+      if (state.statusPollId) clearInterval(state.statusPollId);
+      state.statusPollId = setInterval(fetchSharedStatus, 2000);
+      fetchSharedStatus();
+    }
+
+    async function fetchSharedStatus() {
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        if (!response.ok) return;
+        const remote = await response.json();
+        if (!remote || !remote.updatedAt) return;
+        if (state.token) return;
+        renderSharedStatus(remote);
+      } catch {
+        // Static servers do not provide the optional status API.
+      }
+    }
+
+    function renderSharedStatus(remote) {
+      el.playlistTitle.textContent = remote.playlistName || "Remote status";
+      el.totalTime.textContent = remote.totalTime || "00:00";
+      el.trackCount.textContent = remote.trackCount || "0";
+      el.splitPoint.textContent = remote.splitPoint || "-";
+      el.recordModeStatus.textContent = remote.recordMode || "Idle";
+      el.recordSide.textContent = remote.activeSide || "-";
+      el.recordMonitor.textContent = remote.monitor || "Remote";
+      el.countdown.textContent = remote.countdown || "00:00";
+      el.countdownLabel.textContent = remote.countdownLabel || "remote side status";
+      el.finishTime.textContent = remote.finishTime || "Finish time pending";
+      el.currentTrack.textContent = remote.currentTrack || "Waiting for remote status.";
+      el.playProgress.style.width = remote.playProgress || "0%";
+      el.tapeProgress.style.width = remote.tapeProgress || "0%";
+      el.sideATime.textContent = remote.sideATime || "00:00 / 00:00";
+      el.sideBTime.textContent = remote.sideBTime || "00:00 / 00:00";
+      el.sideAFill.style.width = remote.sideAFill || "0%";
+      el.sideBFill.style.width = remote.sideBFill || "0%";
+      el.flipBanner.classList.toggle("show", Boolean(remote.flip));
+      el.recordCue.classList.toggle("show", Boolean(remote.cue));
+      if (remote.cue) el.recordCue.textContent = remote.cue;
+      if (Array.isArray(remote.lastLog) && remote.lastLog.length) {
+        el.log.textContent = remote.lastLog.join("\n");
+      }
     }
 
     function startPollingPlayback() {
@@ -1649,11 +1775,14 @@
       const pausedB = state.recordMode === "paused" && state.activeRecordSide === "B";
       const recording = state.recordMode === "recording_a" || state.recordMode === "recording_b";
       const cueing = state.recordMode === "cue_a" || state.recordMode === "cue_b";
+      const abortable = cueing || recording || state.recordMode === "paused" || state.recordMode === "flip";
       el.startA.textContent = pausedA ? "Resume Side A" : "Start Side A";
       el.startB.textContent = pausedB ? "Resume Side B" : "Start Side B";
       el.startA.disabled = cueing || !a.length || !state.token || !(state.recordMode === "idle" || pausedA);
       el.startB.disabled = cueing || !b.length || !state.token || !(state.recordMode === "flip" || pausedB);
       el.pauseBtn.disabled = cueing || !state.token || !recording;
+      el.abortBtn.disabled = !abortable;
+      pushSharedStatus();
     }
 
     function setTapeLength(minutes) {
@@ -1744,6 +1873,7 @@
       renderTracks(el.sideBList, b, state.splitIndex);
       renderJCard(a, b, aMs, bMs, totalMs);
       renderWarnings(totalMs, tapeMs, halfMs);
+      pushSharedStatus(true);
     }
 
     function renderJCard(a, b, aMs, bMs, totalMs) {
@@ -2017,6 +2147,7 @@
     function log(message) {
       const stamp = new Date().toLocaleTimeString();
       el.log.textContent = `${stamp} ${message}\n${el.log.textContent}`.trim();
+      pushSharedStatus(true);
     }
   </script>
 </body>

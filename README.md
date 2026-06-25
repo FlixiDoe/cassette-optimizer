@@ -30,9 +30,11 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Optional `Apply to Spotify` button to sync the calculated order back to the playlist.
 - Spotify Connect device selector.
 - Record Mode with Side A / Side B start, pause, resume, automatic side-end pause, flip cue, and finish-time estimate.
+- Abort button to stop the current recording run and pause Spotify.
 - Red `PRESS RECORD NOW` cue before playback starts.
 - Automatic shuffle/repeat disable before fresh side starts.
 - Conservative playback correction if Spotify jumps to an unexpected track.
+- Optional LAN status server so another device can open the same UI and monitor the current state.
 - Printable J-card cassette inlay from playlist title, cover, side tracks, and runtime.
 
 ## Local Setup
@@ -62,6 +64,26 @@ http://127.0.0.1:8787/
 ```
 
 Do not use `file://` for Spotify login. OAuth PKCE requires the local HTTP origin, and the server must stay running until Spotify redirects back to `/callback`.
+
+## LAN Status Mode
+
+For monitoring from another device on the same network, use the optional Node server instead of the Python static server:
+
+```powershell
+.\start-lan.ps1
+```
+
+It serves the same app on all network interfaces and adds a small `/api/status` endpoint. The main browser posts safe status data only; Spotify tokens are not shared.
+
+The server prints LAN URLs such as:
+
+```text
+http://192.168.x.x:8787/
+```
+
+Open that URL on your phone to see the same playback status. The phone does not start from `0:00`; it mirrors the last status posted by the main app.
+
+Keep this LAN server on a trusted private network only. Do not expose it directly to the public internet.
 
 ## Spotify App Configuration
 
@@ -102,6 +124,7 @@ Required scopes:
 - Spotify playback state is polled sparingly to avoid unnecessary API load.
 - If Spotify jumps to a wrong track, the app attempts to correct playback to the track expected from the local recording time.
 - The app shows the estimated local clock time when the current side will finish.
+- `Abort Recording` pauses Spotify where possible, clears cue/timer/polling state, and returns the UI to idle.
 
 ## J-Card
 

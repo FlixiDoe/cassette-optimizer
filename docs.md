@@ -47,6 +47,17 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 9. Use `Apply to Spotify` only when you want to sync the order to Spotify.
 10. Use `Start Side A`; when the red `PRESS RECORD NOW` cue appears, start recording on your cassette/cable deck.
 11. Spotify starts automatically after the 5-second cue. Wait for auto-pause, flip the cassette, then use `Start Side B` and start recording again when the cue appears.
+12. Use `Abort Recording` only if you want to stop the current recording run and reset Record Mode.
+
+## LAN Status Mode
+
+Use this optional server when another device, such as a phone, should open the same UI and monitor the current status:
+
+```powershell
+.\start-lan.ps1
+```
+
+The LAN server listens on `0.0.0.0:8787`, serves the same app, and exposes `/api/status` for status mirroring. The main app posts status only; Spotify tokens are not shared. Use it only on a trusted private network.
 
 ## Supported Tape Formats
 
@@ -97,6 +108,7 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - Before Side B playback starts, the app shows `PRESS RECORD NOW - SIDE B` for 5 seconds.
 - If Side B is paused, the button changes to `Resume Side B` and resumes Spotify without resetting the queue.
 - At the end of Side B, the app pauses Spotify automatically and returns Record Mode to `Idle`.
+- `Abort Recording` pauses Spotify where possible, clears timers/cues/polling, and returns Record Mode to `Idle`.
 - If Spotify reports no active device, open Spotify on desktop/mobile and start playback once.
 
 ## Spotify Scopes

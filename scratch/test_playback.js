@@ -51,6 +51,14 @@ contains("Start Side A enters cue state", 'state.recordMode = "cue_a"');
 contains("Start Side B enters cue state", 'state.recordMode = "cue_b"');
 containsHtml("Finish time display", 'id="finishTime"');
 contains("Finish time renderer", "function renderFinishTime");
+containsHtml("Abort recording button", 'id="abortBtn"');
+contains("Abort recording handler", "async function abortRecording");
+contains("Shared status push", "function pushSharedStatus");
+contains("Shared status polling", "function startSharedStatusPolling");
+
+const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+assert.ok(server.includes('"/api/status"'), "Missing LAN status API");
+assert.ok(server.includes("0.0.0.0"), "LAN server should listen on all interfaces by default");
 
 assert.deepEqual(buttonState("idle", null), {
   startAText: "Start Side A",
