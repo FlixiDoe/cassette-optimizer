@@ -39,8 +39,9 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 5. Choose the tape format to plan against.
 6. Click `Load playlist`.
 7. Review total runtime, tape recommendation, Side A, and Side B.
-8. Use `Apply to Spotify` only when you want to sync the order to Spotify.
-9. Use `Start Side A` to enter Record Mode, wait for auto-pause, flip the cassette, then use `Start Side B`.
+8. In `Playback`, click `Refresh` under `Spotify device` if you want to target a specific Spotify Connect device.
+9. Use `Apply to Spotify` only when you want to sync the order to Spotify.
+10. Use `Start Side A` to enter Record Mode, wait for auto-pause, flip the cassette, then use `Start Side B`.
 
 ## Supported Tape Formats
 
@@ -67,7 +68,10 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 
 ## Record Mode
 
+- The Playback panel can load Spotify Connect devices via `/me/player/devices`.
+- If a device is selected, playback commands use that device with `device_id`; otherwise Spotify uses the default active device.
 - `Start Side A` starts Spotify playback with the calculated Side A queue.
+- If Side A is paused, the button changes to `Resume Side A` and resumes Spotify without resetting the queue.
 - The app polls Spotify playback state while recording.
 - Polling is adaptive to avoid unnecessary Spotify API load.
 - During recording, playback is checked about every 2 seconds.
@@ -80,6 +84,8 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - At the end of Side A, the app pauses Spotify automatically.
 - The UI switches to `Flip cassette` and shows `FLIP THE CASSETTE!`.
 - `Start Side B` is unlocked after the Side A auto-pause/flip state and starts the calculated Side B queue.
+- If Side B is paused, the button changes to `Resume Side B` and resumes Spotify without resetting the queue.
+- At the end of Side B, the app pauses Spotify automatically and returns Record Mode to `Idle`.
 - If Spotify reports no active device, open Spotify on desktop/mobile and start playback once.
 
 ## Spotify Scopes
@@ -95,7 +101,16 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 - `ERR_CONNECTION_REFUSED` after Spotify login: start `.\start-local.ps1` and reload the callback URL.
 - `OAuth callback rejected`: start again from `http://127.0.0.1:8787/` and reconnect Spotify.
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
+- If default playback fails, click `Refresh` under `Spotify device`, choose the visible Spotify Connect device, then retry.
 - Playlist list is empty: reconnect Spotify and ensure the token has `playlist-read-private`.
+
+## Regression Test
+
+Run the playback regression checks:
+
+```powershell
+node scratch/test_playback.js
+```
 
 ## Repository State
 

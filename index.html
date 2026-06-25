@@ -753,6 +753,15 @@
 
       <aside class="panel transport">
         <h2>Playback</h2>
+        <div>
+          <label class="label" for="deviceSelect">Spotify device</label>
+          <div class="row">
+            <select id="deviceSelect" disabled>
+              <option value="">Default active device</option>
+            </select>
+            <button id="loadDevicesBtn" type="button" disabled>Refresh</button>
+          </div>
+        </div>
         <div class="record-mode" id="recordModePanel">
           <div class="record-row"><span>Record mode</span><b id="recordModeStatus">Idle</b></div>
           <div class="record-row"><span>Active side</span><b id="recordSide">-</b></div>
@@ -822,6 +831,8 @@
       playlistCoverUrl: "",
       tracks: [],
       playlists: [],
+      devices: [],
+      selectedDeviceId: localStorage.getItem("spotify_device_id") || "",
       tapeMinutes: 90,
       availableTapeFormats: [...TAPE_FORMATS],
       splitIndex: 0,
@@ -872,6 +883,8 @@
       el.loadBtn.addEventListener("click", loadPlaylist);
       el.loadPlaylistsBtn.addEventListener("click", loadUserPlaylists);
       el.playlistSelect.addEventListener("change", selectUserPlaylist);
+      el.loadDevicesBtn.addEventListener("click", loadDevices);
+      el.deviceSelect.addEventListener("change", selectDevice);
       el.applyBtn.addEventListener("click", applyToSpotify);
       el.startA.addEventListener("click", startSideA);
       el.startB.addEventListener("click", startSideB);
@@ -945,6 +958,7 @@
       state.refreshToken = null;
       state.expiresAt = 0;
       localStorage.removeItem("spotify_token");
+      resetDevices();
       renderAuth();
       log("Token cleared.");
     }
@@ -1007,11 +1021,16 @@
       if (!response.ok) {
         const message = data?.error?.message || response.statusText;
         if (/NO_ACTIVE_DEVICE|Player command failed/i.test(message)) {
-          throw new Error("No active Spotify device found. Open Spotify on desktop/mobile, start any song once, then try again.");
+          throw new Error("No active Spotify device found. Open Spotify on desktop/mobile, click Device Refresh, select the device, then try again.");
         }
         throw new SpotifyApiError(message, response, data);
       }
       return data;
+    }
+
+    async function playSpotify(options = { method: "PUT" }) {
+      const deviceQuery = state.selectedDeviceId ? `?device_id=${encodeURIComponent(state.selectedDeviceId)}` : "";
+      return spotifyFetch(`/me/player/play${deviceQuery}`, options);
     }
 
     async function fetchAccounts(body) {
@@ -1053,6 +1072,23 @@
       }
     }
 
+    async function loadDevices() {
+      try {
+        log("Loading Spotify devices...");
+        const data = await spotifyFetch("/me/player/devices");
+        state.devices = (data.devices || []).filter(device => device && device.id);
+        if (!state.devices.some(device => device.id === state.selectedDeviceId)) {
+          const active = state.devices.find(device => device.is_active);
+          state.selectedDeviceId = active?.id || "";
+        }
+        persistSelectedDevice();
+        renderDeviceOptions();
+        log(state.devices.length ? `Loaded ${state.devices.length} Spotify devices.` : "No Spotify devices found. Open Spotify on desktop/mobile, then refresh devices.");
+      } catch (error) {
+        log(error.message);
+      }
+    }
+
     async function fetchUserPlaylists() {
       const playlists = [];
       let url = "/me/playlists?limit=50";
@@ -1083,6 +1119,28 @@
       el.playlistInput.value = selected.id;
       el.playlistTitle.textContent = selected.name;
       log(`Selected playlist: ${selected.name}. Click Load playlist to fetch tracks.`);
+    }
+
+    function selectDevice() {
+      state.selectedDeviceId = el.deviceSelect.value;
+      persistSelectedDevice();
+      const selected = state.devices.find(device => device.id === state.selectedDeviceId);
+      log(selected ? `Selected Spotify device: ${selected.name}.` : "Using Spotify default active device.");
+    }
+
+    function persistSelectedDevice() {
+      if (state.selectedDeviceId) {
+        localStorage.setItem("spotify_device_id", state.selectedDeviceId);
+      } else {
+        localStorage.removeItem("spotify_device_id");
+      }
+    }
+
+    function resetDevices() {
+      state.devices = [];
+      state.selectedDeviceId = "";
+      persistSelectedDevice();
+      renderDeviceOptions();
     }
 
     async function fetchAllTracks(playlistId) {
@@ -1146,23 +1204,26 @@
     async function startSideA() {
       try {
         if (!sideA().length) throw new Error("Side A has no tracks.");
+        const resuming = state.recordMode === "paused" && state.activeRecordSide === "A";
         el.flipBanner.classList.remove("show");
         state.recordMode = "recording_a";
         state.activeRecordSide = "A";
-        state.spotifySideElapsedMs = 0;
-        state.lastSideProgressMs = 0;
+        if (!resuming) {
+          state.sideAElapsedBeforePause = 0;
+          state.spotifySideElapsedMs = 0;
+          state.lastSideProgressMs = 0;
+        }
         state.lastProgressUpdatedAt = Date.now();
         state.autoPauseDone = false;
-        state.sideAElapsedBeforePause = 0;
         state.sideAStartedAt = Date.now();
-        await spotifyFetch("/me/player/play", {
+        await playSpotify(resuming ? { method: "PUT" } : {
           method: "PUT",
           body: JSON.stringify({ uris: sideA().map(track => track.uri), offset: { position: 0 }, position_ms: 0 })
         });
         startTimer();
         startPollingPlayback();
         renderRecordMode();
-        log("Started Side A.");
+        log(resuming ? "Resumed Side A." : "Started Side A.");
       } catch (error) {
         log(error.message);
       }
@@ -1171,23 +1232,26 @@
     async function startSideB() {
       try {
         if (!sideB().length) throw new Error("Side B has no tracks.");
+        const resuming = state.recordMode === "paused" && state.activeRecordSide === "B";
         el.flipBanner.classList.remove("show");
         state.recordMode = "recording_b";
         state.activeRecordSide = "B";
-        state.spotifySideElapsedMs = 0;
-        state.sideAElapsedBeforePause = 0;
-        state.sideAStartedAt = Date.now();
-        state.lastSideProgressMs = 0;
+        if (!resuming) {
+          state.spotifySideElapsedMs = 0;
+          state.sideAElapsedBeforePause = 0;
+          state.lastSideProgressMs = 0;
+        }
         state.lastProgressUpdatedAt = Date.now();
         state.autoPauseDone = false;
-        await spotifyFetch("/me/player/play", {
+        state.sideAStartedAt = Date.now();
+        await playSpotify(resuming ? { method: "PUT" } : {
           method: "PUT",
           body: JSON.stringify({ uris: sideB().map(track => track.uri), offset: { position: 0 }, position_ms: 0 })
         });
         startTimer();
         startPollingPlayback();
         renderRecordMode();
-        log("Started Side B.");
+        log(resuming ? "Resumed Side B." : "Started Side B.");
       } catch (error) {
         log(error.message);
       }
@@ -1240,6 +1304,8 @@
       el.tapeProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
       if (state.recordMode === "recording_a" && total && remaining <= 0 && !state.autoPauseDone) {
         await completeSideA();
+      } else if (state.recordMode === "recording_b" && total && remaining <= 0 && !state.autoPauseDone) {
+        await completeSideB();
       }
       renderRecordMode();
     }
@@ -1318,6 +1384,9 @@
       if (state.recordMode === "recording_a" && state.spotifySideElapsedMs >= duration(sideA()) - 750 && !state.autoPauseDone) {
         completeSideA();
         return;
+      } else if (state.recordMode === "recording_b" && state.spotifySideElapsedMs >= duration(sideB()) - 750 && !state.autoPauseDone) {
+        completeSideB();
+        return;
       }
       renderRecordMode(playback.is_playing ? "Monitoring" : "Paused");
       updateTimer();
@@ -1369,6 +1438,22 @@
       schedulePlaybackPoll(getPlaybackPollDelay());
     }
 
+    async function completeSideB() {
+      if (state.autoPauseDone) return;
+      state.autoPauseDone = true;
+      stopTimer();
+      try {
+        await spotifyFetch("/me/player/pause", { method: "PUT" });
+        log("Record Mode: Side B complete. Spotify paused automatically.");
+      } catch (error) {
+        log(error.message);
+      }
+      state.recordMode = "idle";
+      state.activeRecordSide = null;
+      renderRecordMode("Complete");
+      schedulePlaybackPoll(getPlaybackPollDelay());
+    }
+
     function renderRecordMode(monitorText) {
       const labels = {
         idle: "Idle",
@@ -1379,9 +1464,28 @@
       };
       el.recordModeStatus.textContent = labels[state.recordMode] || "Idle";
       el.recordSide.textContent = state.activeRecordSide || "-";
-      el.recordMonitor.textContent = monitorText || (state.recordMode === "idle" ? "Waiting" : "Monitoring");
+      const defaultMonitor = {
+        idle: "Waiting",
+        paused: "Paused",
+        flip: "Flip now",
+        recording_a: "Monitoring",
+        recording_b: "Monitoring"
+      };
+      el.recordMonitor.textContent = monitorText || defaultMonitor[state.recordMode] || "Waiting";
       el.recordModePanel.classList.toggle("recording", state.recordMode === "recording_a" || state.recordMode === "recording_b");
       el.recordModePanel.classList.toggle("flip-ready", state.recordMode === "flip");
+
+      // Synchronize play button labels and states
+      const a = sideA();
+      const b = sideB();
+      const pausedA = state.recordMode === "paused" && state.activeRecordSide === "A";
+      const pausedB = state.recordMode === "paused" && state.activeRecordSide === "B";
+      const recording = state.recordMode === "recording_a" || state.recordMode === "recording_b";
+      el.startA.textContent = pausedA ? "Resume Side A" : "Start Side A";
+      el.startB.textContent = pausedB ? "Resume Side B" : "Start Side B";
+      el.startA.disabled = !a.length || !state.token || !(state.recordMode === "idle" || pausedA);
+      el.startB.disabled = !b.length || !state.token || !(state.recordMode === "flip" || pausedB);
+      el.pauseBtn.disabled = !state.token || !recording;
     }
 
     function setTapeLength(minutes) {
@@ -1461,11 +1565,12 @@
       el.countdown.textContent = formatTime(aMs);
       renderTapeRecommendation(totalMs);
       el.applyBtn.disabled = !state.tracks.length || !state.token;
-      el.startA.disabled = !a.length || !state.token;
-      el.startB.disabled = !b.length || !state.token || !(state.recordMode === "flip" || state.recordMode === "recording_b");
       el.pauseBtn.disabled = !state.token;
       el.loadPlaylistsBtn.disabled = !state.token;
+      el.loadDevicesBtn.disabled = !state.token;
       el.playlistSelect.disabled = !state.token || !state.playlists.length;
+      el.deviceSelect.disabled = !state.token || !state.devices.length;
+      renderRecordMode();
       renderTracks(el.sideAList, a, 0);
       renderTracks(el.sideBList, b, state.splitIndex);
       renderJCard(a, b, aMs, bMs, totalMs);
@@ -1579,6 +1684,32 @@
       el.playlistSelect.disabled = false;
     }
 
+    function renderDeviceOptions() {
+      if (!state.token) {
+        el.deviceSelect.innerHTML = `<option value="">Connect Spotify, then refresh devices</option>`;
+        el.deviceSelect.disabled = true;
+        el.loadDevicesBtn.disabled = true;
+        return;
+      }
+      el.loadDevicesBtn.disabled = false;
+      if (!state.devices.length) {
+        el.deviceSelect.innerHTML = `<option value="">Default active device</option>`;
+        el.deviceSelect.disabled = true;
+        return;
+      }
+      el.deviceSelect.innerHTML = `<option value="">Default active device</option>` + state.devices.map(device => {
+        const tags = [
+          device.type || "Device",
+          device.is_active ? "active" : "",
+          device.is_restricted ? "restricted" : ""
+        ].filter(Boolean).join(" - ");
+        const label = `${device.name || device.id} (${tags})`;
+        return `<option value="${escapeHtml(device.id)}">${escapeHtml(label)}</option>`;
+      }).join("");
+      el.deviceSelect.value = state.devices.some(device => device.id === state.selectedDeviceId) ? state.selectedDeviceId : "";
+      el.deviceSelect.disabled = false;
+    }
+
     function renderTracks(container, tracks, offset) {
       if (!tracks.length) {
         container.innerHTML = `<p class="small">Load a playlist to calculate this side.</p>`;
@@ -1622,7 +1753,9 @@
       el.authStatus.textContent = connected ? "Connected" : "Disconnected";
       el.connectBtn.textContent = connected ? "Reconnect Spotify" : "Connect Spotify";
       if (!connected) state.playlists = [];
+      if (!connected) state.devices = [];
       renderPlaylistOptions();
+      renderDeviceOptions();
       renderSplit();
     }
 
