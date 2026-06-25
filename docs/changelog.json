@@ -47,9 +47,9 @@
     {
       "id": 7,
       "commit": "feat: implement playback start via Spotify API",
-      "status": "pending",
-      "description": "Playback can start Side A through the Spotify player API.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Added Side A playback start using the Spotify player API.",
+      "timestamp": "2026-06-25T11:38:20+02:00"
     },
     {
       "id": 8,
