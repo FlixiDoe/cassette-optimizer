@@ -103,9 +103,9 @@
     {
       "id": 15,
       "commit": "docs: add README with setup instructions",
-      "status": "pending",
-      "description": "Setup and usage instructions are documented.",
-      "timestamp": ""
+      "status": "done",
+      "description": "Documented local setup, Spotify scopes, dynamic docs, and GitHub publishing commands.",
+      "timestamp": "2026-06-25T11:38:23+02:00"
     }
   ]
 }
