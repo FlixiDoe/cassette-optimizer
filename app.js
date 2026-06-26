@@ -45,6 +45,7 @@
       availableTapeFormats: [60, 90],
       tapeInventory: { 60: 1, 90: 1 },
       project: null,
+      projectDirty: false,
       tapeLayouts: [],
       selectedTapeIndex: 0,
       splitIndex: 0,
@@ -403,6 +404,7 @@
     async function loadPlaylist() {
       try {
         if (blockIfRecordingLocked("Load playlist")) return;
+        if (!(await confirmReplaceDirtyProject())) return;
         const playlistId = parsePlaylistId(el.playlistInput.value.trim());
         if (!playlistId) throw new Error("Paste a Spotify playlist URL or ID.");
         log(`Loading playlist ${playlistId}...`);
@@ -539,6 +541,7 @@
       state.project = project;
       syncStateFromProject();
       resetRecordingProgress();
+      state.projectDirty = false;
     }
 
     function syncStateFromProject() {
@@ -698,6 +701,48 @@
         });
         overlay.querySelector("[data-confirm-action='cancel']").focus();
       });
+    }
+
+    function confirmReplaceDirtyProject() {
+      if (!state.project || !state.projectDirty) return Promise.resolve(true);
+      return new Promise(resolve => {
+        const existing = document.querySelector(".confirm-overlay");
+        if (existing) existing.remove();
+        const overlay = document.createElement("div");
+        overlay.className = "confirm-overlay";
+        overlay.innerHTML = `
+          <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="replaceConfirmTitle">
+            <h3 id="replaceConfirmTitle">Replace unsaved cassette project?</h3>
+            <p>The current plan has local changes. Export a backup before replacing it, or continue and discard those edits.</p>
+            <div class="confirm-actions">
+              <button type="button" data-confirm-action="cancel">Cancel</button>
+              <button type="button" data-confirm-action="backup">Export Backup</button>
+              <button type="button" class="warn" data-confirm-action="replace">Replace Anyway</button>
+            </div>
+          </div>
+        `;
+        document.body.append(overlay);
+        const finish = value => {
+          overlay.remove();
+          resolve(value);
+        };
+        overlay.addEventListener("click", event => {
+          if (event.target === overlay) finish(false);
+          const action = event.target?.dataset?.confirmAction;
+          if (action === "cancel") finish(false);
+          if (action === "backup") {
+            exportTapeConfig();
+            log("Backup exported. Current project was not replaced.");
+            finish(false);
+          }
+          if (action === "replace") finish(true);
+        });
+        overlay.querySelector("[data-confirm-action='cancel']").focus();
+      });
+    }
+
+    function markProjectDirty() {
+      if (state.project) state.projectDirty = true;
     }
 
     async function startSideA() {
@@ -1574,6 +1619,7 @@
         safetyMarginSeconds: el.safetyMargin.value
       });
       if (state.project) state.project.calibration = { ...state.calibration };
+      markProjectDirty();
       localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
       renderCalibration();
       renderSplit();
@@ -1604,6 +1650,7 @@
       if (state.project && state.project.tapes.length <= 1 && state.project.tapes[0]) {
         state.project.tapes[0].tapeFormat = minutes;
       }
+      markProjectDirty();
       computeSplit();
       renderSplit();
     }
@@ -1636,6 +1683,7 @@
         [...el.tapeInventory.querySelectorAll("[data-tape-inventory-minutes]")].map(input => [input.dataset.tapeInventoryMinutes, input.value])
       ), [state.tapeMinutes]);
       state.availableTapeFormats = getAvailableTapeFormats();
+      markProjectDirty();
       localStorage.setItem("tape_inventory", JSON.stringify(state.tapeInventory));
       renderTapeOptions();
       computeSplit();
@@ -1670,6 +1718,7 @@
       const index = Number(el.tapePlanSelect.value);
       state.selectedTapeIndex = clampTapeIndex(index, state.tapeLayouts.length);
       if (state.project) state.project.selectedTapeIndex = state.selectedTapeIndex;
+      markProjectDirty();
       state.tapeMinutes = selectedTapeMinutes();
       resetRecordingProgress();
       renderSplit();
@@ -1689,6 +1738,7 @@
       const beforeCount = state.project.tapes.length;
       state.project.tapes[index].tapeFormat = minutes;
       if (index === state.selectedTapeIndex) state.tapeMinutes = minutes;
+      markProjectDirty();
       computeSplit();
       renderSplit();
       const afterCount = state.project.tapes.length;
@@ -1867,6 +1917,7 @@
         log(result.message);
         return;
       }
+      markProjectDirty();
       state.project.splitMode = "manual";
       state.project.tapes[state.selectedTapeIndex] = layout;
       syncStateFromProject();
@@ -1881,6 +1932,7 @@
       if (!state.project || !layout) return;
       layout.splitMode = "automatic";
       layout.manualSplitIndex = null;
+      markProjectDirty();
       computeSplit();
       renderSplit();
       log("Manual split reset to automatic.");
@@ -1939,6 +1991,7 @@
           tapes: state.project.tapes.map(serializeTape)
         };
         downloadJson(payload, `${slugify(payload.projectTitle || "cassette-config")}.cassette.json`);
+        state.projectDirty = false;
         log("Tape config exported as JSON.");
       } catch (error) {
         log(error.message);
@@ -1951,6 +2004,7 @@
       if (!file) return;
       try {
         if (blockIfRecordingLocked("Import Config")) return;
+        if (!(await confirmReplaceDirtyProject())) return;
         const text = await file.text();
         const payload = migrateImportedConfig(JSON.parse(text));
         const project = normalizeImportedConfig(payload);
