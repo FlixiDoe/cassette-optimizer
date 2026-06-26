@@ -4,9 +4,6 @@ A local-first Spotify playlist planner and playback controller for recording mix
 
 Cassette Optimizer keeps a Spotify playlist in order, plans it across one or more physical cassettes, shows a recording countdown, and controls Spotify playback so the user can record one side at a time.
 
-Repository: https://github.com/FlixiDoe/cassette-optimizer  
-Current visibility: private
-
 ## Documentation
 
 - [docs.md](docs.md) — documentation index.
