@@ -41,6 +41,7 @@
       selectedDeviceId: localStorage.getItem("spotify_device_id") || "",
       tapeMinutes: 90,
       availableTapeFormats: [60, 90],
+      tapeInventory: { 60: 1, 90: 1 },
       project: null,
       tapeLayouts: [],
       selectedTapeIndex: 0,
@@ -1426,17 +1427,18 @@
     }
 
     function renderTapeInventory() {
-      const available = new Set(getAvailableTapeFormats());
       el.tapeInventory.innerHTML = TAPE_FORMATS.map(minutes => {
-        const checked = available.has(minutes) ? " checked" : "";
-        return `<label class="tape-check"><input type="checkbox" value="${minutes}"${checked}>C${minutes}</label>`;
+        const quantity = state.tapeInventory[minutes] || 0;
+        return `<label class="tape-check tape-quantity"><span>C${minutes}</span><input type="number" min="0" max="99" step="1" value="${quantity}" data-tape-inventory-minutes="${minutes}" aria-label="C${minutes} quantity"></label>`;
       }).join("");
     }
 
     function updateAvailableTapeFormats() {
-      const checked = [...el.tapeInventory.querySelectorAll("input:checked")].map(input => Number(input.value));
-      state.availableTapeFormats = checked.length ? checked : [state.tapeMinutes];
-      localStorage.setItem("available_tape_formats", JSON.stringify(state.availableTapeFormats));
+      state.tapeInventory = normalizeTapeInventory(Object.fromEntries(
+        [...el.tapeInventory.querySelectorAll("[data-tape-inventory-minutes]")].map(input => [input.dataset.tapeInventoryMinutes, input.value])
+      ), [state.tapeMinutes]);
+      state.availableTapeFormats = getAvailableTapeFormats();
+      localStorage.setItem("tape_inventory", JSON.stringify(state.tapeInventory));
       renderTapeOptions();
       computeSplit();
       renderSplit();
@@ -1445,20 +1447,25 @@
 
     function restoreTapeInventory() {
       try {
-        const saved = JSON.parse(localStorage.getItem("available_tape_formats") || "null");
-        if (Array.isArray(saved)) {
-          const valid = saved.map(Number).filter(minutes => TAPE_FORMATS.includes(minutes));
-          if (valid.length) state.availableTapeFormats = valid;
-        }
+        const savedInventory = JSON.parse(localStorage.getItem("tape_inventory") || "null");
+        const savedFormats = JSON.parse(localStorage.getItem("available_tape_formats") || "null");
+        state.tapeInventory = normalizeTapeInventory(savedInventory, savedFormats || state.availableTapeFormats);
+        state.availableTapeFormats = getAvailableTapeFormats();
       } catch {
+        localStorage.removeItem("tape_inventory");
         localStorage.removeItem("available_tape_formats");
       }
     }
 
     function getAvailableTapeFormats() {
-      return [...new Set(state.availableTapeFormats)]
-        .filter(minutes => TAPE_FORMATS.includes(minutes))
+      return Object.entries(getTapeInventory())
+        .filter(([, quantity]) => quantity > 0)
+        .map(([minutes]) => Number(minutes))
         .sort((a, b) => a - b);
+    }
+
+    function getTapeInventory() {
+      return normalizeTapeInventory(state.tapeInventory, state.availableTapeFormats);
     }
 
     function selectTapeLayout() {
@@ -1712,6 +1719,7 @@
           selectedTapeIndex: state.project.selectedTapeIndex,
           selectedTapeMinutes: selectedTapeMinutes(),
           availableTapeFormats: getAvailableTapeFormats(),
+          tapeInventory: getTapeInventory(),
           splitMode: state.project.splitMode || "automatic",
           calibration: { ...state.calibration },
           timestamps: {
@@ -1739,9 +1747,10 @@
         const project = normalizeImportedConfig(payload);
         state.importError = "";
         state.lastImportMissingUriCount = countMissingTrackUris(project);
-        state.availableTapeFormats = normalizeTapeFormats(payload.availableTapeFormats, [project.tapes[0]?.tapeFormat || state.tapeMinutes]);
+        state.tapeInventory = normalizeTapeInventory(payload.tapeInventory, payload.availableTapeFormats || [project.tapes[0]?.tapeFormat || state.tapeMinutes]);
+        state.availableTapeFormats = getAvailableTapeFormats();
         state.calibration = normalizeCalibration(payload.calibration || project.calibration || {});
-        localStorage.setItem("available_tape_formats", JSON.stringify(state.availableTapeFormats));
+        localStorage.setItem("tape_inventory", JSON.stringify(state.tapeInventory));
         localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
         state.tapeMinutes = project.tapes[project.selectedTapeIndex]?.tapeFormat || state.availableTapeFormats[0] || 90;
         setProject(project);
@@ -1870,6 +1879,24 @@
       return [...new Set(formats.length ? formats : [90])].sort((a, b) => a - b);
     }
 
+    function normalizeTapeInventory(value, fallbackFormats = [90]) {
+      const inventory = {};
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        for (const [minutes, quantity] of Object.entries(value)) {
+          const format = Number(minutes);
+          if (TAPE_FORMATS.includes(format)) inventory[format] = Math.max(0, Math.min(99, Math.round(Number(quantity) || 0)));
+        }
+      } else {
+        for (const minutes of normalizeTapeFormats(value, fallbackFormats)) {
+          inventory[minutes] = Math.max(1, inventory[minutes] || 1);
+        }
+      }
+      if (!Object.values(inventory).some(quantity => quantity > 0)) {
+        for (const minutes of normalizeTapeFormats(fallbackFormats, [90])) inventory[minutes] = 1;
+      }
+      return inventory;
+    }
+
     function findTrackOffset(tracks, track) {
       if (!track) return 0;
       const index = tracks.findIndex(candidate => candidate.uri && candidate.uri === track.uri);
@@ -1934,7 +1961,12 @@
       el.tapeFormatList.hidden = false;
       el.tapeFormatList.innerHTML = state.tapeLayouts.map((layout, index) => {
         const selectedMinutes = layout.tapeFormat || layout.tapeMinutes || state.tapeMinutes;
-        const availableFormats = [...new Set([...getAvailableTapeFormats(), selectedMinutes])].sort((a, b) => a - b);
+        const inventory = getTapeInventory();
+        const usedByOtherTapes = countTapeFormats(index);
+        const availableFormats = TAPE_FORMATS.filter(minutes => {
+          const remaining = (inventory[minutes] || 0) - (usedByOtherTapes[minutes] || 0);
+          return minutes === selectedMinutes || remaining > 0;
+        });
         const sideLength = selectedMinutes * 30 * 1000;
         const runtime = duration(layout.sideA) + duration(layout.sideB);
         const options = availableFormats.map(minutes => {
@@ -1947,6 +1979,16 @@
           <em>${formatLongTime(runtime)} planned / ${formatLongTime(sideLength * 2)} capacity</em>
         </label>`;
       }).join("");
+    }
+
+    function countTapeFormats(exceptIndex = -1) {
+      const counts = {};
+      for (const [index, layout] of state.tapeLayouts.entries()) {
+        if (index === exceptIndex) continue;
+        const minutes = layout.tapeFormat || layout.tapeMinutes || state.tapeMinutes;
+        counts[minutes] = (counts[minutes] || 0) + 1;
+      }
+      return counts;
     }
 
     function printJCards(mode) {
@@ -2083,6 +2125,14 @@
       }
       if (tracks.length && state.tapeLayouts.length > 1) {
         messages.push(`Playlist exceeds one C${selectedTapeMinutes()}; it is split across ${state.tapeLayouts.length} physical tapes with original order preserved.`);
+      }
+      const inventory = getTapeInventory();
+      const usedFormats = countTapeFormats();
+      for (const [minutes, used] of Object.entries(usedFormats)) {
+        const available = inventory[minutes] || 0;
+        if (used > available) {
+          messages.push(`Inventory only has ${available}x C${minutes}, but the current plan needs ${used}.`);
+        }
       }
       if (state.token && !state.dryRun && !state.selectedDeviceId && !state.playbackStatus.deviceName) {
         messages.push("Spotify device missing. Refresh devices, select one, and make sure Spotify is open.");

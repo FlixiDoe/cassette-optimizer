@@ -213,6 +213,17 @@
       accent-color: var(--green);
     }
 
+    .tape-quantity {
+      justify-content: space-between;
+    }
+
+    .tape-quantity input {
+      width: 54px;
+      min-height: 28px;
+      padding: 0 6px;
+      text-align: center;
+    }
+
     .tape-check:has(input:checked) {
       border-color: var(--green);
       background: rgba(156,255,106,.09);
