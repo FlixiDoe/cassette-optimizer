@@ -369,6 +369,27 @@
 
     .warnings:empty { display: none; }
 
+    .empty-state {
+      display: none;
+      border: 1px dashed #45633c;
+      border-radius: 6px;
+      padding: 10px;
+      color: var(--muted);
+      background: rgba(156,255,106,.05);
+      font-size: 12px;
+    }
+
+    .empty-state.show {
+      display: block;
+    }
+
+    .empty-state b {
+      display: block;
+      color: var(--green);
+      margin-bottom: 3px;
+      text-transform: uppercase;
+    }
+
     .cassette {
       position: relative;
       --left-reel-scale: 1;

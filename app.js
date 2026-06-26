@@ -64,6 +64,8 @@
       statusPollId: null,
       statusApiAvailable: false,
       lastImportMissingUriCount: 0,
+      importError: "",
+      remoteStatusSeen: false,
       playbackStatus: {
         deviceActive: false,
         deviceName: "",
@@ -379,6 +381,8 @@
         const playlistName = playlist.name || playlistId;
         const coverUrl = pickPlaylistCover(playlist.images || []);
         const tracks = await fetchAllTracks(playlistId);
+        if (!tracks.length) throw new Error("Playlist has no usable Spotify tracks.");
+        state.importError = "";
         setProject(createMixtapeProject({
           projectTitle: playlistName,
           playlistId,
@@ -392,6 +396,7 @@
         log(`Loaded ${tracks.length} tracks from ${playlistName}.`);
       } catch (error) {
         log(error.message);
+        renderEmptyStates();
       }
     }
 
@@ -916,6 +921,8 @@
       if (location.protocol === "file:") return;
       state.statusApiAvailable = await detectStatusApi();
       if (!state.statusApiAvailable) return;
+      state.remoteStatusSeen = false;
+      renderEmptyStates();
       if (state.statusPollId) clearInterval(state.statusPollId);
       state.statusPollId = setInterval(fetchSharedStatus, 2000);
       fetchSharedStatus();
@@ -939,7 +946,9 @@
         const remote = await response.json();
         if (!remote || !remote.updatedAt) return;
         if (state.token) return;
+        state.remoteStatusSeen = true;
         renderSharedStatus(remote);
+        renderEmptyStates();
       } catch {
         // Static servers do not provide the optional status API.
       }
@@ -1521,6 +1530,7 @@
       renderTracks(el.sideBList, b, selectedLayout?.sideBStartIndex || 0);
       renderJCard(a, b, aMs, bMs, totalMs);
       renderWarnings(totalMs, tapeMs, halfMs);
+      renderEmptyStates();
       pushSharedStatus(true);
     }
 
@@ -1727,6 +1737,7 @@
         const text = await file.text();
         const payload = JSON.parse(text);
         const project = normalizeImportedConfig(payload);
+        state.importError = "";
         state.lastImportMissingUriCount = countMissingTrackUris(project);
         state.availableTapeFormats = normalizeTapeFormats(payload.availableTapeFormats, [project.tapes[0]?.tapeFormat || state.tapeMinutes]);
         state.calibration = normalizeCalibration(payload.calibration || project.calibration || {});
@@ -1742,7 +1753,9 @@
         const uriWarning = state.lastImportMissingUriCount ? ` ${state.lastImportMissingUriCount} imported tracks are missing Spotify URIs.` : "";
         log(`${state.token ? "Tape config imported. Refresh Spotify devices before recording." : "Tape config imported without Spotify data. Connect Spotify before playback control."}${uriWarning}`);
       } catch (error) {
+        state.importError = error.message;
         log(`Import failed: ${error.message}`);
+        renderEmptyStates();
       }
     }
 
@@ -2008,12 +2021,14 @@
         el.deviceSelect.innerHTML = `<option value="">Connect Spotify, then refresh devices</option>`;
         el.deviceSelect.disabled = true;
         el.loadDevicesBtn.disabled = true;
+        renderEmptyStates();
         return;
       }
       el.loadDevicesBtn.disabled = false;
       if (!state.devices.length) {
         el.deviceSelect.innerHTML = `<option value="">Default active device</option>`;
         el.deviceSelect.disabled = true;
+        renderEmptyStates();
         return;
       }
       el.deviceSelect.innerHTML = `<option value="">Default active device</option>` + state.devices.map(device => {
@@ -2027,6 +2042,7 @@
       }).join("");
       el.deviceSelect.value = state.devices.some(device => device.id === state.selectedDeviceId) ? state.selectedDeviceId : "";
       el.deviceSelect.disabled = false;
+      renderEmptyStates();
     }
 
     function renderTracks(container, tracks, offset) {
@@ -2128,6 +2144,45 @@
       return count;
     }
 
+    function renderEmptyStates() {
+      if (!el.inputEmptyState) return;
+      const tracks = projectTracks();
+      const inputMessages = [];
+      const splitMessages = [];
+      const playbackMessages = [];
+
+      if (state.importError) {
+        inputMessages.push(["Imported config is invalid", state.importError]);
+      } else if (!tracks.length) {
+        inputMessages.push(["No playlist loaded", state.token ? "Paste a playlist URL or choose one from your Spotify playlists, then load it." : "Connect Spotify or import a saved cassette config."]);
+      }
+
+      if (!tracks.length) {
+        splitMessages.push(["No usable tracks", "The split view will update after a playlist or config with playable track durations is loaded."]);
+      } else if (!sideA().length && !sideB().length) {
+        splitMessages.push(["Playlist has no usable tracks", "Spotify local files or unavailable items were skipped."]);
+      }
+
+      if (!state.token && !state.dryRun) {
+        playbackMessages.push(["Spotify not connected", "Connect Spotify before controlling playback, or enable Dry Run to test timing only."]);
+      } else if (state.token && !state.devices.length && !state.selectedDeviceId && !state.playbackStatus.deviceName) {
+        playbackMessages.push(["No active device", "Open Spotify on the target device, then refresh devices."]);
+      }
+
+      if (!state.token && state.statusApiAvailable && !state.remoteStatusSeen) {
+        playbackMessages.push(["LAN monitor waiting", "No active host status has been received yet. Start or refresh the localhost recorder view."]);
+      }
+
+      renderEmptyState(el.inputEmptyState, inputMessages);
+      renderEmptyState(el.splitEmptyState, splitMessages);
+      renderEmptyState(el.playbackEmptyState, playbackMessages);
+    }
+
+    function renderEmptyState(container, messages) {
+      container.classList.toggle("show", Boolean(messages.length));
+      container.innerHTML = messages.map(([title, body]) => `<b>${escapeHtml(title)}</b><span>${escapeHtml(body)}</span>`).join("");
+    }
+
     function renderAuth() {
       const connected = Boolean(state.token);
       el.authDot.classList.toggle("ok", connected);
@@ -2138,6 +2193,7 @@
       renderPlaylistOptions();
       renderDeviceOptions();
       renderSplit();
+      renderEmptyStates();
     }
 
     function sideA() {

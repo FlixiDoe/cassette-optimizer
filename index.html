@@ -74,6 +74,7 @@
         </div>
         <button id="loadBtn" class="primary">Load playlist</button>
         <button id="applyBtn" class="warn" disabled>Apply to Spotify</button>
+        <div class="empty-state" id="inputEmptyState"></div>
         <div class="warnings" id="warnings"></div>
         <div class="log" id="log">Ready.</div>
       </aside>
@@ -147,6 +148,7 @@
           <div class="per-tape-formats" id="tapeFormatList" hidden></div>
           <p class="small" id="tapePlanSummary">The selected tape controls the visible sides, recording controls, and J-Card preview.</p>
         </div>
+        <div class="empty-state" id="splitEmptyState"></div>
       </section>
 
       <aside class="panel transport">
@@ -160,6 +162,7 @@
             <button id="loadDevicesBtn" type="button" disabled>Refresh</button>
           </div>
         </div>
+        <div class="empty-state" id="playbackEmptyState"></div>
         <p class="responsible-use">Use responsibly: this tool controls playback for cassette recording workflows. It does not download or rip audio. Only record music you have the right to copy.</p>
         <label class="mode-toggle dry-run-toggle">
           <input id="dryRunToggle" type="checkbox">
