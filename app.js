@@ -63,6 +63,7 @@
       lastStatusPushAt: 0,
       statusPollId: null,
       statusApiAvailable: false,
+      lastImportMissingUriCount: 0,
       playbackStatus: {
         deviceActive: false,
         deviceName: "",
@@ -1726,6 +1727,7 @@
         const text = await file.text();
         const payload = JSON.parse(text);
         const project = normalizeImportedConfig(payload);
+        state.lastImportMissingUriCount = countMissingTrackUris(project);
         state.availableTapeFormats = normalizeTapeFormats(payload.availableTapeFormats, [project.tapes[0]?.tapeFormat || state.tapeMinutes]);
         state.calibration = normalizeCalibration(payload.calibration || project.calibration || {});
         localStorage.setItem("available_tape_formats", JSON.stringify(state.availableTapeFormats));
@@ -1737,7 +1739,8 @@
         renderTapeInventory();
         renderCalibration();
         renderSplit();
-        log(state.token ? "Tape config imported. Refresh Spotify devices before recording." : "Tape config imported without Spotify data. Connect Spotify before playback control.");
+        const uriWarning = state.lastImportMissingUriCount ? ` ${state.lastImportMissingUriCount} imported tracks are missing Spotify URIs.` : "";
+        log(`${state.token ? "Tape config imported. Refresh Spotify devices before recording." : "Tape config imported without Spotify data. Connect Spotify before playback control."}${uriWarning}`);
       } catch (error) {
         log(`Import failed: ${error.message}`);
       }
@@ -2047,11 +2050,41 @@
       const messages = [];
       const selectedTotalMs = duration(sideA()) + duration(sideB());
       const tracks = projectTracks();
+      const selectedLayout = selectedTapeLayout();
+      const missingUris = countMissingTrackUris(state.project || { sourceTracks: tracks, tapes: state.tapeLayouts });
+      const checklistReady = isAudioChecklistConfirmed();
+      for (const track of tracks) {
+        if (track.duration_ms > halfMs) {
+          messages.push(`Track "${track.name}" is longer than one side (${formatTime(track.duration_ms)} > ${formatTime(halfMs)}).`);
+          break;
+        }
+      }
+      if (tracks.length && totalMs > tapeMs && state.tapeLayouts.length <= 1) {
+        messages.push(`Playlist is longer than selected C${selectedTapeMinutes()} (${formatLongTime(totalMs)} > ${formatLongTime(tapeMs)}).`);
+      }
       if (tracks.length && state.tapeLayouts.length <= 1 && totalMs < tapeMs) {
         messages.push(`Playlist total is shorter than C${selectedTapeMinutes()}; recording will have ${formatTime(tapeMs - totalMs)} blank tape.`);
       }
       if (tracks.length && state.tapeLayouts.length > 1) {
         messages.push(`Playlist exceeds one C${selectedTapeMinutes()}; it is split across ${state.tapeLayouts.length} physical tapes with original order preserved.`);
+      }
+      if (state.token && !state.dryRun && !state.selectedDeviceId && !state.playbackStatus.deviceName) {
+        messages.push("Spotify device missing. Refresh devices, select one, and make sure Spotify is open.");
+      }
+      if (missingUris) {
+        messages.push(`${missingUris} track${missingUris === 1 ? " is" : "s are"} missing Spotify URI data; Spotify playback/order sync may skip them.`);
+      }
+      if (tracks.length > 44) {
+        messages.push("Print layout may need two pages because the tracklist is long.");
+      }
+      if (!isLocalhost() && (localStorage.getItem("spotify_client_secret") || el.clientSecret.value.trim())) {
+        messages.push("Client Secret is configured while not on localhost. Remove it before using LAN or public hosting.");
+      }
+      if (selectedLayout?.splitMode === "manual" && duration(sideA()) > halfMs) {
+        messages.push(`Manual split exceeds Side A length ${formatTime(halfMs)}.`);
+      }
+      if (!checklistReady) {
+        messages.push("Audio quality checklist has not been confirmed before recording.");
       }
       if (tracks.length && selectedTotalMs < tapeMs) {
         messages.push(`Selected tape ${selectedTapeLayout()?.tapeNumber || selectedTapeLayout()?.number || 1} has ${formatTime(tapeMs - selectedTotalMs)} blank tape.`);
@@ -2066,6 +2099,9 @@
         if (sideAOverflow || sideBOverflow) {
           const sides = [sideAOverflow ? "A" : "", sideBOverflow ? "B" : ""].filter(Boolean).join("/");
           messages.push(`Tape ${layout.tapeNumber || layout.number} C${layout.tapeFormat || layout.tapeMinutes} cannot fit Side ${sides} without exceeding ${formatTime(sideLength)}.`);
+          if (layout !== selectedLayout) {
+            messages.push(`A later tape overflows after the current format plan; review Tape ${layout.tapeNumber || layout.number}.`);
+          }
         }
       }
       const safetyMs = state.calibration.safetyMarginSeconds * 1000;
@@ -2074,6 +2110,22 @@
         if (duration(sideB()) && halfMs - duration(sideB()) < safetyMs) messages.push(`Side B has less than the configured ${state.calibration.safetyMarginSeconds}s safety margin remaining.`);
       }
       el.warnings.textContent = messages.join("\n");
+    }
+
+    function countMissingTrackUris(project) {
+      const tracks = [
+        ...(project?.sourceTracks || []),
+        ...(project?.tapes || []).flatMap(tape => [...(tape.sideA || []), ...(tape.sideB || [])])
+      ];
+      const seen = new Set();
+      let count = 0;
+      for (const track of tracks) {
+        const key = track.uri || `${track.name}-${track.duration_ms}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (!track.uri) count += 1;
+      }
+      return count;
     }
 
     function renderAuth() {
