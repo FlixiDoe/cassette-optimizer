@@ -228,6 +228,8 @@ These checks validate the important playback-control code paths and UI state rul
 
 For print layout changes, run the manual [J-Card print regression checklist](docs/j-card-print-regression.md).
 
+For recording setup copy or checklist changes, run the manual [audio setup regression checklist](docs/audio-setup-regression.md).
+
 ## Troubleshooting
 
 - `ERR_CONNECTION_REFUSED` after Spotify login: start `.\start-local.ps1` and reload the callback URL.
