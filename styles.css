@@ -260,6 +260,26 @@
       display: block;
     }
 
+    .split-explanation {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      background: #11150f;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .split-explanation b {
+      display: block;
+      color: var(--amber);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .split-explanation span {
+      display: block;
+    }
+
     .tape-plan {
       display: grid;
       gap: 8px;

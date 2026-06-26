@@ -1372,6 +1372,7 @@
       el.deviceSelect.disabled = !state.token || !state.devices.length;
       renderRecordMode();
       renderTapePlanSelector(totalMs);
+      renderSplitExplanation(a, halfMs);
       renderTracks(el.sideAList, a, selectedLayout?.sideAStartIndex || 0);
       renderTracks(el.sideBList, b, selectedLayout?.sideBStartIndex || 0);
       renderJCard(a, b, aMs, bMs, totalMs);
@@ -1433,6 +1434,23 @@
       }
 
       el.tapeRecommendation.innerHTML = `<b>${escapeHtml(recommendation)}</b><span>${escapeHtml(reason)}</span>`;
+    }
+
+    function renderSplitExplanation(sideATracks, sideLengthMs) {
+      const layout = selectedTapeLayout();
+      if (!projectTracks().length || !layout) {
+        el.splitExplanation.innerHTML = `<b>Why this split?</b><span>Load a playlist to see the split decision.</span>`;
+        return;
+      }
+
+      const sideAMs = duration(sideATracks);
+      const remainingMs = Math.max(0, sideLengthMs - sideAMs);
+      const nextTrack = projectTracks()[layout.sideBStartIndex];
+      const mode = layout.splitMode === "manual" || state.project?.splitMode === "manual" ? "Manual split is locked here." : "Side A is filled until the next track would exceed the selected side length.";
+      const nextText = nextTrack
+        ? `Next track: ${nextTrack.name} (${formatTime(nextTrack.duration_ms)}) does not fit in the remaining ${formatTime(remainingMs)}.`
+        : `No next track remains; Side A has ${formatTime(remainingMs)} free.`;
+      el.splitExplanation.innerHTML = `<b>Why this split?</b><span>${escapeHtml(mode)} Side length is ${formatTime(sideLengthMs)}; Side A has ${formatTime(remainingMs)} left. ${escapeHtml(nextText)} Original playlist order is preserved and no tracks are cut.</span>`;
     }
 
     function exportTapeConfig() {
