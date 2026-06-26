@@ -1,0 +1,100 @@
+@media screen and (min-width: 1101px) {
+  .app {
+    width: min(1680px, calc(100% - 32px));
+    display: grid;
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(320px, 360px);
+    grid-template-areas:
+      "header header header"
+      "input split playback"
+      "tracklists tracklists playback"
+      "jcard jcard playback";
+    gap: 16px;
+    align-items: start;
+  }
+
+  .app > header {
+    grid-area: header;
+    margin-bottom: 2px;
+  }
+
+  .app > .grid {
+    display: contents;
+  }
+
+  .app > .grid > aside:first-child {
+    grid-area: input;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .app > .grid > section {
+    grid-area: split;
+    min-width: 0;
+  }
+
+  .app > .grid > aside:last-child {
+    grid-area: playback;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .app > .tracklists {
+    grid-area: tracklists;
+    margin-top: 0;
+    min-width: 0;
+  }
+
+  .app > .jcard-section {
+    grid-area: jcard;
+    margin-top: 0;
+    min-width: 0;
+  }
+
+  .tracklists .panel,
+  .jcard-section,
+  .grid > .panel {
+    min-width: 0;
+  }
+
+  .tracks {
+    max-height: min(42vh, 520px);
+  }
+
+  .jcard-print {
+    width: 100%;
+    max-width: 1040px;
+  }
+}
+
+@media screen and (min-width: 1101px) and (max-width: 1320px) {
+  .app {
+    width: min(1500px, calc(100% - 24px));
+    grid-template-columns: minmax(250px, 290px) minmax(0, 1fr) minmax(290px, 330px);
+    gap: 12px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .calibration-grid,
+  .manual-split-header,
+  .manual-split-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-split-header span {
+    text-align: left;
+  }
+
+  .status-chip,
+  .record-row {
+    font-size: 11px;
+  }
+}
