@@ -840,6 +840,7 @@
       renderFinishTime(remaining);
       el.playProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
       el.tapeProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
+      updateReelVisual(elapsed, total);
       if (state.recordMode === "recording_a" && total && remaining <= 0 && !state.autoPauseDone) {
         await completeSideA();
       } else if (state.recordMode === "recording_b" && total && remaining <= 0 && !state.autoPauseDone) {
@@ -1188,6 +1189,7 @@
       el.recordModePanel.classList.toggle("recording", state.recordMode === "recording_a" || state.recordMode === "recording_b");
       el.recordModePanel.classList.toggle("cue-ready", state.recordMode === "cue_a" || state.recordMode === "cue_b");
       el.recordModePanel.classList.toggle("flip-ready", state.recordMode === "flip");
+      el.cassetteVisual.classList.toggle("recording", state.recordMode === "recording_a" || state.recordMode === "recording_b");
 
       // Synchronize play button labels and states
       const a = sideA();
@@ -1207,6 +1209,15 @@
       updateDeckChecklistState();
       renderSpotifyStatusPanel();
       pushSharedStatus();
+    }
+
+    function updateReelVisual(elapsedMs, totalMs) {
+      if (!el.cassetteVisual) return;
+      const progress = totalMs ? Math.max(0, Math.min(1, elapsedMs / totalMs)) : 0;
+      const leftScale = state.activeRecordSide === "B" ? .72 + progress * .28 : 1 - progress * .28;
+      const rightScale = state.activeRecordSide === "B" ? 1 - progress * .28 : .72 + progress * .28;
+      el.cassetteVisual.style.setProperty("--left-reel-scale", leftScale.toFixed(3));
+      el.cassetteVisual.style.setProperty("--right-reel-scale", rightScale.toFixed(3));
     }
 
     function restoreDeckChecklist() {

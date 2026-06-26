@@ -371,6 +371,8 @@
 
     .cassette {
       position: relative;
+      --left-reel-scale: 1;
+      --right-reel-scale: .72;
       aspect-ratio: 16 / 9;
       border: 2px solid #444b3f;
       border-radius: 8px;
@@ -419,6 +421,25 @@
         radial-gradient(circle, #0d0f0d 0 16%, transparent 17%),
         conic-gradient(from 0deg, #11150f 0 12deg, #596251 12deg 24deg, #11150f 24deg 72deg, #596251 72deg 84deg, #11150f 84deg 144deg, #596251 144deg 156deg, #11150f 156deg 216deg, #596251 216deg 228deg, #11150f 228deg 288deg, #596251 288deg 300deg, #11150f 300deg);
       box-shadow: inset 0 0 0 14px #171c15, 0 0 0 1px #0b0d0a;
+      transform: scale(var(--left-reel-scale));
+      transition: transform .4s ease;
+    }
+
+    .reel:nth-child(2) {
+      transform: scale(var(--right-reel-scale));
+    }
+
+    .cassette.recording .reel {
+      animation: reel-spin 1.1s linear infinite;
+    }
+
+    .cassette.recording .reel:nth-child(2) {
+      animation-duration: .9s;
+      animation-direction: reverse;
+    }
+
+    @keyframes reel-spin {
+      to { rotate: 360deg; }
     }
 
     .tape-window {
@@ -767,6 +788,21 @@
 
     @keyframes flash {
       50% { opacity: .2; transform: scale(.99); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .001ms !important;
+      }
+
+      .cassette.recording .reel {
+        animation: none !important;
+      }
     }
 
     .tracklists {
