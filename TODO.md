@@ -4,6 +4,64 @@ Prioritized roadmap for the next implementation steps.
 
 ## P0 – Release blockers
 
+### 0. [Highest priority] Add Spotify and Windows audio quality checklist to all recording guides
+
+Cassette recording quality depends on the Spotify output chain. This must be documented before other release work, because otherwise recordings can be inconsistent even when the app logic works correctly.
+
+**Goal**
+
+Add a clear `Spotify / Windows audio settings before recording` checklist to:
+
+- README Deck Setup guide.
+- README Recording Workflow.
+- In-app Deck Checklist.
+- In-app Level Check helper.
+- Release/manual test checklist.
+
+**Checklist items**
+
+```text
+Spotify settings:
+☐ Select the exact output device you will record from.
+☐ Set Streaming quality to Lossless.
+☐ Turn Auto-adjust quality off.
+☐ Set Crossfade to 0 seconds.
+☐ Turn Normalize volume off.
+☐ Turn all Spotify Equalizer/EQ processing off.
+☐ Open the selected output device settings.
+☐ Enable Exclusive mode for this device.
+☐ Enable Force volume for this device.
+
+Windows / device settings:
+☐ Set Windows output device to the same device used in Spotify.
+☐ Set Windows output volume to 100% / maximum.
+☐ Control final recording level on the cassette deck input, not with Windows volume.
+☐ Watch the deck meters and avoid clipping/distortion.
+```
+
+**Implementation notes**
+
+- Keep the wording practical and beginner-friendly.
+- Explain that maximum digital volume is for a clean fixed source level, while final gain should be adjusted on the cassette deck.
+- Do not claim that the app can verify these Spotify or Windows settings automatically unless detection is implemented later.
+- Add screenshots or short notes if useful.
+- Mention that users should turn off any system-wide EQ, sound enhancement, loudness normalization, or virtual surround effects if they use them.
+
+**Acceptance criteria**
+
+- Every recording guide mentions Lossless, Auto-adjust quality off, Crossfade 0, Normalize off, EQ off, correct output device, Exclusive mode, Force volume, and Windows volume max.
+- The in-app checklist contains a compact version of the same settings.
+- The README contains a fuller explanation.
+- The guidance makes clear that cassette deck input level still needs manual adjustment.
+
+**Suggested commit**
+
+```text
+docs: add spotify and windows recording settings checklist
+```
+
+---
+
 ### 1. [Done] Fix broken J-Card printing
 
 The current print output can spread the J-Card across several pages and repeat Side A / Side B content.
@@ -189,6 +247,7 @@ Add a practical hardware setup section to the README.
 - Monitor through deck headphones or speakers.
 - Disable notification sounds before recording.
 - Test record level before the real run.
+- Reference the highest-priority Spotify / Windows audio quality checklist.
 
 **Suggested diagram**
 
@@ -208,65 +267,7 @@ docs: add cassette deck setup guide
 
 ---
 
-### 7. Add Spotify and Windows audio quality checklist to all recording guides
-
-Cassette recording quality depends on the Spotify output chain. All user-facing recording instructions should tell users to prepare Spotify and Windows audio before starting a tape run.
-
-**Goal**
-
-Add a clear `Spotify / Windows audio settings before recording` checklist to:
-
-- README Deck Setup guide.
-- README Recording Workflow.
-- In-app Deck Checklist.
-- In-app Level Check helper.
-- Release/manual test checklist.
-
-**Checklist items**
-
-```text
-Spotify settings:
-☐ Select the exact output device you will record from.
-☐ Set Streaming quality to Lossless.
-☐ Turn Auto-adjust quality off.
-☐ Set Crossfade to 0 seconds.
-☐ Turn Normalize volume off.
-☐ Turn all Spotify Equalizer/EQ processing off.
-☐ Open the selected output device settings.
-☐ Enable Exclusive mode for this device.
-☐ Enable Force volume for this device.
-
-Windows / device settings:
-☐ Set Windows output device to the same device used in Spotify.
-☐ Set Windows output volume to 100% / maximum.
-☐ Control final recording level on the cassette deck input, not with Windows volume.
-☐ Watch the deck meters and avoid clipping/distortion.
-```
-
-**Implementation notes**
-
-- Keep the wording practical and beginner-friendly.
-- Explain that maximum digital volume is for a clean fixed source level, while final gain should be adjusted on the cassette deck.
-- Do not claim that the app can verify these Spotify or Windows settings automatically unless detection is implemented later.
-- Add screenshots or short notes if useful.
-- Mention that users should turn off any system-wide EQ, sound enhancement, loudness normalization, or virtual surround effects if they use them.
-
-**Acceptance criteria**
-
-- Every recording guide mentions Lossless, Auto-adjust quality off, Crossfade 0, Normalize off, EQ off, correct output device, Exclusive mode, Force volume, and Windows volume max.
-- The in-app checklist contains a compact version of the same settings.
-- The README contains a fuller explanation.
-- The guidance makes clear that cassette deck input level still needs manual adjustment.
-
-**Suggested commit**
-
-```text
-docs: add spotify and windows recording settings checklist
-```
-
----
-
-### 8. Add Deck Checklist before recording
+### 7. Add Deck Checklist before recording
 
 Recording to cassette has physical steps that can easily be forgotten.
 
@@ -309,7 +310,7 @@ feat: add pre-recording deck checklist
 
 ---
 
-### 9. Add Dry Run / Safe Mode
+### 8. Add Dry Run / Safe Mode
 
 Users should be able to test the recording workflow without starting Spotify playback.
 
@@ -341,7 +342,7 @@ feat: add dry run recording mode
 
 ---
 
-### 10. Add recording delay calibration
+### 9. Add recording delay calibration
 
 Cassette decks and tapes have small physical delays before usable recording starts.
 
@@ -379,7 +380,7 @@ feat: add recording delay calibration
 
 ---
 
-### 11. Add recording level helper
+### 10. Add recording level helper
 
 Cassette recording quality depends heavily on the deck input level.
 
@@ -408,7 +409,7 @@ feat: add cassette recording level helper
 
 ---
 
-### 12. Explain split logic in the UI
+### 11. Explain split logic in the UI
 
 Users should understand why the app chose the current Side A / Side B split.
 
@@ -448,7 +449,7 @@ feat: explain tape split decision
 
 ---
 
-### 13. Add manual split override
+### 12. Add manual split override
 
 The automatic split is useful, but mixtapes sometimes need a musical side ending.
 
@@ -486,7 +487,7 @@ feat: add manual tape split override
 
 ---
 
-### 14. Export and import tape configuration as JSON
+### 13. Export and import tape configuration as JSON
 
 After optimizing a mixtape, the user should be able to save and restore the exact tape layout.
 
@@ -529,7 +530,7 @@ feat: add tape config export and import
 
 ---
 
-### 15. Introduce Mixtape Project model
+### 14. Introduce Mixtape Project model
 
 The app should treat the result as a cassette project, not just a temporary playlist calculation.
 
@@ -569,7 +570,7 @@ refactor: introduce mixtape project model
 
 ---
 
-### 16. Add Spotify status panel
+### 15. Add Spotify status panel
 
 The log is useful, but recording mode needs a clearer status overview.
 
@@ -604,7 +605,7 @@ feat: add spotify recording status panel
 
 ---
 
-### 17. Add No Spotify Mode
+### 16. Add No Spotify Mode
 
 The app should also be useful for owned files, local music, and manually planned cassette projects.
 
@@ -641,7 +642,7 @@ feat: add no-spotify tape planning mode
 
 ## P2 – UI polish and output improvements
 
-### 18. Add J-Card preview and HTML export
+### 17. Add J-Card preview and HTML export
 
 Printing should not be the only way to inspect the inlay.
 
@@ -669,7 +670,7 @@ feat: add j-card preview and html export
 
 ---
 
-### 19. Reel animation
+### 18. Reel animation
 
 Make the cassette visual feel alive during Record Mode.
 
@@ -688,7 +689,7 @@ feat: animate cassette reels during recording
 
 ---
 
-### 20. Better warning system
+### 19. Better warning system
 
 Add clearer warnings for cassette planning and Spotify playback.
 
@@ -712,7 +713,7 @@ feat: improve tape fit warnings
 
 ---
 
-### 21. Add better empty and error states
+### 20. Add better empty and error states
 
 The UI should guide users when nothing is loaded or Spotify is unavailable.
 
@@ -735,7 +736,7 @@ feat: improve empty and error states
 
 ## P3 – Larger roadmap features
 
-### 22. Multi-tape splitter
+### 21. Multi-tape splitter
 
 Long playlists should be split across multiple cassettes.
 
@@ -771,7 +772,7 @@ feat: add multi-tape playlist splitter
 
 ---
 
-### 23. Tape inventory with quantity
+### 22. Tape inventory with quantity
 
 The app should know how many physical tapes are available.
 
@@ -799,7 +800,7 @@ feat: add tape inventory quantities
 
 ---
 
-### 24. Per-tape J-Cards for multi-tape projects
+### 23. Per-tape J-Cards for multi-tape projects
 
 Multi-tape output needs one inlay per physical cassette.
 
@@ -829,7 +830,7 @@ feat: generate j-cards for multi-tape projects
 
 ## P4 – Testing and maintenance
 
-### 25. Add tape split unit tests
+### 24. Add tape split unit tests
 
 The split engine should be tested independently from the UI.
 
@@ -852,7 +853,7 @@ test: add tape split unit tests
 
 ---
 
-### 26. Add J-Card print regression test notes
+### 25. Add J-Card print regression test notes
 
 Print layout is hard to unit test, but the project should document manual checks.
 
@@ -872,7 +873,7 @@ docs: add j-card print regression checklist
 
 ---
 
-### 27. Add audio setup regression checklist
+### 26. Add audio setup regression checklist
 
 The audio-quality setup is manual, but it should be part of release testing and user documentation checks.
 
@@ -899,11 +900,11 @@ docs: add audio setup regression checklist
 
 ## Recommended implementation order
 
-1. Fix broken J-Card printing.
-2. Add real physical J-Card layout.
-3. Harden Client Secret handling.
-4. Add Deck Setup guide to README.
-5. Add Spotify / Windows audio settings checklist to all guides.
+1. Add Spotify / Windows audio settings checklist to all guides.
+2. Fix broken J-Card printing.
+3. Add real physical J-Card layout.
+4. Harden Client Secret handling.
+5. Add Deck Setup guide to README.
 6. Add Deck Checklist in the app.
 7. Add Dry Run / Safe Mode.
 8. Add recording delay calibration.
