@@ -21,6 +21,8 @@ init()
 
 Important detail: `handleCallback()` runs during startup so the same app can process the Spotify OAuth redirect at `/callback`.
 
+`applyHostMode()` leaves localhost in full-control mode, enables full PKCE control on HTTPS Tailscale hosts ending in `.ts.net`, and keeps plain LAN/IP hosts monitor-only. Tailscale control still hides the local-only Client Secret panel.
+
 ## Event binding
 
 `bindEvents()` connects DOM IDs from `index.html` to handler functions in `app.js`.

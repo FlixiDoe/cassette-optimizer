@@ -118,11 +118,22 @@
       return location.hostname === "127.0.0.1" || location.hostname === "localhost";
     }
 
+    function isTailscaleControlHost() {
+      return location.protocol === "https:" && location.hostname.endsWith(".ts.net");
+    }
+
     function applyHostMode() {
       if (isLocalhost()) return;
+      if (isTailscaleControlHost()) {
+        document.body.setAttribute("data-host-mode", "tailscale-control");
+        el.clientSecretAdvanced.hidden = true;
+        el.lanNotice.hidden = false;
+        el.lanNotice.innerHTML = `Tailscale control host &mdash; add <code>${escapeHtml(REDIRECT_URI)}</code> as a Spotify redirect URI.`;
+        return;
+      }
       document.body.setAttribute("data-host-mode", "lan-monitor");
-      // Spotify OAuth only allows loopback (127.0.0.1) as redirect URI.
-      // On LAN IPs, hide all login/credential controls — device is monitor-only.
+      // Plain LAN/IP hosts are monitor-only. OAuth control is allowed on
+      // localhost, or on private Tailscale HTTPS hosts configured in Spotify.
       el.credentialsPanel.hidden = true;
       el.authControls.hidden = true;
       el.playlistPickerPanel.hidden = true;

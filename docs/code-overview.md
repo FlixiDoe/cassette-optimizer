@@ -229,7 +229,9 @@ Do not store Spotify client secrets by default. The app only saves a client secr
 
 The server intentionally does not persist state, does not store tokens, and does not proxy Spotify requests.
 
-Non-localhost clients get `body[data-host-mode="lan-monitor"]`, which hides interactive controls and enlarges monitor-critical UI: record mode, active side, countdown, progress, current track, flip prompt, and log.
+Plain non-localhost LAN/IP clients get `body[data-host-mode="lan-monitor"]`, which hides interactive controls and enlarges monitor-critical UI: record mode, active side, countdown, progress, current track, flip prompt, and log.
+
+HTTPS Tailscale Serve hosts ending in `.ts.net` get `body[data-host-mode="tailscale-control"]` instead. They may show Spotify PKCE login and playback controls, but the local-only Client Secret panel stays hidden. The exact `https://...ts.net/callback` URL must be registered in the Spotify app.
 
 ## Where to add future code
 

@@ -45,6 +45,12 @@ Create or open a Spotify app in the Spotify Developer Dashboard and add this red
 http://127.0.0.1:8787/callback
 ```
 
+If you use Tailscale Serve, also add the exact HTTPS Tailscale callback URL, for example:
+
+```text
+https://der-dicke.tenrec-typhon.ts.net/callback
+```
+
 Start the local server:
 
 ```powershell
@@ -78,6 +84,21 @@ It serves the same app on all network interfaces and adds a small `/api/status` 
 LAN clients are monitor-only. Spotify OAuth and playback control must be done from `http://127.0.0.1:8787` on the host machine.
 
 Keep the LAN server on a trusted private network only. Do not expose it directly to the public internet.
+
+## Tailscale Serve Control Mode
+
+Tailscale Serve can expose the local app over your private tailnet with HTTPS:
+
+```powershell
+.\start-lan.ps1
+tailscale serve 8787
+```
+
+Open the printed `https://...ts.net/` URL on a tailnet device. Unlike plain LAN/IP access, Tailscale HTTPS is allowed to show Spotify login and playback controls.
+
+Spotify tokens are stored per browser origin. Being connected on `http://127.0.0.1:8787` does not connect `https://...ts.net/`; click `Connect Spotify` on the Tailscale URL once.
+
+Client Secret auth remains disabled on Tailscale. Use normal PKCE with your Spotify Client ID.
 
 ## Spotify App Configuration
 
@@ -177,7 +198,8 @@ For manual checklists:
 - Rate limited: wait for the app's retry countdown in the Recording Readiness panel.
 - Expired token: reconnect Spotify and refresh devices.
 - Playlist list is empty: reconnect Spotify and ensure the token has `playlist-read-private`.
-- Connect Spotify not visible on phone/LAN: this is by design. Open `http://127.0.0.1:8787` on the host machine to log in.
+- Connect Spotify not visible on plain phone/LAN IP: this is by design. Open `http://127.0.0.1:8787` on the host machine, or use Tailscale Serve with the `https://...ts.net/callback` redirect URI registered in Spotify.
+- Tailscale URL shows disconnected: tokens are per origin; connect Spotify again on the `https://...ts.net/` URL.
 
 ## Security
 

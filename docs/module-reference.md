@@ -66,7 +66,15 @@ restoreToken()
 persistToken()
 ```
 
-`applyHostMode()` hides login and credential controls on non-localhost hosts, turning LAN usage into monitor-only mode.
+`applyHostMode()` has three modes:
+
+```text
+localhost              -> full local control, optional local-only Client Secret
+https://*.ts.net       -> Tailscale control mode, PKCE controls visible, Client Secret hidden
+plain LAN/IP host      -> monitor-only mode, login/control hidden
+```
+
+For Tailscale control mode, the current `https://...ts.net/callback` URL must be registered in the Spotify app redirect URIs.
 
 ### Spotify auth/API functions
 
