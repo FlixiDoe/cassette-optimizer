@@ -11,7 +11,7 @@ Use this checklist before a release or after changing J-card markup, print CSS, 
 
 ## Checks
 
-- `Print J-Card` opens the browser print dialog for the selected physical tape.
+- `Print Selected` opens the browser print dialog for the selected physical tape.
 - `Print All J-Cards` includes one printable J-card page per physical tape.
 - Chrome print preview shows one A4 landscape page for a normal one-tape playlist.
 - Long playlists do not duplicate tracklist content across J-card panels.
@@ -21,6 +21,11 @@ Use this checklist before a release or after changing J-card markup, print CSS, 
 - Multi-tape projects print one J-card per tape.
 - Mixed-format multi-tape projects print the correct `C` format on each J-card.
 - Generated volume titles are visible for multi-tape projects, such as `Vol. 1` and `Vol. 2`.
+- Common suffixes such as `Remastered`, `Live`, and `Deluxe Edition` are cleaned in the printed tracklist.
+- A manual J-card title override changes printed text without changing the underlying Spotify track name in the side tracklists.
+- Export/import preserves manual J-card title overrides.
+- Playlist artwork can tint the J-card theme; if artwork color extraction fails, the default theme remains readable.
+- Grayscale output remains readable with a generated theme color.
 
 ## Notes
 

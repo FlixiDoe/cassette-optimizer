@@ -32,6 +32,7 @@ connectBtn          -> login()
 loadBtn             -> loadPlaylist()
 exportConfigBtn     -> exportTapeConfig()
 importConfigBtn     -> import file picker
+slackMargin         -> updateSlackMargin()
 moveSplitEarlier    -> moveManualSplit(-1)
 lockSplitBtn        -> lockManualSplitFromSelect()
 applyBtn            -> applyToSpotify()
@@ -42,6 +43,9 @@ tapePlanSelect      -> selectTapeLayout()
 tapeFormatList      -> updatePerTapeFormat(...)
 tapeInventory       -> updateAvailableTapeFormats()
 dryRunToggle        -> updateDryRun()
+startLevelToneBtn   -> startLevelTone()
+stopLevelToneBtn    -> stopLevelTone()
+jCardOverrides      -> updateJCardOverride()
 ```
 
 New UI controls should follow the same pattern: keep the DOM element in `index.html`, add a handler in `bindEvents()`, mutate `state`, then call the render function that owns the affected UI.
@@ -52,6 +56,7 @@ New UI controls should follow the same pattern: keep the DOM element in `index.h
 
 ```text
 parse playlist URL/ID
+confirm replacing unsaved project if dirty
 fetch playlist metadata
 fetch all usable Spotify tracks
 createMixtapeProject(...)
@@ -79,7 +84,7 @@ The app should not keep full Spotify API track payloads in project state. Keep t
 
 ```text
 createMixtapeProject(...)
-  project = metadata + sourceTracks + calibration
+  project = metadata + sourceTracks + calibration + slack/J-card defaults
   project.tapes = buildProjectTapes(project, tapeMinutes, [tapeMinutes])
   project.selectedTapeIndex = clampTapeIndex(...)
 ```
@@ -101,6 +106,9 @@ state.selectedTapeIndex
 state.tapeLayouts
 state.splitIndex
 state.project.calibration
+state.slackMarginSeconds
+state.project.slackMarginSeconds
+state.project.jCardOverrides
 ```
 
 This keeps older code paths working while the project model remains the source of truth.
@@ -125,6 +133,8 @@ reset recording progress
 
 This is why per-tape format choices can survive replanning by tape index.
 
+`Tape Slack Margin (seconds)` is applied during this rebuild by extending each side's planning limit. Warnings still call out unofficial extra tape length when the plan uses space beyond the official side length.
+
 ## Selected tape flow
 
 The physical cassette selector changes `state.selectedTapeIndex` through `selectTapeLayout()`.
@@ -135,6 +145,7 @@ selectTapeLayout()
   clamp selected index
   write project.selectedTapeIndex
   set global tapeMinutes to selected tape's format
+  mark project dirty
   reset recording progress
   renderSplit()
 ```
@@ -151,6 +162,7 @@ move split earlier/later
       -> applyManualSplitToLayout(layout, splitIndex)
       -> state.project.splitMode = "manual"
       -> replace selected tape layout
+      -> mark project dirty
       -> syncStateFromProject()
       -> renderSplit()
 ```
@@ -166,6 +178,7 @@ read data-tape-format-index
 read selected C-length
 write project.tapes[index].tapeFormat
 if selected tape changed, update state.tapeMinutes
+mark project dirty
 computeSplit()
 renderSplit()
 ```
@@ -188,21 +201,26 @@ downloadJson(payload, filename)
 
 The export payload stores both the source tracks and per-tape layout. Source tracks are needed for future replanning; per-tape layout is needed to restore the exact current state.
 
+Export also clears `state.projectDirty`, because the current local plan has just been backed up.
+
 ## Import flow
 
 `importTapeConfig(event)` reads a JSON file and normalizes it into the current project model.
 
 ```text
 read file
+confirm replacing unsaved project if dirty
 JSON.parse
-normalizeImportedConfig(payload)
+migrateImportedConfig(payload)
+normalizeImportedConfig(migratedPayload)
 normalize tape inventory
 normalize calibration
+normalize slack margin and J-card overrides
 setProject(project)
-render options/inventory/calibration/split
+render options/inventory/slack/calibration/split
 ```
 
-`normalizeImportedConfig(...)` supports current project exports and some older field names. `normalizeImportedTape(...)` creates safe tape objects with side indexes, side arrays, format, J-card data, and manual split data.
+`migrateImportedConfig(...)` from `config-migration.js` is the compatibility layer for legacy, current, and future config payloads. `normalizeImportedConfig(...)` then creates the app project model. `normalizeImportedTape(...)` creates safe tape objects with side indexes, side arrays, format, J-card data, and manual split data.
 
 If imported tracks are missing Spotify URIs, the app records a missing URI count. Future recording safety checks should block real Spotify recording for those tracks but still allow Dry Run.
 
@@ -213,6 +231,7 @@ Side starts share the same pattern:
 ```text
 startSideA/startSideB
   validate side has tracks
+  runRecordingPreflight(side, tracks)
   detect resume vs fresh start
   set cue recordMode
   runRecordCue(side)
@@ -222,10 +241,14 @@ startSideA/startSideB
     playSpotify(buildSidePlaybackPayload(sideTracks, 0, 0))
   startTimer()
   startPollingPlayback()
-  renderRecordMode()
+renderRecordMode()
 ```
 
 `runRecordCue()` shows the red cue first. Spotify playback starts only after the cue and configured delay have elapsed.
+
+`runRecordingPreflight(...)` calls the pure `validateRecordingSide(...)` helper. Real recording blocks missing Spotify URI, local-only tracks, missing duration, empty sides, missing token, tracks longer than the selected side, and unsafe device/checklist state. Dry Run may continue with imported/offline URI data, but still blocks empty sides and invalid durations.
+
+While `recordMode` is `cue_a`, `cue_b`, `recording_a`, `recording_b`, `paused`, or `flip`, `renderRecordingLockState()` disables dangerous planning controls and sets `body[data-recording-state="active"]`. Each dangerous handler also calls `blockIfRecordingLocked(...)`.
 
 ## Timer flow
 
@@ -263,6 +286,71 @@ schedule next poll with adaptive delay
 
 Rate limits are handled through `SpotifyApiError.retryAfter`. Avoid adding new polling loops; reuse the existing scheduler.
 
+Playback/device recovery text is surfaced through `setPlaybackRecovery(...)` and rendered by `renderSpotifyStatusPanel()`. Use that path for user-actionable Spotify failures instead of logging only to the console.
+
+## Remote playlist reorder flow
+
+`applyToSpotify()` never sends playlist reorder requests immediately.
+
+```text
+applyToSpotify()
+  block if recording lock is active
+  require project tracks
+  confirmPlaylistReorder()
+    Cancel          -> stop
+    Export Backup   -> export JSON, stop
+    Continue Anyway -> send PUT/POST playlist track requests
+```
+
+This keeps a local backup path available before the remote playlist sequence changes.
+
+## Dirty project flow
+
+`state.projectDirty` tracks local edits after load/import/export. It is set by tape format changes, tape inventory changes, selected tape changes, manual split changes, calibration changes, slack margin changes, and J-card title overrides.
+
+Before a new playlist or config import replaces the current project:
+
+```text
+confirmReplaceDirtyProject()
+  Cancel          -> stop
+  Export Backup   -> export JSON, stop
+  Replace Anyway  -> continue replacement
+```
+
+`Export Backup` never continues replacement automatically.
+
+## Level-check tone flow
+
+The level-check helper uses the Web Audio API and only starts after a user click plus confirmation dialog.
+
+```text
+startLevelTone()
+  confirm warning
+  create/resume AudioContext
+  create sine oscillator or pink-noise BufferSource
+  set gain from selected dBFS
+  connect to destination
+
+stopLevelTone()
+  stop/disconnect source
+  re-enable Level Check button
+```
+
+No audio is auto-started during page load.
+
+## J-card flow
+
+`renderJCard()` owns the selected tape preview. It now also:
+
+```text
+extracts a cover-derived theme color when possible
+passes project.jCardOverrides into jcard.js
+renders print-only title override inputs
+updates print markup for selected/all tapes
+```
+
+`jcard.js` performs automatic title cleanup for common suffixes such as remasters, live versions, and deluxe editions. Manual overrides are keyed by track URI/ID and affect printed J-card text only; underlying Spotify/project track names are not changed.
+
 ## Render ownership
 
 Use this map when deciding where a visual change belongs:
@@ -275,6 +363,7 @@ Manual split UI      -> renderManualSplitControls()
 Warnings             -> renderWarnings()
 Track lists          -> renderTracks()
 J-card preview       -> renderJCard()
+J-card title editor  -> renderJCardOverrides()
 Recording panel      -> renderRecordMode()
 Readiness chips      -> renderSpotifyStatusPanel()
 LAN status payload   -> getSharedStatusPayload()
@@ -294,5 +383,7 @@ Does it need renderSplit() or renderRecordMode()?
 Does it work in Dry Run?
 Does it work for selected Tape 2 or later?
 Does it preserve imported projects without Spotify token?
+Does it preserve projectDirty correctly?
+Does it respect recording lock guards?
 Does it avoid storing secrets?
 ```

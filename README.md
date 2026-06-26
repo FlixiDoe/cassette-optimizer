@@ -10,7 +10,7 @@ Cassette Optimizer keeps a Spotify playlist in order, plans it across one or mor
 - [docs/code-overview.md](docs/code-overview.md) — how the code is structured.
 - [docs/app-state-and-flow.md](docs/app-state-and-flow.md) — how state moves through the app.
 - [docs/module-reference.md](docs/module-reference.md) — file-by-file code reference.
-- [TODO.md](TODO.md) — active implementation tasks.
+- [TODO.md](TODO.md) — short-lived task list; currently no active implementation tasks.
 
 ## Responsible Use
 
@@ -27,8 +27,13 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Keeps multi-tape state in a central project model.
 - Supports per-tape formats and tape inventory quantities.
 - Exports/imports cassette projects as JSON.
-- Controls Spotify playback for Side A / Side B recording.
-- Provides Dry Run mode, recording countdowns, J-card printing, and optional LAN monitoring.
+- Migrates older cassette project JSON during import.
+- Controls Spotify playback for Side A / Side B recording with preflight safety checks.
+- Locks planning controls while cueing, recording, pausing, or waiting for a flip.
+- Provides Dry Run mode, recording countdowns, deck readiness guidance, and optional LAN monitoring.
+- Adds calibration helpers for leader tape delay, motor latency, safety margin, and browser-based level-check tones.
+- Prints J-cards with title cleanup, manual print-only title overrides, and cover-derived theme colors.
+- Supports explicit tape slack margin tolerance with warnings when unofficial tape length is used.
 
 For implementation details, read [docs/code-overview.md](docs/code-overview.md) and [docs/module-reference.md](docs/module-reference.md).
 
@@ -101,12 +106,16 @@ user-modify-playback-state
 5. Select the cassette formats you have under `Tapes you have`.
 6. Choose a tape format.
 7. Click `Load playlist`.
-8. Review the physical tape plan, Side A, Side B, warnings, and J-card preview.
-9. Refresh Spotify devices and choose the target device if needed.
-10. Complete the recording checklist.
-11. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
-12. After Side A auto-pauses, flip the cassette and use `Start Side B`.
-13. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+8. Review the physical tape plan, Side A, Side B, remaining blank tape, warnings, and J-card preview.
+9. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
+10. Refresh Spotify devices and choose the target device if needed.
+11. Complete the recording checklist.
+12. Use `Level Check` only after turning the deck input gain down, then stop the tone before recording.
+13. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
+14. After Side A auto-pauses, flip the cassette and use `Start Side B`.
+15. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+
+`Apply to Spotify` always asks for confirmation before changing the remote playlist order. `Export Backup` downloads the project JSON and does not continue with the Spotify reorder.
 
 ## Deck and Audio Setup
 
@@ -130,10 +139,18 @@ Before a real recording run:
 - Set Windows output volume to 100% / maximum.
 - Adjust final recording level on the cassette deck input, not with Windows volume.
 - Watch the deck meters and avoid clipping or distortion.
+- If using `Leader Tape Delay`, the cue phase shows `Advancing past leader tape...` while the shared cue delay pipeline runs.
+- The browser `Level Check` source can play 400 Hz, 1 kHz, or pink noise at `-12 dBFS`, `-6 dBFS`, or `0 dBFS`; it never auto-starts and must be stopped manually.
 
 ## Regression Tests
 
-Run the lightweight playback regression checks:
+Run the automated test suite:
+
+```powershell
+npm test
+```
+
+Optional lightweight playback regression checks:
 
 ```powershell
 node scratch/test_playback.js
@@ -156,6 +173,9 @@ For manual checklists:
 - `OAuth callback rejected`: start from `http://127.0.0.1:8787/` and connect again.
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
 - Wrong target device: click `Refresh` under `Spotify device`, select the intended Spotify Connect device, then retry.
+- Playback command sent but Spotify stays idle: wake the target Spotify device by playing any song, then retry or pause/resume the side.
+- Rate limited: wait for the app's retry countdown in the Recording Readiness panel.
+- Expired token: reconnect Spotify and refresh devices.
 - Playlist list is empty: reconnect Spotify and ensure the token has `playlist-read-private`.
 - Connect Spotify not visible on phone/LAN: this is by design. Open `http://127.0.0.1:8787` on the host machine to log in.
 

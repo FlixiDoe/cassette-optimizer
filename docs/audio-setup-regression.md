@@ -23,6 +23,13 @@ Use this checklist before a release or after changing recording setup copy, the 
 - The Deck Checklist reminds the user that Spotify and Windows output devices should match.
 - The Deck Checklist mentions Exclusive mode and Force volume.
 - The Level check helper explains that final recording gain is adjusted on the cassette deck input.
+- `Leader Tape Delay` appears in the calibration panel instead of `Lead-in delay`.
+- During a leader-tape cue, the monitor copy says `Advancing past leader tape`.
+- `Level Check` offers 400 Hz, 1 kHz, and pink noise.
+- `Level Check` offers `-12 dBFS`, `-6 dBFS`, and `0 dBFS`, defaulting to a non-maximum level.
+- Starting the tone shows a warning confirmation and does not auto-start on page load.
+- `Stop Tone` is visible and stops the Web Audio source.
+- Recording Readiness shows actionable recovery text for sleeping devices, wrong target device, idle playback after command, rate limits, and expired tokens.
 
 ## Manual Recording Setup Check
 
@@ -36,3 +43,5 @@ Use this checklist before a release or after changing recording setup copy, the 
 - Set Windows output volume to 100%.
 - Put the cassette deck into record-pause and set deck input gain from the deck meters.
 - Confirm peaks stay below clipping or audible distortion.
+- Start and stop the browser Level Check tone at a low deck input gain.
+- Confirm planning controls cannot be changed while cueing, recording, paused, or waiting at the flip prompt.

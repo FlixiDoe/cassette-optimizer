@@ -5,7 +5,7 @@ This file is the documentation index. It intentionally avoids repeating the READ
 ## Start here
 
 - [README.md](README.md) — short user setup, Spotify configuration, responsible use, and recording checklist.
-- [TODO.md](TODO.md) — current active implementation tasks only.
+- [TODO.md](TODO.md) — short-lived active task list; currently empty except later ideas.
 
 ## Code documentation
 
@@ -13,7 +13,7 @@ These files explain how the code works internally:
 
 - [docs/code-overview.md](docs/code-overview.md) — architecture, runtime shape, central state, project model, render pattern, and code ownership boundaries.
 - [docs/app-state-and-flow.md](docs/app-state-and-flow.md) — startup flow, playlist loading, project creation, split recomputation, import/export, recording, timer, and Spotify monitoring flow.
-- [docs/module-reference.md](docs/module-reference.md) — file-by-file reference for `app.js`, `tape.js`, `spotify.js`, `recording.js`, `jcard.js`, `export.js`, and `server.js`.
+- [docs/module-reference.md](docs/module-reference.md) — file-by-file reference for `app.js`, `tape.js`, `spotify.js`, `recording.js`, `recording-preflight.js`, `config-migration.js`, `jcard.js`, `export.js`, and `server.js`.
 
 ## Manual regression checklists
 

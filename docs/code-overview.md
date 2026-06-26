@@ -19,10 +19,12 @@ There is no frontend build step. The local PowerShell launcher starts a Python s
 index.html        DOM structure and element IDs used by app.js
 styles.css        Layout, cassette visual, print layout, responsive behavior
 app.js            Main controller, state, event wiring, Spotify calls, rendering
+config-migration.js  JSON import migration and normalization defaults
 spotify.js        Small Spotify/auth helper functions and SpotifyApiError
+recording-preflight.js  Pure recording start validation
 recording.js      Recording timing helper for expected-track calculation
-tape.js           Pure cassette split, duration, and formatting logic
-jcard.js          Pure J-card markup rendering
+tape.js           Pure cassette split, slack margin, duration, and formatting logic
+jcard.js          Pure J-card markup rendering and print title cleanup
 export.js         Current config version constant
 server.js         Optional LAN monitor static server and /api/status endpoint
 ```
@@ -34,8 +36,10 @@ server.js         Optional LAN monitor static server and /api/status endpoint
 The smaller modules are kept mostly pure:
 
 - `tape.js` does not touch the DOM or Spotify.
+- `recording-preflight.js` validates recording readiness without touching the DOM.
+- `config-migration.js` converts imported JSON into the current config shape before app normalization.
 - `recording.js` does not touch the DOM or Spotify.
-- `jcard.js` returns HTML strings but does not decide which tape is active.
+- `jcard.js` returns HTML strings and print-safe titles but does not decide which tape is active.
 - `spotify.js` only contains helpers for OAuth/Spotify parsing and error metadata.
 - `server.js` does not know Spotify tokens and only mirrors sanitized UI status.
 
@@ -74,11 +78,12 @@ Spotify session:
   token, refreshToken, expiresAt, selectedDeviceId, devices
 
 Playlist/project:
-  playlistId, playlistName, playlistCoverUrl, tracks, project
+  playlistId, playlistName, playlistCoverUrl, tracks, project,
+  projectDirty
 
 Tape planning:
   tapeMinutes, availableTapeFormats, tapeInventory,
-  tapeLayouts, selectedTapeIndex, splitIndex
+  tapeLayouts, selectedTapeIndex, splitIndex, slackMarginSeconds
 
 Recording:
   recordMode, activeRecordSide, sideAStartedAt,
@@ -86,13 +91,18 @@ Recording:
   timerId, cueTimerId, pollingId
 
 Playback monitoring:
-  playbackStatus, pollingDelayMs, lastPlaybackCorrectionAt
+  playbackStatus, pollingDelayMs, lastPlaybackCorrectionAt,
+  playbackRecoveryMessage
 
 Manual setup:
-  deckChecklistDone, dryRun, calibration
+  deckChecklistDone, dryRun, calibration,
+  audioContext, levelToneNode, levelToneGain
 
 LAN monitor:
   statusApiAvailable, statusPollId, remoteStatusSeen
+
+J-card:
+  jCardThemeCoverUrl
 ```
 
 `state.project` is the most important long-lived data structure after a playlist is loaded or a JSON config is imported. UI state can still exist outside it, but cassette planning data should flow through the project model.
@@ -114,6 +124,8 @@ Simplified shape:
   selectedTapeIndex,
   tapes,
   splitMode,
+  slackMarginSeconds,
+  jCardOverrides,
   calibration,
   createdAt,
   updatedAt
@@ -176,6 +188,8 @@ readiness/status chips
 LAN status payload
 ```
 
+It also applies the recording lock. While cueing, recording, paused, or waiting at the flip prompt, dangerous planning controls are disabled and `body[data-recording-state="active"]` is set. Action handlers still call guard helpers, so direct events cannot bypass the lock.
+
 Do not update many DOM nodes manually in new code if an existing render function already owns them. Mutate state first, then call the relevant render function.
 
 ## Spotify boundary
@@ -190,6 +204,8 @@ Spotify API calls are made from `app.js` through `spotifyFetch(...)`. That wrapp
 
 Playback starts through `playSpotify(...)`, and side playback payloads are built from the currently selected side only. This is why Record Mode can treat Side A and Side B as explicit queues.
 
+The Recording Readiness panel uses `playbackRecoveryMessage` for actionable device/token/API guidance such as sleeping devices, target-device mismatch, idle playback after a command, rate limiting, and expired OAuth tokens.
+
 ## Local storage
 
 The app stores small local preferences:
@@ -202,7 +218,7 @@ tape_inventory
 deck_checklist
 recording_calibration
 spotify_device_id
-dry_run
+dry_run_mode
 ```
 
 Do not store Spotify client secrets by default. The app only saves a client secret when the local-only checkbox is enabled.
@@ -213,14 +229,17 @@ Do not store Spotify client secrets by default. The app only saves a client secr
 
 The server intentionally does not persist state, does not store tokens, and does not proxy Spotify requests.
 
+Non-localhost clients get `body[data-host-mode="lan-monitor"]`, which hides interactive controls and enlarges monitor-critical UI: record mode, active side, countdown, progress, current track, flip prompt, and log.
+
 ## Where to add future code
 
 ```text
 New tape split rule        -> tape.js if pure, app.js only for UI wiring
 New recording timing rule  -> recording.js if pure, app.js for timers/DOM
 New J-card layout content  -> jcard.js and styles.css print rules
+New J-card project field    -> app.js export/import + config-migration.js defaults
 New Spotify helper         -> spotify.js if generic, app.js if tied to app state
 New status panel behavior  -> app.js renderSpotifyStatusPanel()
 New LAN status field       -> app.js getSharedStatusPayload() and server.js sanitizeStatus()
-New import/export field    -> app.js serialize/normalize functions and export.js version if format changes
+New import/export field    -> app.js serialize/normalize functions, config-migration.js, and export.js version if format changes
 ```
