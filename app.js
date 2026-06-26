@@ -62,15 +62,18 @@
       pollingPausedUntil: 0,
       lastRateLimitLogAt: 0,
       lastPlaybackCorrectionAt: 0,
+      lastPlaybackCommandAt: 0,
       lastStatusPushAt: 0,
       statusPollId: null,
       statusApiAvailable: false,
       lastImportMissingUriCount: 0,
       importError: "",
       remoteStatusSeen: false,
+      playbackRecoveryMessage: "",
       playbackStatus: {
         deviceActive: false,
         deviceName: "",
+        deviceId: "",
         expectedTrackPlaying: false,
         playbackInSync: false,
         driftMs: null,
@@ -265,15 +268,24 @@
     }
 
     async function refreshAccessToken() {
-      if (!state.refreshToken) throw new Error("Token expired. Connect Spotify again.");
+      if (!state.refreshToken) {
+        setPlaybackRecovery("Spotify login expired. Reconnect Spotify, then refresh devices before recording.");
+        throw new Error("Token expired. Connect Spotify again.");
+      }
       const body = new URLSearchParams({
         grant_type: "refresh_token",
         refresh_token: state.refreshToken,
         client_id: getClientId()
       });
-      const data = await fetchAccounts(body);
-      saveToken(data);
-      log("Spotify token refreshed.");
+      try {
+        const data = await fetchAccounts(body);
+        saveToken(data);
+        setPlaybackRecovery("");
+        log("Spotify token refreshed.");
+      } catch (error) {
+        setPlaybackRecovery("Spotify login expired. Reconnect Spotify, then refresh devices before recording.");
+        throw error;
+      }
     }
 
     async function spotifyFetch(path, options = {}) {
@@ -296,7 +308,15 @@
       if (!response.ok) {
         const message = data?.error?.message || response.statusText;
         if (/NO_ACTIVE_DEVICE|Player command failed/i.test(message)) {
+          setPlaybackRecovery("Device asleep. Open Spotify on your target device and play any song to wake it up, then retry.");
           throw new Error("No active Spotify device found. Open Spotify on desktop/mobile, click Device Refresh, select the device, then try again.");
+        }
+        if (response.status === 401) {
+          setPlaybackRecovery("Spotify login expired. Reconnect Spotify, then retry recording.");
+        }
+        if (response.status === 429) {
+          const retryAfter = Number(response.headers.get("Retry-After") || 5);
+          setPlaybackRecovery(`Spotify is rate limiting playback checks. Waiting ${retryAfter}s before retrying automatically.`);
         }
         throw new SpotifyApiError(message, response, data);
       }
@@ -305,7 +325,9 @@
 
     async function playSpotify(options = { method: "PUT" }) {
       const deviceQuery = state.selectedDeviceId ? `?device_id=${encodeURIComponent(state.selectedDeviceId)}` : "";
-      return spotifyFetch(`/me/player/play${deviceQuery}`, options);
+      const result = await spotifyFetch(`/me/player/play${deviceQuery}`, options);
+      state.lastPlaybackCommandAt = Date.now();
+      return result;
     }
 
     async function preparePlaybackOrder() {
@@ -540,6 +562,7 @@
       state.selectedDeviceId = el.deviceSelect.value;
       persistSelectedDevice();
       const selected = state.devices.find(device => device.id === state.selectedDeviceId);
+      setPlaybackRecovery("");
       log(selected ? `Selected Spotify device: ${selected.name}.` : "Using Spotify default active device.");
     }
 
@@ -1092,10 +1115,14 @@
       try {
         const data = await spotifyFetch("/me/player");
         if (!data || !data.item) {
+          if (state.recordMode === "recording_a" || state.recordMode === "recording_b" || Date.now() - state.lastPlaybackCommandAt < 12000) {
+            setPlaybackRecovery("Playback command was sent, but Spotify still reports idle. Wake the target device, then pause and resume this side.");
+          }
           state.playbackStatus = {
             ...state.playbackStatus,
             deviceActive: Boolean(data?.device?.is_active),
             deviceName: data?.device?.name || "",
+            deviceId: data?.device?.id || "",
             expectedTrackPlaying: false,
             playbackInSync: false,
             driftMs: null,
@@ -1110,8 +1137,15 @@
           ...state.playbackStatus,
           deviceActive: Boolean(data.device?.is_active),
           deviceName: data.device?.name || "",
+          deviceId: data.device?.id || "",
           isPlaying: Boolean(data.is_playing)
         };
+        if (state.selectedDeviceId && data.device?.id && data.device.id !== state.selectedDeviceId) {
+          const selected = state.devices.find(device => device.id === state.selectedDeviceId);
+          setPlaybackRecovery(`Spotify is playing on ${data.device.name || "another device"} instead of ${selected?.name || "the selected target"}. Select the active device or switch Spotify output before recording.`);
+        } else if (state.playbackRecoveryMessage && data.is_playing) {
+          setPlaybackRecovery("");
+        }
         const remain = Math.max(0, data.item.duration_ms - data.progress_ms);
         el.currentTrack.innerHTML = `<b>${escapeHtml(data.item.name)}</b>${escapeHtml((data.item.artists || []).map(a => a.name).join(", "))} · ${formatTime(remain)} remaining`;
         await syncRecordProgressFromSpotify(data);
@@ -1119,6 +1153,7 @@
         if (error instanceof SpotifyApiError && error.status === 429) {
           const retryMs = Math.max(1000, (error.retryAfter || 5) * 1000);
           state.pollingPausedUntil = Date.now() + retryMs;
+          setPlaybackRecovery(`Spotify is rate limiting playback checks. Waiting ${Math.ceil(retryMs / 1000)}s before retrying automatically.`);
           renderRecordMode(`Rate limited ${Math.ceil(retryMs / 1000)}s`);
           if (Date.now() - state.lastRateLimitLogAt > 30000) {
             log(`Spotify rate limit hit. Retrying monitor in ${Math.ceil(retryMs / 1000)}s.`);
@@ -1131,6 +1166,7 @@
         state.playbackStatus = {
           ...state.playbackStatus,
           deviceActive: false,
+          deviceId: "",
           expectedTrackPlaying: false,
           playbackInSync: false,
           driftMs: null,
@@ -1139,6 +1175,11 @@
         renderRecordMode("Monitor error");
         schedulePlaybackPoll(10000);
       }
+    }
+
+    function setPlaybackRecovery(message) {
+      state.playbackRecoveryMessage = message || "";
+      renderSpotifyStatusPanel();
     }
 
     async function syncRecordProgressFromSpotify(playback) {
@@ -1466,6 +1507,7 @@
       if (!state.dryRun && !state.token) warnings.push("Connect Spotify before recording.");
       if (!state.dryRun && !activeSelectedDevice) warnings.push("Select and activate a Spotify device.");
       if (!checklistReady) warnings.push("Confirm the audio quality checklist before recording.");
+      if (state.playbackRecoveryMessage) warnings.push(state.playbackRecoveryMessage);
       el.spotifyStatusWarning.textContent = warnings.join(" ");
     }
 
