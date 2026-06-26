@@ -14,6 +14,15 @@
       "user-read-playback-state",
       "user-modify-playback-state"
     ];
+    const DECK_CHECKLIST_ITEMS = [
+      "Tape inserted",
+      "Rewound to start of side",
+      "Correct side selected",
+      "Record level checked",
+      "Spotify device selected",
+      "Notifications muted",
+      "Deck is in record/pause"
+    ];
     const state = {
       token: null,
       refreshToken: null,
@@ -45,7 +54,9 @@
       lastPlaybackCorrectionAt: 0,
       lastStatusPushAt: 0,
       statusPollId: null,
-      statusApiAvailable: false
+      statusApiAvailable: false,
+      deckChecklistDone: [],
+      skipDeckChecklist: false
     };
     state.configVersion = TAPE_CONFIG_VERSION;
 
@@ -99,11 +110,15 @@
       el.printJCardBtn.addEventListener("click", () => window.print());
       el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
       el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
+      el.deckChecklist.addEventListener("change", updateDeckChecklist);
+      el.skipDeckChecklist.addEventListener("change", updateDeckChecklist);
       window.addEventListener("beforeunload", persistToken);
       startSharedStatusPolling();
       restoreTapeInventory();
+      restoreDeckChecklist();
       renderTapeOptions();
       renderTapeInventory();
+      renderDeckChecklist();
     }
 
     async function login() {
@@ -988,7 +1003,48 @@
       el.startB.disabled = cueing || !b.length || !state.token || !(state.recordMode === "flip" || pausedB);
       el.pauseBtn.disabled = cueing || !state.token || !recording;
       el.abortBtn.disabled = !abortable;
+      updateDeckChecklistState();
       pushSharedStatus();
+    }
+
+    function restoreDeckChecklist() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("deck_checklist") || "null");
+        if (!saved || typeof saved !== "object") return;
+        state.deckChecklistDone = Array.isArray(saved.done) ? saved.done.map(Boolean) : [];
+        state.skipDeckChecklist = Boolean(saved.skip);
+      } catch {
+        localStorage.removeItem("deck_checklist");
+      }
+    }
+
+    function renderDeckChecklist() {
+      el.skipDeckChecklist.checked = Boolean(state.skipDeckChecklist);
+      el.deckChecklistItems.innerHTML = DECK_CHECKLIST_ITEMS.map((item, index) => {
+        const checked = state.deckChecklistDone?.[index] ? " checked" : "";
+        return `<label class="deck-check"><input type="checkbox" value="${index}"${checked}><span>${escapeHtml(item)}</span></label>`;
+      }).join("");
+      updateDeckChecklistState();
+    }
+
+    function updateDeckChecklist() {
+      state.skipDeckChecklist = el.skipDeckChecklist.checked;
+      state.deckChecklistDone = [...el.deckChecklistItems.querySelectorAll("input")].map(input => input.checked);
+      localStorage.setItem("deck_checklist", JSON.stringify({
+        done: state.deckChecklistDone,
+        skip: state.skipDeckChecklist
+      }));
+      updateDeckChecklistState();
+    }
+
+    function updateDeckChecklistState() {
+      if (!el.deckChecklistItems) return;
+      const total = DECK_CHECKLIST_ITEMS.length;
+      const done = [...el.deckChecklistItems.querySelectorAll("input")].filter(input => input.checked).length;
+      const skipped = el.skipDeckChecklist.checked;
+      el.deckChecklist.classList.toggle("incomplete", !skipped && done < total);
+      el.deckChecklist.classList.toggle("skipped", skipped);
+      el.deckChecklistStatus.textContent = skipped ? "Skipped" : `${done}/${total} ready`;
     }
 
     function setTapeLength(minutes) {

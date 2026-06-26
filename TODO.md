@@ -267,7 +267,7 @@ docs: add cassette deck setup guide
 
 ---
 
-### 7. Add Deck Checklist before recording
+### 7. [Done] Add Deck Checklist before recording
 
 Recording to cassette has physical steps that can easily be forgotten.
 

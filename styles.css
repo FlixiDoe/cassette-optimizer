@@ -480,6 +480,48 @@
       box-shadow: 0 0 0 3px rgba(255,91,91,.08);
     }
 
+    .deck-checklist {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #11150f;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .deck-checklist.incomplete {
+      border-color: #735d28;
+      background: rgba(255,191,73,.06);
+    }
+
+    .deck-checklist.skipped {
+      opacity: .72;
+    }
+
+    .deck-checklist-items {
+      display: grid;
+      gap: 6px;
+    }
+
+    .deck-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 28px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .deck-check input {
+      width: 14px;
+      min-height: 14px;
+      accent-color: var(--green);
+    }
+
+    .deck-check:has(input:not(:checked)) {
+      color: #ffd98a;
+    }
+
     .record-cue {
       display: none;
       border: 2px solid var(--red);
