@@ -88,6 +88,7 @@
       audioContext: null,
       levelToneNode: null,
       levelToneGain: null,
+      jCardThemeCoverUrl: "",
       calibration: {
         leadInSeconds: 0,
         motorLatencySeconds: 0,
@@ -1897,6 +1898,7 @@
     }
 
     function renderJCard(a, b, aMs, bMs, totalMs, renderOverrides = true) {
+      updateJCardThemeFromCover();
       const cover = state.playlistCoverUrl
         ? `<img src="${escapeHtml(state.playlistCoverUrl)}" alt="">`
         : `<span>No cover loaded</span>`;
@@ -2446,6 +2448,89 @@
 
     function getTrackKey(track) {
       return track.uri || track.id || `${track.name}-${track.duration_ms}`;
+    }
+
+    function updateJCardThemeFromCover() {
+      const coverUrl = state.playlistCoverUrl || "";
+      if (coverUrl === state.jCardThemeCoverUrl) return;
+      state.jCardThemeCoverUrl = coverUrl;
+      if (!coverUrl) {
+        applyJCardTheme(null);
+        return;
+      }
+      extractDominantCoverColor(coverUrl)
+        .then(color => {
+          if (state.jCardThemeCoverUrl === coverUrl) applyJCardTheme(color);
+        })
+        .catch(() => applyJCardTheme(null));
+    }
+
+    function extractDominantCoverColor(url) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = "anonymous";
+        image.onload = () => {
+          try {
+            const size = 48;
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const context = canvas.getContext("2d", { willReadFrequently: true });
+            context.drawImage(image, 0, 0, size, size);
+            const data = context.getImageData(0, 0, size, size).data;
+            let r = 0;
+            let g = 0;
+            let b = 0;
+            let count = 0;
+            for (let i = 0; i < data.length; i += 16) {
+              const alpha = data[i + 3];
+              if (alpha < 180) continue;
+              const max = Math.max(data[i], data[i + 1], data[i + 2]);
+              const min = Math.min(data[i], data[i + 1], data[i + 2]);
+              if (max - min < 16 && max > 220) continue;
+              r += data[i];
+              g += data[i + 1];
+              b += data[i + 2];
+              count += 1;
+            }
+            if (!count) {
+              reject(new Error("No usable cover color."));
+              return;
+            }
+            resolve({
+              r: Math.round(r / count),
+              g: Math.round(g / count),
+              b: Math.round(b / count)
+            });
+          } catch (error) {
+            reject(error);
+          }
+        };
+        image.onerror = reject;
+        image.src = url;
+      });
+    }
+
+    function applyJCardTheme(color) {
+      const root = document.documentElement;
+      if (!color) {
+        root.style.removeProperty("--jcard-accent");
+        root.style.removeProperty("--jcard-front");
+        root.style.removeProperty("--jcard-back");
+        root.style.removeProperty("--jcard-paper");
+        return;
+      }
+      root.style.setProperty("--jcard-accent", `rgb(${color.r}, ${color.g}, ${color.b})`);
+      root.style.setProperty("--jcard-front", mixColor(color, { r: 235, g: 228, b: 210 }, .22));
+      root.style.setProperty("--jcard-back", mixColor(color, { r: 251, g: 250, b: 243 }, .1));
+      root.style.setProperty("--jcard-paper", mixColor(color, { r: 247, g: 244, b: 232 }, .08));
+    }
+
+    function mixColor(color, base, amount) {
+      const r = Math.round(base.r * (1 - amount) + color.r * amount);
+      const g = Math.round(base.g * (1 - amount) + color.g * amount);
+      const b = Math.round(base.b * (1 - amount) + color.b * amount);
+      return `rgb(${r}, ${g}, ${b})`;
     }
 
     function getVolumeTitle(layout) {

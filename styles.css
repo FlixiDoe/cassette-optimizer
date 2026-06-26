@@ -896,7 +896,7 @@
       width: min(100%, 1040px);
       margin: 0 auto;
       color: #111;
-      background: #f7f4e8;
+      background: var(--jcard-paper, #f7f4e8);
       border: 1px solid #36342f;
       display: grid;
       grid-template-columns: 18mm 65mm 92mm;
@@ -970,7 +970,7 @@
       display: grid;
       grid-template-rows: auto 1fr auto;
       gap: 5mm;
-      background: #ebe4d2;
+      background: var(--jcard-front, #ebe4d2);
     }
 
     .j-cover-art {
@@ -1014,12 +1014,12 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 6mm;
-      background: #fbfaf3;
+      background: var(--jcard-back, #fbfaf3);
     }
 
     .j-side h3 {
-      color: #111;
-      border-bottom: 1px solid #111;
+      color: var(--jcard-accent, #111);
+      border-bottom: 1px solid var(--jcard-accent, #111);
       padding-bottom: 2mm;
       margin-bottom: 3mm;
       font-size: 12px;
