@@ -139,6 +139,12 @@ Run the lightweight playback regression checks:
 node scratch/test_playback.js
 ```
 
+Run the project model / export-import regression checks:
+
+```powershell
+node scratch/test_project_model.js
+```
+
 For manual checklists:
 
 - [docs/j-card-print-regression.md](docs/j-card-print-regression.md)
