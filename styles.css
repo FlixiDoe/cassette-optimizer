@@ -1167,6 +1167,31 @@
       min-height: 38px;
     }
 
+    .jcard-overrides {
+      margin-top: 14px;
+    }
+
+    .jcard-overrides h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .jcard-override-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .jcard-override-grid label {
+      display: grid;
+      gap: 5px;
+    }
+
+    .jcard-override-grid span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     @media (max-width: 1100px) {
       .grid { grid-template-columns: 1fr; }
       .tracklists { grid-template-columns: 1fr; }

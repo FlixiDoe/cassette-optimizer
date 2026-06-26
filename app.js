@@ -1,6 +1,6 @@
     import { TAPE_CONFIG_VERSION } from "./export.js";
     import { migrateImportedConfig } from "./config-migration.js";
-    import { renderJCardMarkup } from "./jcard.js";
+    import { cleanJCardTrackTitle, renderJCardMarkup } from "./jcard.js";
     import { validateRecordingSide, summarizePreflightIssues } from "./recording-preflight.js";
     import { RECORD_CUE_SECONDS, getExpectedTrackAtElapsed } from "./recording.js";
     import { SpotifyApiError, base64Url, parsePlaylistId, pickPlaylistCover, randomBytes, sha256Base64Url } from "./spotify.js";
@@ -155,6 +155,7 @@
       el.abortBtn.addEventListener("click", abortRecording);
       el.printJCardBtn.addEventListener("click", () => printJCards("selected"));
       el.printAllJCardsBtn.addEventListener("click", () => printJCards("all"));
+      el.jCardOverrides.addEventListener("input", updateJCardOverride);
       el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
       el.slackMargin.addEventListener("change", updateSlackMargin);
       el.slackMargin.addEventListener("input", updateSlackMargin);
@@ -1895,7 +1896,7 @@
       pushSharedStatus(true);
     }
 
-    function renderJCard(a, b, aMs, bMs, totalMs) {
+    function renderJCard(a, b, aMs, bMs, totalMs, renderOverrides = true) {
       const cover = state.playlistCoverUrl
         ? `<img src="${escapeHtml(state.playlistCoverUrl)}" alt="">`
         : `<span>No cover loaded</span>`;
@@ -1912,13 +1913,52 @@
         sideBMs: bMs,
         totalMs: aMs + bMs,
         splitIndex: selectedLayout?.sideBStartIndex || 0,
-        escapeHtml
+        escapeHtml,
+        titleOverrides: state.project?.jCardOverrides || {}
       });
       el.printJCardBtn.disabled = !projectTracks().length;
       el.printAllJCardsBtn.disabled = !projectTracks().length;
       el.jCardPreview.className = `jcard-print${densityClass}`;
       el.jCardPreview.innerHTML = cardHtml;
+      if (renderOverrides) renderJCardOverrides([...a, ...b]);
       renderJCardPrint("selected");
+    }
+
+    function renderJCardOverrides(tracks) {
+      if (!tracks.length) {
+        el.jCardOverrides.innerHTML = "";
+        return;
+      }
+      const overrides = state.project?.jCardOverrides || {};
+      el.jCardOverrides.innerHTML = `
+        <h3>J-Card title overrides</h3>
+        <div class="jcard-override-grid">
+          ${tracks.map(track => {
+            const key = getTrackKey(track);
+            const cleaned = cleanJCardTrackTitle(track.name);
+            const value = overrides[key] || "";
+            return `<label>
+              <span>${escapeHtml(cleaned)}</span>
+              <input data-jcard-override-key="${escapeHtml(key)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(cleaned)}">
+            </label>`;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function updateJCardOverride(event) {
+      const input = event.target.closest("[data-jcard-override-key]");
+      if (!input || !state.project) return;
+      const key = input.dataset.jcardOverrideKey;
+      state.project.jCardOverrides = state.project.jCardOverrides || {};
+      const value = input.value.trim();
+      if (value) {
+        state.project.jCardOverrides[key] = value;
+      } else {
+        delete state.project.jCardOverrides[key];
+      }
+      markProjectDirty();
+      renderJCard(sideA(), sideB(), duration(sideA()), duration(sideB()), duration(sideA()) + duration(sideB()), false);
     }
 
     function renderTapeRecommendation(totalMs) {
@@ -2399,8 +2439,13 @@
         sideBMs: duration(layout.sideB),
         totalMs: duration(layout.sideA) + duration(layout.sideB),
         splitIndex: layout.sideBStartIndex,
-        escapeHtml
+        escapeHtml,
+        titleOverrides: state.project?.jCardOverrides || {}
       });
+    }
+
+    function getTrackKey(track) {
+      return track.uri || track.id || `${track.name}-${track.duration_ms}`;
     }
 
     function getVolumeTitle(layout) {
