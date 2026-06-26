@@ -1,4 +1,5 @@
     import { TAPE_CONFIG_VERSION } from "./export.js";
+    import { migrateImportedConfig } from "./config-migration.js";
     import { renderJCardMarkup } from "./jcard.js";
     import { validateRecordingSide, summarizePreflightIssues } from "./recording-preflight.js";
     import { RECORD_CUE_SECONDS, getExpectedTrackAtElapsed } from "./recording.js";
@@ -504,6 +505,8 @@
         selectedTapeIndex,
         tapes: [],
         splitMode: "automatic",
+        slackMarginSeconds: 0,
+        jCardOverrides: {},
         calibration: { ...state.calibration },
         createdAt: now,
         updatedAt: now
@@ -550,6 +553,8 @@
       state.tapeLayouts = state.project.tapes;
       state.splitIndex = selectedTapeLayout()?.sideBStartIndex || 0;
       state.project.calibration = { ...state.calibration };
+      state.project.slackMarginSeconds = clampSeconds(state.project.slackMarginSeconds ?? 0, 0, 120);
+      state.project.jCardOverrides = state.project.jCardOverrides || {};
     }
 
     function clampTapeIndex(index, tapeCount) {
@@ -1922,6 +1927,8 @@
           availableTapeFormats: getAvailableTapeFormats(),
           tapeInventory: getTapeInventory(),
           splitMode: state.project.splitMode || "automatic",
+          slackMarginSeconds: state.project.slackMarginSeconds || 0,
+          jCardOverrides: state.project.jCardOverrides || {},
           calibration: { ...state.calibration },
           timestamps: {
             createdAt: state.project.createdAt,
@@ -1945,7 +1952,7 @@
       try {
         if (blockIfRecordingLocked("Import Config")) return;
         const text = await file.text();
-        const payload = JSON.parse(text);
+        const payload = migrateImportedConfig(JSON.parse(text));
         const project = normalizeImportedConfig(payload);
         state.importError = "";
         state.lastImportMissingUriCount = countMissingTrackUris(project);
@@ -1987,6 +1994,8 @@
         selectedTapeIndex: 0,
         tapes: [],
         splitMode: payload.splitMode === "manual" ? "manual" : "automatic",
+        slackMarginSeconds: clampSeconds(payload.slackMarginSeconds ?? 0, 0, 120),
+        jCardOverrides: payload.jCardOverrides && typeof payload.jCardOverrides === "object" && !Array.isArray(payload.jCardOverrides) ? payload.jCardOverrides : {},
         calibration: normalizeCalibration(payload.calibration || {}),
         createdAt: payload.timestamps?.createdAt || payload.createdAt || now,
         updatedAt: now,
