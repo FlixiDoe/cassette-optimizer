@@ -70,6 +70,7 @@ containsHtml("Explicit Client Secret save control", 'id="saveClientSecret"');
 contains("Client Secret disabled off localhost", 'if (!isLocalhost()) return "";');
 contains("Client Secret preference restore", "function restoreClientSecretPreference");
 contains("Client Secret cleared on logout", "function clearSavedClientSecret");
+containsHtml("Responsible use app notice", "Use responsibly: this tool controls playback for cassette recording workflows.");
 containsHtml("Record cue banner", 'id="recordCue"');
 contains("Record cue text", "PRESS RECORD NOW");
 containsHtml("J-Card screen preview", 'id="jCardPreview"');

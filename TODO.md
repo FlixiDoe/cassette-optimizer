@@ -155,7 +155,7 @@ security: mark client secret as local-only advanced option
 
 ---
 
-### 4. Add in-app responsible-use notice
+### 4. [Done] Add in-app responsible-use notice
 
 The README has responsible-use text, but users running the app may never read it.
 

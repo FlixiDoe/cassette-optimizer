@@ -378,6 +378,15 @@
       gap: 12px;
     }
 
+    .responsible-use {
+      border: 1px solid #45633c;
+      border-radius: 6px;
+      background: rgba(156,255,106,.06);
+      color: var(--muted);
+      padding: 10px;
+      font-size: 12px;
+    }
+
     .timer {
       border: 1px solid var(--line);
       background: #0b0d0a;
