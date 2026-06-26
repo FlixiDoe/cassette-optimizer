@@ -115,6 +115,10 @@
       el.exportConfigBtn.addEventListener("click", exportTapeConfig);
       el.importConfigBtn.addEventListener("click", () => el.importConfigFile.click());
       el.importConfigFile.addEventListener("change", importTapeConfig);
+      el.moveSplitEarlier.addEventListener("click", () => moveManualSplit(-1));
+      el.moveSplitLater.addEventListener("click", () => moveManualSplit(1));
+      el.lockSplitBtn.addEventListener("click", lockManualSplitFromSelect);
+      el.resetSplitBtn.addEventListener("click", resetAutomaticSplit);
       el.loadPlaylistsBtn.addEventListener("click", loadUserPlaylists);
       el.playlistSelect.addEventListener("change", selectUserPlaylist);
       el.loadDevicesBtn.addEventListener("click", loadDevices);
@@ -552,8 +556,23 @@
 
     function computeSplit() {
       if (state.project) {
-        const formats = state.project.tapes.map(tape => tape.tapeFormat || tape.tapeMinutes || state.tapeMinutes);
+        const existingTapes = state.project.tapes || [];
+        const formats = existingTapes.map(tape => tape.tapeFormat || tape.tapeMinutes || state.tapeMinutes);
+        const manualSplits = existingTapes.map(tape => ({
+          splitMode: tape.splitMode,
+          manualSplitIndex: tape.manualSplitIndex,
+          jCard: tape.jCard,
+          tapeTitle: tape.tapeTitle
+        }));
         state.project.tapes = buildProjectTapes(state.project, state.tapeMinutes, formats);
+        state.project.tapes.forEach((tape, index) => {
+          if (manualSplits[index]?.jCard) tape.jCard = manualSplits[index].jCard;
+          if (manualSplits[index]?.tapeTitle) tape.tapeTitle = manualSplits[index].tapeTitle;
+          if (manualSplits[index]?.splitMode === "manual") {
+            applyManualSplitToLayout(tape, manualSplits[index].manualSplitIndex);
+          }
+        });
+        state.project.splitMode = state.project.tapes.some(tape => tape.splitMode === "manual") ? "manual" : "automatic";
         state.project.selectedTapeIndex = clampTapeIndex(state.selectedTapeIndex, state.project.tapes.length);
         syncStateFromProject();
       } else {
@@ -1373,6 +1392,7 @@
       renderRecordMode();
       renderTapePlanSelector(totalMs);
       renderSplitExplanation(a, halfMs);
+      renderManualSplitControls(a, b, halfMs);
       renderTracks(el.sideAList, a, selectedLayout?.sideAStartIndex || 0);
       renderTracks(el.sideBList, b, selectedLayout?.sideBStartIndex || 0);
       renderJCard(a, b, aMs, bMs, totalMs);
@@ -1451,6 +1471,95 @@
         ? `Next track: ${nextTrack.name} (${formatTime(nextTrack.duration_ms)}) does not fit in the remaining ${formatTime(remainingMs)}.`
         : `No next track remains; Side A has ${formatTime(remainingMs)} free.`;
       el.splitExplanation.innerHTML = `<b>Why this split?</b><span>${escapeHtml(mode)} Side length is ${formatTime(sideLengthMs)}; Side A has ${formatTime(remainingMs)} left. ${escapeHtml(nextText)} Original playlist order is preserved and no tracks are cut.</span>`;
+    }
+
+    function renderManualSplitControls(a, b, sideLengthMs) {
+      const layout = selectedTapeLayout();
+      const hasProject = Boolean(state.project && layout && projectTracks().length);
+      const mode = layout?.splitMode === "manual" ? "Manual" : "Automatic";
+      el.splitModeStatus.textContent = mode;
+      el.moveSplitEarlier.disabled = !hasProject || layout.sideBStartIndex <= layout.sideAStartIndex + 1;
+      el.moveSplitLater.disabled = !hasProject || !canMoveSplitLater(layout);
+      el.lockSplitBtn.disabled = !hasProject;
+      el.resetSplitBtn.disabled = !hasProject || layout.splitMode !== "manual";
+      el.manualSplitTrack.disabled = !hasProject;
+      if (!hasProject) {
+        el.manualSplitTrack.innerHTML = `<option value="">Load a playlist first</option>`;
+        el.manualSplitWarning.textContent = "";
+        return;
+      }
+
+      const tapeTracks = [...a, ...b];
+      el.manualSplitTrack.innerHTML = tapeTracks.map((track, index) => {
+        const absoluteIndex = layout.sideAStartIndex + index + 1;
+        const selected = absoluteIndex === layout.sideBStartIndex ? " selected" : "";
+        return `<option value="${absoluteIndex}"${selected}>After ${String(absoluteIndex).padStart(2, "0")} - ${escapeHtml(track.name)}</option>`;
+      }).join("");
+
+      const warnings = [];
+      if (duration(a) > sideLengthMs) warnings.push(`Manual split exceeds Side A length ${formatTime(sideLengthMs)}.`);
+      if (duration(b) > sideLengthMs) warnings.push(`Side B exceeds ${formatTime(sideLengthMs)} after this split.`);
+      el.manualSplitWarning.textContent = warnings.join(" ");
+    }
+
+    function moveManualSplit(delta) {
+      const layout = selectedTapeLayout();
+      if (!layout) return;
+      setManualSplit(layout.sideBStartIndex + delta);
+    }
+
+    function lockManualSplitFromSelect() {
+      setManualSplit(Number(el.manualSplitTrack.value));
+    }
+
+    function setManualSplit(splitIndex) {
+      const layout = selectedTapeLayout();
+      if (!state.project || !layout) return;
+      const result = applyManualSplitToLayout(layout, splitIndex);
+      if (!result.ok) {
+        renderManualSplitControls(sideA(), sideB(), selectedSideLengthMs());
+        log(result.message);
+        return;
+      }
+      state.project.splitMode = "manual";
+      state.project.tapes[state.selectedTapeIndex] = layout;
+      syncStateFromProject();
+      resetRecordingProgress();
+      renderSplit();
+      log(result.ok ? `Manual split locked after track ${splitIndex}.` : result.message);
+    }
+
+    function resetAutomaticSplit() {
+      const layout = selectedTapeLayout();
+      if (!state.project || !layout) return;
+      layout.splitMode = "automatic";
+      layout.manualSplitIndex = null;
+      computeSplit();
+      renderSplit();
+      log("Manual split reset to automatic.");
+    }
+
+    function canMoveSplitLater(layout) {
+      const nextSplit = layout.sideBStartIndex + 1;
+      const nextSideA = projectTracks().slice(layout.sideAStartIndex, nextSplit);
+      return nextSplit <= layout.sideBEndIndex && duration(nextSideA) <= selectedSideLengthMs();
+    }
+
+    function applyManualSplitToLayout(layout, splitIndex) {
+      const start = layout.sideAStartIndex;
+      const end = layout.sideBEndIndex;
+      const nextSplit = Math.max(start + 1, Math.min(Number(splitIndex) || layout.sideBStartIndex, end));
+      const nextSideA = projectTracks().slice(start, nextSplit);
+      if (duration(nextSideA) > layout.sideLengthMs) {
+        return { ok: false, message: `Manual split exceeds Side A length ${formatTime(layout.sideLengthMs)}.` };
+      }
+      layout.splitMode = "manual";
+      layout.manualSplitIndex = nextSplit;
+      layout.sideBStartIndex = nextSplit;
+      layout.sideAEndIndex = nextSplit;
+      layout.sideA = nextSideA;
+      layout.sideB = projectTracks().slice(nextSplit, end);
+      return { ok: true, message: "" };
     }
 
     function exportTapeConfig() {

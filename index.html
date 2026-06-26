@@ -118,6 +118,25 @@
           <b>Why this split?</b>
           <span>Load a playlist to see the split decision.</span>
         </div>
+        <div class="manual-split" id="manualSplitPanel">
+          <div class="manual-split-header">
+            <b>Manual split</b>
+            <span id="splitModeStatus">Automatic</span>
+          </div>
+          <div class="manual-split-controls">
+            <button id="moveSplitEarlier" type="button" disabled>Move split earlier</button>
+            <button id="moveSplitLater" type="button" disabled>Move split later</button>
+          </div>
+          <label>
+            <span class="label" for="manualSplitTrack">Lock split after this track</span>
+            <select id="manualSplitTrack" disabled></select>
+          </label>
+          <div class="manual-split-controls">
+            <button id="lockSplitBtn" type="button" disabled>Lock split after this track</button>
+            <button id="resetSplitBtn" type="button" disabled>Reset to automatic split</button>
+          </div>
+          <p class="small" id="manualSplitWarning"></p>
+        </div>
         <div class="tape-plan" id="tapePlanPanel">
           <div>
             <label class="label" for="tapePlanSelect">Physical cassette</label>

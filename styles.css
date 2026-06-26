@@ -280,6 +280,40 @@
       display: block;
     }
 
+    .manual-split {
+      display: grid;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      background: #11150f;
+    }
+
+    .manual-split-header,
+    .manual-split-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .manual-split-header b {
+      color: var(--amber);
+      text-transform: uppercase;
+    }
+
+    .manual-split-header span {
+      color: var(--muted);
+      text-align: right;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .manual-split .small {
+      color: #ffd98a;
+      min-height: 18px;
+    }
+
     .tape-plan {
       display: grid;
       gap: 8px;
