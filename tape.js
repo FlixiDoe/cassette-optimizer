@@ -59,6 +59,32 @@ export function analyzeTapeFitForTracks(tracks, minutes) {
   };
 }
 
+export function applyManualSplitToTapeLayout(layout, tracks, splitIndex) {
+  const start = layout.sideAStartIndex;
+  const end = layout.sideBEndIndex;
+  const nextSplit = Math.max(start + 1, Math.min(Number(splitIndex) || layout.sideBStartIndex, end));
+  const nextSideA = tracks.slice(start, nextSplit);
+  if (duration(nextSideA) > layout.sideLengthMs) {
+    return {
+      ok: false,
+      reason: "side_a_overflow",
+      layout
+    };
+  }
+  return {
+    ok: true,
+    layout: {
+      ...layout,
+      splitMode: "manual",
+      manualSplitIndex: nextSplit,
+      sideAEndIndex: nextSplit,
+      sideBStartIndex: nextSplit,
+      sideA: nextSideA,
+      sideB: tracks.slice(nextSplit, end)
+    }
+  };
+}
+
 export function duration(tracks) {
   return tracks.reduce((sum, track) => sum + track.duration_ms, 0);
 }
