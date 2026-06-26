@@ -47,6 +47,13 @@ contains("Play uses selected device id", /device_id=\$\{encodeURIComponent\(stat
 contains("Record cue delay", "const RECORD_CUE_SECONDS = 5");
 containsHtml("Record cue banner", 'id="recordCue"');
 contains("Record cue text", "PRESS RECORD NOW");
+containsHtml("J-Card screen preview", 'id="jCardPreview"');
+containsHtml("J-Card print-only container", 'class="print-only"');
+containsHtml("J-Card print target", 'id="jCardPrint"');
+containsHtml("A4 print page rule", "size: A4;");
+contains("J-Card density class helper", "function getJCardDensityClass");
+contains("J-Card preview render target", "el.jCardPreview.innerHTML = cardHtml");
+contains("J-Card print render target", "el.jCardPrint.innerHTML = cardHtml");
 contains("Start Side A enters cue state", 'state.recordMode = "cue_a"');
 contains("Start Side B enters cue state", 'state.recordMode = "cue_b"');
 containsHtml("Finish time display", 'id="finishTime"');

@@ -4,7 +4,7 @@ Prioritized roadmap for the next implementation steps.
 
 ## P0 – Release blockers
 
-### 1. Fix broken J-Card printing
+### 1. [Done] Fix broken J-Card printing
 
 The current print output can spread the J-Card across several pages and repeat Side A / Side B content.
 

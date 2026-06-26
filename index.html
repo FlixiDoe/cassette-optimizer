@@ -522,6 +522,10 @@
       margin-bottom: 12px;
     }
 
+    .print-only {
+      display: none;
+    }
+
     .jcard-print {
       width: min(100%, 1040px);
       margin: 0 auto;
@@ -533,6 +537,12 @@
       min-height: 120mm;
       overflow: hidden;
       box-shadow: var(--shadow);
+    }
+
+    .print-jcard-page {
+      width: 100%;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     .j-spine {
@@ -619,8 +629,36 @@
       line-height: 1.2;
     }
 
+    .jcard-print.compact .j-side ol {
+      gap: .9mm;
+      font-size: 8px;
+      line-height: 1.12;
+    }
+
+    .jcard-print.dense .j-cover {
+      padding: 5mm;
+      gap: 3mm;
+    }
+
+    .jcard-print.dense .j-tracks {
+      padding: 4mm;
+      gap: 4mm;
+    }
+
+    .jcard-print.dense .j-side h3 {
+      margin-bottom: 2mm;
+      font-size: 10px;
+    }
+
+    .jcard-print.dense .j-side ol {
+      gap: .45mm;
+      font-size: 7px;
+      line-height: 1.05;
+    }
+
     .j-side li {
       break-inside: avoid;
+      page-break-inside: avoid;
       padding-left: 1mm;
     }
 
@@ -667,29 +705,58 @@
 
     @media print {
       @page {
-        size: A4 landscape;
+        size: A4;
         margin: 10mm;
       }
 
+      html,
       body {
         background: #fff;
+        margin: 0;
+        min-height: 0;
       }
 
-      body * {
-        visibility: hidden;
+      .app {
+        display: none !important;
       }
 
-      .jcard-print,
-      .jcard-print * {
-        visibility: visible;
+      .print-only {
+        display: block;
+      }
+
+      .print-jcard-page {
+        width: 190mm;
+        max-height: 554mm;
+        overflow: hidden;
       }
 
       .jcard-print {
-        position: fixed;
-        left: 10mm;
-        top: 10mm;
-        width: 175mm;
+        width: 190mm;
+        margin: 0;
+        min-height: 118mm;
         box-shadow: none;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      .jcard-print,
+      .j-spine,
+      .j-cover,
+      .j-tracks,
+      .j-side {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .jcard-print.dense {
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+
+      .jcard-print.dense .j-tracks,
+      .jcard-print.dense .j-side {
+        break-inside: auto;
+        page-break-inside: auto;
       }
     }
   </style>
@@ -847,9 +914,14 @@
         </div>
         <button id="printJCardBtn" type="button" disabled>Print J-Card</button>
       </div>
-      <div class="jcard-print" id="jCardPrint"></div>
+      <div class="jcard-print" id="jCardPreview"></div>
     </section>
   </main>
+  <div class="print-only" aria-hidden="true">
+    <div class="print-jcard-page">
+      <div class="jcard-print" id="jCardPrint"></div>
+    </div>
+  </div>
 
   <script>
     const DEFAULT_SPOTIFY_CLIENT_ID = "";
@@ -1917,8 +1989,8 @@
       const cover = state.playlistCoverUrl
         ? `<img src="${escapeHtml(state.playlistCoverUrl)}" alt="">`
         : `<span>No cover loaded</span>`;
-      el.printJCardBtn.disabled = !state.tracks.length;
-      el.jCardPrint.innerHTML = `
+      const densityClass = getJCardDensityClass(a.length + b.length);
+      const cardHtml = `
         <div class="j-spine"><span>${escapeHtml(title)}</span><span>C${state.tapeMinutes}</span></div>
         <div class="j-cover">
           <div class="j-title">${escapeHtml(title)}</div>
@@ -1935,6 +2007,17 @@
           ${renderJCardSide("Side B", b, bMs, state.splitIndex)}
         </div>
       `;
+      el.printJCardBtn.disabled = !state.tracks.length;
+      el.jCardPreview.className = `jcard-print${densityClass}`;
+      el.jCardPrint.className = `jcard-print${densityClass}`;
+      el.jCardPreview.innerHTML = cardHtml;
+      el.jCardPrint.innerHTML = cardHtml;
+    }
+
+    function getJCardDensityClass(trackCount) {
+      if (trackCount > 56) return " dense";
+      if (trackCount > 36) return " compact";
+      return "";
     }
 
     function renderJCardSide(label, tracks, totalMs, offset) {
