@@ -16,14 +16,14 @@ export function splitTracksIntoTapes(tracks, minutes) {
   return splitTracksIntoTapesByFormats(tracks, [minutes], minutes);
 }
 
-export function splitTracksIntoTapesByFormats(tracks, formats, fallbackMinutes) {
+export function splitTracksIntoTapesByFormats(tracks, formats, fallbackMinutes, slackMarginMs = 0) {
   const tapes = [];
   let cursor = 0;
 
   while (cursor < tracks.length) {
     const formatIndex = tapes.length;
     const minutes = formats[formatIndex] || fallbackMinutes;
-    const sideLengthMs = minutes * 60 * 1000 / 2;
+    const sideLengthMs = minutes * 60 * 1000 / 2 + Math.max(0, Number(slackMarginMs) || 0);
     const sideAStartIndex = cursor;
     const sideAEndIndex = fillSide(tracks, cursor, sideLengthMs);
     const sideBStartIndex = sideAEndIndex;

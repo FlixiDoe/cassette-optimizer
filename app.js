@@ -48,6 +48,7 @@
       projectDirty: false,
       tapeLayouts: [],
       selectedTapeIndex: 0,
+      slackMarginSeconds: 0,
       splitIndex: 0,
       sideAStartedAt: 0,
       sideAElapsedBeforePause: 0,
@@ -155,6 +156,8 @@
       el.printJCardBtn.addEventListener("click", () => printJCards("selected"));
       el.printAllJCardsBtn.addEventListener("click", () => printJCards("all"));
       el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
+      el.slackMargin.addEventListener("change", updateSlackMargin);
+      el.slackMargin.addEventListener("input", updateSlackMargin);
       el.tapePlanSelect.addEventListener("change", selectTapeLayout);
       el.tapeFormatList.addEventListener("change", updatePerTapeFormat);
       el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
@@ -177,6 +180,7 @@
       restoreCalibration();
       renderTapeOptions();
       renderTapeInventory();
+      renderSlackMargin();
       renderDeckChecklist();
       renderDryRun();
       renderCalibration();
@@ -512,7 +516,7 @@
         selectedTapeIndex,
         tapes: [],
         splitMode: "automatic",
-        slackMarginSeconds: 0,
+        slackMarginSeconds: state.slackMarginSeconds,
         jCardOverrides: {},
         calibration: { ...state.calibration },
         createdAt: now,
@@ -525,7 +529,7 @@
 
     function buildProjectTapes(project, fallbackTapeMinutes, tapeFormats = []) {
       const formats = tapeFormats.length ? tapeFormats : [fallbackTapeMinutes];
-      return splitTracksIntoTapesByFormats(project.sourceTracks, formats, fallbackTapeMinutes).map(layout => ({
+      return splitTracksIntoTapesByFormats(project.sourceTracks, formats, fallbackTapeMinutes, getSlackMarginMs()).map(layout => ({
         ...layout,
         tapeNumber: layout.number,
         tapeTitle: project.sourceTracks.length > layout.sideA.length + layout.sideB.length || layout.number > 1
@@ -561,7 +565,8 @@
       state.tapeLayouts = state.project.tapes;
       state.splitIndex = selectedTapeLayout()?.sideBStartIndex || 0;
       state.project.calibration = { ...state.calibration };
-      state.project.slackMarginSeconds = clampSeconds(state.project.slackMarginSeconds ?? 0, 0, 120);
+      state.slackMarginSeconds = clampSeconds(state.project.slackMarginSeconds ?? state.slackMarginSeconds, 0, 120);
+      state.project.slackMarginSeconds = state.slackMarginSeconds;
       state.project.jCardOverrides = state.project.jCardOverrides || {};
     }
 
@@ -636,8 +641,8 @@
         state.project.selectedTapeIndex = clampTapeIndex(state.selectedTapeIndex, state.project.tapes.length);
         syncStateFromProject();
       } else {
-        const halfMs = state.tapeMinutes * 60 * 1000 / 2;
-        state.tapeLayouts = splitTracksIntoTapes(state.tracks, state.tapeMinutes);
+        const halfMs = state.tapeMinutes * 60 * 1000 / 2 + getSlackMarginMs();
+        state.tapeLayouts = splitTracksIntoTapesByFormats(state.tracks, [state.tapeMinutes], state.tapeMinutes, getSlackMarginMs());
         state.selectedTapeIndex = clampTapeIndex(state.selectedTapeIndex, state.tapeLayouts.length);
         state.splitIndex = selectedTapeLayout()?.sideBStartIndex || splitTracksForSide(state.tracks, halfMs).split;
       }
@@ -1440,6 +1445,7 @@
     function getRecordingLockedControls() {
       return [
         el.tapeSelect,
+        el.slackMargin,
         el.tapePlanSelect,
         el.tapeInventory,
         el.moveSplitEarlier,
@@ -1731,6 +1737,24 @@
       markProjectDirty();
       computeSplit();
       renderSplit();
+    }
+
+    function renderSlackMargin() {
+      el.slackMargin.value = state.slackMarginSeconds;
+    }
+
+    function updateSlackMargin() {
+      if (blockIfRecordingLocked("Tape Slack Margin")) {
+        renderSlackMargin();
+        return;
+      }
+      state.slackMarginSeconds = clampSeconds(el.slackMargin.value, 0, 120);
+      if (state.project) state.project.slackMarginSeconds = state.slackMarginSeconds;
+      markProjectDirty();
+      computeSplit();
+      renderSlackMargin();
+      renderSplit();
+      log(`Tape slack margin set to ${state.slackMarginSeconds}s.`);
     }
 
     function renderTapeOptions() {
@@ -2057,7 +2081,7 @@
           availableTapeFormats: getAvailableTapeFormats(),
           tapeInventory: getTapeInventory(),
           splitMode: state.project.splitMode || "automatic",
-          slackMarginSeconds: state.project.slackMarginSeconds || 0,
+          slackMarginSeconds: state.slackMarginSeconds,
           jCardOverrides: state.project.jCardOverrides || {},
           calibration: { ...state.calibration },
           timestamps: {
@@ -2091,6 +2115,8 @@
         state.tapeInventory = normalizeTapeInventory(payload.tapeInventory, payload.availableTapeFormats || [project.tapes[0]?.tapeFormat || state.tapeMinutes]);
         state.availableTapeFormats = getAvailableTapeFormats();
         state.calibration = normalizeCalibration(payload.calibration || project.calibration || {});
+        state.slackMarginSeconds = clampSeconds(project.slackMarginSeconds ?? payload.slackMarginSeconds ?? 0, 0, 120);
+        project.slackMarginSeconds = state.slackMarginSeconds;
         localStorage.setItem("tape_inventory", JSON.stringify(state.tapeInventory));
         localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
         state.tapeMinutes = project.tapes[project.selectedTapeIndex]?.tapeFormat || state.availableTapeFormats[0] || 90;
@@ -2098,6 +2124,7 @@
         resetRecordingProgress();
         renderTapeOptions();
         renderTapeInventory();
+        renderSlackMargin();
         renderCalibration();
         renderSplit();
         const uriWarning = state.lastImportMissingUriCount ? ` ${state.lastImportMissingUriCount} imported tracks are missing Spotify URIs.` : "";
@@ -2134,13 +2161,13 @@
         importedAt: now
       };
       project.tapes = rawTapes.length
-        ? rawTapes.map((tape, index) => normalizeImportedTape(tape, index, sourceTracks))
+        ? rawTapes.map((tape, index) => normalizeImportedTape(tape, index, sourceTracks, project.slackMarginSeconds))
         : buildProjectTapes(project, Number(payload.selectedTapeMinutes) || state.tapeMinutes, [Number(payload.selectedTapeMinutes) || state.tapeMinutes]);
       project.selectedTapeIndex = clampTapeIndex(payload.selectedTapeIndex, project.tapes.length);
       return project;
     }
 
-    function normalizeImportedTape(tape, index, sourceTracks) {
+    function normalizeImportedTape(tape, index, sourceTracks, slackMarginSeconds = 0) {
       const tapeFormat = TAPE_FORMATS.includes(Number(tape.tapeFormat || tape.tapeMinutes)) ? Number(tape.tapeFormat || tape.tapeMinutes) : state.tapeMinutes;
       const sideA = normalizeTracks(tape.sideA || []);
       const sideB = normalizeTracks(tape.sideB || []);
@@ -2152,7 +2179,7 @@
         tapeTitle: String(tape.tapeTitle || ""),
         tapeMinutes: tapeFormat,
         tapeFormat,
-        sideLengthMs: tapeFormat * 30 * 1000,
+        sideLengthMs: tapeFormat * 30 * 1000 + slackMarginSeconds * 1000,
         sideAStartIndex,
         sideAEndIndex: Number.isInteger(tape.sideAEndIndex) ? tape.sideAEndIndex : sideAStartIndex + sideA.length,
         sideBStartIndex,
@@ -2456,6 +2483,11 @@
       const selectedLayout = selectedTapeLayout();
       const missingUris = countMissingTrackUris(state.project || { sourceTracks: tracks, tapes: state.tapeLayouts });
       const checklistReady = isAudioChecklistConfirmed();
+      const officialSideLengthMs = selectedTapeMinutes() * 30 * 1000;
+      const usesSlack = state.slackMarginSeconds > 0 && (duration(sideA()) > officialSideLengthMs || duration(sideB()) > officialSideLengthMs);
+      if (usesSlack) {
+        messages.push("Uses unofficial extra tape length. Real cassette may still run out.");
+      }
       for (const track of tracks) {
         if (track.duration_ms > halfMs) {
           messages.push(`Track "${track.name}" is longer than one side (${formatTime(track.duration_ms)} > ${formatTime(halfMs)}).`);
@@ -2620,6 +2652,10 @@
     function selectedSideLengthMs() {
       const layout = selectedTapeLayout();
       return layout?.sideLengthMs || selectedTapeMinutes() * 60 * 1000 / 2;
+    }
+
+    function getSlackMarginMs() {
+      return clampSeconds(state.slackMarginSeconds, 0, 120) * 1000;
     }
 
     function plannedRecordingTracks() {

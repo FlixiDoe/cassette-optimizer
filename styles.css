@@ -1103,6 +1103,7 @@
     a { color: var(--green); }
 
     body[data-recording-state="active"] #tapeSelect,
+    body[data-recording-state="active"] #slackMargin,
     body[data-recording-state="active"] #tapePlanSelect,
     body[data-recording-state="active"] #tapeInventory,
     body[data-recording-state="active"] #tapeFormatList,

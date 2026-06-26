@@ -117,3 +117,16 @@ test("serialized split data can restore the full layout model", () => {
   assert.deepEqual(serialized.tapes[0].sideB.map(item => item.uri), layout.sideB.map(item => item.uri));
   assert.equal(serialized.selectedTapeIndex, 0);
 });
+
+test("optional slack margin extends planned side length", () => {
+  const tracks = [
+    track("a", 30),
+    track("b", 20 / 60)
+  ];
+  const [withoutSlack] = splitTracksIntoTapesByFormats(tracks, [60], 60);
+  const [withSlack] = splitTracksIntoTapesByFormats(tracks, [60], 60, 30 * 1000);
+
+  assert.equal(withoutSlack.sideA.length, 1);
+  assert.equal(withSlack.sideA.length, 2);
+  assert.equal(withSlack.sideLengthMs, 30 * 60 * 1000 + 30 * 1000);
+});
