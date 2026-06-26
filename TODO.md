@@ -4,111 +4,7 @@ Prioritized roadmap for the next implementation steps.
 
 ## P0 – Release blockers
 
-### 1. Introduce Mixtape Project model
-
-The app should treat the result as a cassette project, not just a temporary playlist calculation. This should come before per-tape format selection so multi-tape state has one clean source of truth.
-
-**Status: Implemented**
-
-**Goal**
-
-Create a central project object that can power UI state, JSON export/import, J-Card rendering, recording, and per-tape format selection.
-
-**Project shape**
-
-```text
-projectTitle
-sourcePlaylistId
-sourcePlaylistName
-coverUrl
-selectedTapeIndex
-tapes[]
-  tapeNumber
-  tapeTitle
-  tapeFormat
-  sideLengthMs
-  sideA[]
-  sideB[]
-  jCard
-splitMode
-calibration
-createdAt
-updatedAt
-```
-
-**Implementation notes**
-
-- Use the project object as the source of truth after playlist load/import.
-- Model multi-tape projects as an array of physical tape objects.
-- Store `tapeFormat`, `sideLengthMs`, Side A, Side B, and J-Card data per tape.
-- Avoid duplicating state between split rendering, J-Card, recording, and export/import.
-- When the selected physical tape changes, the UI should read from `project.tapes[selectedTapeIndex]`.
-- Make future tape inventory support easier.
-
-**Acceptance criteria**
-
-- The app has one central project object after playlist load or import.
-- Each physical tape is represented as its own object.
-- J-Card, recording, and UI side lists read from the same tape object.
-- Future per-tape format selection can be implemented without adding parallel state.
-
-**Suggested commit**
-
-```text
-refactor: introduce mixtape project model
-```
-
----
-
-### 2. Add per-tape format selection for multi-tape projects
-
-Multi-tape projects should not use one global tape format for every physical cassette. If a playlist spans multiple tapes, each tape needs its own tape format selector because users may have mixed cassette lengths available, for example Tape 1 as C90 and Tape 2 as C60.
-
-**Status: Implemented**
-
-**Goal**
-
-Replace or extend the global `Tape format` selector with per-tape format selection when the project contains more than one tape.
-
-Example UI:
-
-```text
-Tape 1 format: C90 - 1:30:00 total / 45:00 per side
-Tape 2 format: C60 - 1:00:00 total / 30:00 per side
-Tape 3 format: C90 - 1:30:00 total / 45:00 per side
-```
-
-**Implementation notes**
-
-- Keep a default/global tape format for simple one-tape projects.
-- For multi-tape projects, show one selector per physical tape.
-- Changing the format of one tape should update that tape object in the central project model.
-- If recalculating one tape changes track overflow, continue filling later tapes while preserving original track order.
-- Show warnings when a selected tape format cannot fit its assigned tracks.
-- Make Side A / Side B lists update based on the currently selected physical tape.
-- J-Cards must use the tape format of their own tape, not a global tape format.
-- Recording controls must use the selected physical tape's side lengths.
-- Export/import JSON should store `tapeFormat` per tape.
-- Future tape inventory quantities should limit how often each format can be selected.
-
-**Acceptance criteria**
-
-- A multi-tape project can use mixed formats such as Tape 1 C90 and Tape 2 C60.
-- Each tape shows its own total runtime and side length.
-- Changing Tape 2 format does not silently change Tape 1 format.
-- J-Card for Tape 2 prints with Tape 2's own format.
-- Record Mode for Tape 2 uses Tape 2's side length.
-- Exported project JSON restores all per-tape format choices.
-
-**Suggested commit**
-
-```text
-feat: add per-tape format selection
-```
-
----
-
-### 3. Export and import tape configuration as JSON
+### 1. Export and import tape configuration as JSON
 
 After optimizing a mixtape, the user should be able to save and restore the exact tape layout.
 
@@ -155,7 +51,7 @@ feat: add tape config export and import
 
 ## P1 – Important usability features
 
-### 4. Explain split logic in the UI
+### 2. Explain split logic in the UI
 
 Users should understand why the app chose the current Side A / Side B split.
 
@@ -195,7 +91,7 @@ feat: explain tape split decision
 
 ---
 
-### 5. Add manual split override
+### 3. Add manual split override
 
 The automatic split is useful, but mixtapes sometimes need a musical side ending.
 
@@ -233,7 +129,7 @@ feat: add manual tape split override
 
 ---
 
-### 6. Add Spotify status panel
+### 4. Add Spotify status panel
 
 The log is useful, but recording mode needs a clearer status overview.
 
@@ -270,7 +166,7 @@ feat: add spotify recording status panel
 
 ## P2 – UI polish and output improvements
 
-### 7. Reel animation
+### 5. Reel animation
 
 Make the cassette visual feel alive during Record Mode.
 
@@ -289,7 +185,7 @@ feat: animate cassette reels during recording
 
 ---
 
-### 8. Better warning system
+### 6. Better warning system
 
 Add clearer warnings for cassette planning and Spotify playback.
 
@@ -315,7 +211,7 @@ feat: improve tape fit warnings
 
 ---
 
-### 9. Add better empty and error states
+### 7. Add better empty and error states
 
 The UI should guide users when nothing is loaded or Spotify is unavailable.
 
@@ -338,7 +234,7 @@ feat: improve empty and error states
 
 ## P3 – Larger roadmap features
 
-### 10. Tape inventory with quantity
+### 8. Tape inventory with quantity
 
 The app should know how many physical tapes are available.
 
@@ -369,7 +265,7 @@ feat: add tape inventory quantities
 
 ## P4 – Testing and maintenance
 
-### 11. Add tape split unit tests
+### 9. Add tape split unit tests
 
 The split engine should be tested independently from the UI.
 
@@ -397,7 +293,7 @@ test: add tape split unit tests
 
 ---
 
-### 12. Add J-Card print regression test notes
+### 10. Add J-Card print regression test notes
 
 Print layout is hard to unit test, but the project should document manual checks.
 
@@ -419,7 +315,7 @@ docs: add j-card print regression checklist
 
 ---
 
-### 13. Add audio setup regression checklist
+### 11. Add audio setup regression checklist
 
 The audio-quality setup is manual, but it should be part of release testing and user documentation checks.
 
@@ -446,13 +342,11 @@ docs: add audio setup regression checklist
 
 ## Recommended implementation order
 
-1. Introduce Mixtape Project model.
-2. Add per-tape format selection for multi-tape projects.
-3. Add Export/Import JSON.
-4. Add split explanation in UI.
-5. Add manual split override.
-6. Add Spotify status panel.
-7. Add reel animation.
-8. Add better warnings and empty states.
-9. Add tape inventory quantities.
-10. Add tests and print/audio regression checklists.
+1. Add Export/Import JSON.
+2. Add split explanation in UI.
+3. Add manual split override.
+4. Add Spotify status panel.
+5. Add reel animation.
+6. Add better warnings and empty states.
+7. Add tape inventory quantities.
+8. Add tests and print/audio regression checklists.
