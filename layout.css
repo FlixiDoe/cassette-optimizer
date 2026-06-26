@@ -6,8 +6,8 @@
     grid-template-areas:
       "header header header"
       "input split playback"
-      "tracklists tracklists playback"
-      "jcard jcard playback";
+      "input tracklists playback"
+      "input jcard playback";
     gap: 16px;
     align-items: start;
   }
@@ -23,11 +23,10 @@
 
   .app > .grid > aside:first-child {
     grid-area: input;
-    position: sticky;
-    top: 16px;
-    max-height: calc(100vh - 32px);
-    overflow: auto;
-    scrollbar-gutter: stable;
+    align-self: start;
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 
   .app > .grid > section {
