@@ -293,29 +293,7 @@ test: add tape split unit tests
 
 ---
 
-### 10. Add J-Card print regression test notes
-
-Print layout is hard to unit test, but the project should document manual checks.
-
-**Checklist**
-
-- Chrome print preview shows one A4 page for normal playlists.
-- Long playlists do not duplicate content.
-- Fold lines are visible.
-- Grayscale output is readable.
-- Browser print-to-PDF works.
-- Multi-tape projects can print one J-Card per tape.
-- Mixed-format multi-tape projects print the correct format on each J-Card.
-
-**Suggested commit**
-
-```text
-docs: add j-card print regression checklist
-```
-
----
-
-### 11. Add audio setup regression checklist
+### 10. Add audio setup regression checklist
 
 The audio-quality setup is manual, but it should be part of release testing and user documentation checks.
 

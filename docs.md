@@ -190,6 +190,8 @@ Run the playback regression checks:
 node scratch/test_playback.js
 ```
 
+For print layout changes, run the manual [J-Card print regression checklist](docs/j-card-print-regression.md).
+
 ## Repository State
 
 - Repository: `https://github.com/FlixiDoe/cassette-optimizer`
