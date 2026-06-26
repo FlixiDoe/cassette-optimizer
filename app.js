@@ -1871,6 +1871,8 @@
       el.splitPoint.textContent = selectedLayout ? `T${selectedLayout.tapeNumber || selectedLayout.number} #${selectedLayout.sideBStartIndex}` : "-";
       el.sideATime.textContent = `${formatTime(aMs)} / ${formatTime(halfMs)}`;
       el.sideBTime.textContent = `${formatTime(bMs)} / ${formatTime(halfMs)}`;
+      el.sideABlank.textContent = `Remaining blank tape: ${formatTime(Math.max(0, halfMs - aMs))}`;
+      el.sideBBlank.textContent = `Remaining blank tape: ${formatTime(Math.max(0, halfMs - bMs))}`;
       el.sideAFill.style.width = `${Math.min(100, aMs / halfMs * 100 || 0)}%`;
       el.sideBFill.style.width = `${Math.min(100, bMs / halfMs * 100 || 0)}%`;
       el.sideACount.textContent = `${a.length} tracks`;
