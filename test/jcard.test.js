@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cleanJCardTrackTitle } from "../jcard.js";
+import { cleanJCardTrackTitle } from "../src/jcard.js";
 
 test("j-card title cleanup removes common long suffixes", () => {
   assert.equal(cleanJCardTrackTitle("Song - 2011 Remastered"), "Song");

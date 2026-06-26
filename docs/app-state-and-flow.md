@@ -1,6 +1,6 @@
 # App State and Flow
 
-This document explains how `app.js` moves data through the app. It is meant for code maintenance and agent work.
+This document explains how `src/app.js` moves data through the app. It is meant for code maintenance and agent work.
 
 ## Startup flow
 
@@ -25,7 +25,7 @@ Important detail: `handleCallback()` runs during startup so the same app can pro
 
 ## Event binding
 
-`bindEvents()` connects DOM IDs from `index.html` to handler functions in `app.js`.
+`bindEvents()` connects DOM IDs from `index.html` to handler functions in `src/app.js`.
 
 Examples:
 
@@ -91,7 +91,7 @@ createMixtapeProject(...)
   project.selectedTapeIndex = clampTapeIndex(...)
 ```
 
-`buildProjectTapes(...)` delegates the actual split to `splitTracksIntoTapesByFormats(...)` from `tape.js`, then enriches each layout with cassette-project fields such as `tapeTitle`, `tapeFormat`, `sideLengthMs`, and `jCard`.
+`buildProjectTapes(...)` delegates the actual split to `splitTracksIntoTapesByFormats(...)` from `src/tape.js`, then enriches each layout with cassette-project fields such as `tapeTitle`, `tapeFormat`, `sideLengthMs`, and `jCard`.
 
 ## State synchronization
 
@@ -222,7 +222,7 @@ setProject(project)
 render options/inventory/slack/calibration/split
 ```
 
-`migrateImportedConfig(...)` from `config-migration.js` is the compatibility layer for legacy, current, and future config payloads. `normalizeImportedConfig(...)` then creates the app project model. `normalizeImportedTape(...)` creates safe tape objects with side indexes, side arrays, format, J-card data, and manual split data.
+`migrateImportedConfig(...)` from `src/config-migration.js` is the compatibility layer for legacy, current, and future config payloads. `normalizeImportedConfig(...)` then creates the app project model. `normalizeImportedTape(...)` creates safe tape objects with side indexes, side arrays, format, J-card data, and manual split data.
 
 If imported tracks are missing Spotify URIs, the app records a missing URI count. Future recording safety checks should block real Spotify recording for those tracks but still allow Dry Run.
 
@@ -346,12 +346,12 @@ No audio is auto-started during page load.
 
 ```text
 extracts a cover-derived theme color when possible
-passes project.jCardOverrides into jcard.js
+passes project.jCardOverrides into src/jcard.js
 renders print-only title override inputs
 updates print markup for selected/all tapes
 ```
 
-`jcard.js` performs automatic title cleanup for common suffixes such as remasters, live versions, and deluxe editions. Manual overrides are keyed by track URI/ID and affect printed J-card text only; underlying Spotify/project track names are not changed.
+`src/jcard.js` performs automatic title cleanup for common suffixes such as remasters, live versions, and deluxe editions. Manual overrides are keyed by track URI/ID and affect printed J-card text only; underlying Spotify/project track names are not changed.
 
 ## Render ownership
 
@@ -375,7 +375,7 @@ A common bug source is updating one visible element manually while another rende
 
 ## Safe change checklist
 
-Before committing changes to `app.js`, check:
+Before committing changes to `src/app.js`, check:
 
 ```text
 Does this mutate state.project or only legacy state?

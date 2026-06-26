@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateRecordingSide } from "../recording-preflight.js";
+import { validateRecordingSide } from "../src/recording-preflight.js";
 
 const playableTrack = {
   uri: "spotify:track:1",

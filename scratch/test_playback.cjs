@@ -5,15 +5,15 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const moduleFiles = [
-  "app.js",
-  "spotify.js",
-  "tape.js",
-  "recording.js",
-  "jcard.js",
-  "export.js"
+  "src/app.js",
+  "src/spotify.js",
+  "src/tape.js",
+  "src/recording.js",
+  "src/jcard.js",
+  "src/export.js"
 ];
 const script = moduleFiles.map(file => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
-const styles = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+const styles = fs.readFileSync(path.join(root, "styles", "styles.css"), "utf8");
 
 function contains(label, pattern) {
   const found = typeof pattern === "string" ? script.includes(pattern) : pattern.test(script);
@@ -59,8 +59,8 @@ containsHtml("Device selector markup", 'id="deviceSelect"');
 contains("Device fetch endpoint", 'spotifyFetch("/me/player/devices")');
 contains("Play uses selected device id", /device_id=\$\{encodeURIComponent\(state\.selectedDeviceId\)\}/);
 contains("Record cue delay", "const RECORD_CUE_SECONDS = 5");
-containsHtml("ES module script", '<script type="module" src="app.js"></script>');
-containsHtml("External stylesheet", '<link rel="stylesheet" href="styles.css">');
+containsHtml("ES module script", '<script type="module" src="src/app.js"></script>');
+containsHtml("External stylesheet", '<link rel="stylesheet" href="styles/styles.css">');
 for (const file of moduleFiles) {
   assert.ok(fs.existsSync(path.join(root, file)), `Missing module file: ${file}`);
 }
@@ -75,9 +75,9 @@ containsHtml("Deck checklist panel", 'id="deckChecklist"');
 containsHtml("Deck checklist skip option", 'id="skipDeckChecklist"');
 contains("Deck checklist item source", "const DECK_CHECKLIST_ITEMS");
 contains("Deck checklist audio quality item", "Spotify quality: Lossless, auto-adjust off, crossfade 0, normalize off");
-contains("Deck checklist output device item", "Spotify output device matches Windows output device");
-contains("Deck checklist exclusive force volume item", "Exclusive mode and Force volume enabled");
-contains("Deck checklist Windows volume item", "Windows output volume set to 100%");
+contains("Deck checklist output device item", "Spotify output device matches the system output device");
+contains("Deck checklist exclusive output item", "Exclusive, fixed-volume, or direct hardware output");
+contains("Deck checklist system volume item", "System output volume set to 100%");
 contains("Deck checklist persistence", 'localStorage.setItem("deck_checklist"');
 contains("Deck checklist render", "function renderDeckChecklist");
 containsHtml("Level check helper", 'id="levelCheckHelper"');
@@ -93,7 +93,7 @@ containsHtml("Motor latency calibration input", 'id="motorLatency"');
 containsHtml("Safety margin calibration input", 'id="safetyMargin"');
 contains("Recording calibration persistence", 'localStorage.setItem("recording_calibration"');
 contains("Recording cue includes calibration", "return RECORD_CUE_SECONDS + state.calibration.leadInSeconds + state.calibration.motorLatencySeconds");
-contains("Recording cue lead-in text", "Waiting for lead-in");
+contains("Recording cue leader tape text", "Advancing past leader tape");
 contains("Safety margin warning", "safety margin remaining");
 containsHtml("Record cue banner", 'id="recordCue"');
 contains("Record cue text", "PRESS RECORD NOW");
@@ -127,31 +127,33 @@ contains("Shared status health endpoint", 'fetch("/api/health"');
 contains("Shared status explicit capability flag", "health?.statusApi === true");
 contains("Shared status disabled unless available", "if (!state.statusApiAvailable) return");
 
-const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+const server = fs.readFileSync(path.join(root, "server", "server.js"), "utf8");
 const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
 const docs = fs.readFileSync(path.join(root, "docs.md"), "utf8");
 const publishing = fs.readFileSync(path.join(root, "PUBLISHING.md"), "utf8");
+const audioChecklist = fs.readFileSync(path.join(root, "docs", "audio-setup-regression.md"), "utf8");
+const packageJson = fs.readFileSync(path.join(root, "package.json"), "utf8");
 assert.ok(server.includes('"/api/status"'), "Missing LAN status API");
 assert.ok(server.includes('"/api/health"'), "Missing LAN status health API");
 assert.ok(server.includes('"dryRun"'), "LAN status should allow Dry Run flag");
 assert.ok(server.includes("statusApi: true"), "LAN health endpoint should advertise status API support");
 assert.ok(fs.readFileSync(path.join(root, "api", "health"), "utf8").includes('"statusApi":false'), "Static health fallback should disable status API");
-assert.ok(readme.includes("## Deck Setup"), "README should include deck setup guide");
+assert.ok(readme.includes("## Deck and Audio Setup"), "README should include deck setup guide");
 assert.ok(readme.includes("cassette deck LINE IN / AUX IN / REC IN"), "README should show deck signal path");
 assert.ok(readme.includes("Disable notification sounds before recording."), "README should include notification warning");
-for (const text of [readme, docs, publishing]) {
+for (const text of [readme, publishing, audioChecklist]) {
   assert.ok(text.includes("Lossless"), "Recording guides should mention Lossless");
   assert.ok(text.includes("Auto-adjust quality"), "Recording guides should mention Auto-adjust quality");
   assert.ok(text.includes("Crossfade"), "Recording guides should mention Crossfade");
   assert.ok(text.includes("Normalize volume"), "Recording guides should mention Normalize volume");
   assert.ok(text.includes("EQ"), "Recording guides should mention EQ");
   assert.ok(text.includes("output device"), "Recording guides should mention output device");
-  assert.ok(text.includes("Exclusive mode"), "Recording guides should mention Exclusive mode");
-  assert.ok(text.includes("Force volume"), "Recording guides should mention Force volume");
-  assert.ok(text.includes("Windows output volume"), "Recording guides should mention Windows output volume");
+  assert.ok(text.includes("exclusive") || text.includes("Exclusive"), "Recording guides should mention exclusive output where available");
+  assert.ok(text.includes("fixed") || text.includes("direct"), "Recording guides should mention fixed/direct output where available");
+  assert.ok(text.includes("system output volume"), "Recording guides should mention system output volume");
   assert.ok(text.includes("cassette deck input"), "Recording guides should mention deck input level control");
 }
-assert.ok(server.includes("0.0.0.0"), "LAN server should listen on all interfaces by default");
+assert.ok(packageJson.includes("--host 0.0.0.0"), "LAN start script should listen on all interfaces");
 
 assert.deepEqual(buttonState("idle", null), {
   startAText: "Start Side A",

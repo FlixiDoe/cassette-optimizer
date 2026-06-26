@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CURRENT_CONFIG_VERSION, migrateImportedConfig } from "../config-migration.js";
+import { CURRENT_CONFIG_VERSION, migrateImportedConfig } from "../src/config-migration.js";
 
 test("legacy configs migrate to the current project shape", () => {
   const migrated = migrateImportedConfig({

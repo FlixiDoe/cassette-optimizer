@@ -4,12 +4,12 @@ This file explains what each source file does and which functions are important 
 
 ## index.html
 
-`index.html` is the DOM contract for `app.js`.
+`index.html` is the DOM contract for `src/app.js`.
 
 Important pattern:
 
 - Every interactive element has an `id`.
-- `app.js` collects all ID elements into `el` with `document.querySelectorAll("[id]")`.
+- `src/app.js` collects all ID elements into `el` with `document.querySelectorAll("[id]")`.
 - Event handlers are attached in `bindEvents()`.
 
 When adding a new UI control:
@@ -21,11 +21,11 @@ When adding a new UI control:
 4. Re-render through the owner render function.
 ```
 
-Do not rename IDs casually. `app.js` depends on them directly.
+Do not rename IDs casually. `src/app.js` depends on them directly.
 
-## app.js
+## src/app.js
 
-`app.js` is the main application controller.
+`src/app.js` is the main application controller.
 
 It owns:
 
@@ -194,7 +194,7 @@ getRecordingLockedControls()
 
 Use these shared helpers instead of adding ad hoc `confirm(...)` calls or disabling controls in only one place. `Export Backup` paths intentionally stop after downloading JSON.
 
-### J-card functions in app.js
+### J-card functions in src/app.js
 
 ```text
 renderJCard(a, b, aMs, bMs, totalMs, renderOverrides)
@@ -207,7 +207,7 @@ getVolumeTitle(layout)
 getTrackKey(track)
 ```
 
-`app.js` decides which tape layout to print. `jcard.js` renders markup and cleans display titles for the given data. J-card title overrides are print-only and stored in `project.jCardOverrides`.
+`src/app.js` decides which tape layout to print. `src/jcard.js` renders markup and cleans display titles for the given data. J-card title overrides are print-only and stored in `project.jCardOverrides`.
 
 ### Level-check functions
 
@@ -243,7 +243,7 @@ completeSideB()
 
 `startSideA()` and `startSideB()` should stay symmetrical. If a recording safety check is added, add it to both sides or a shared helper.
 
-`runRecordingPreflight(...)` bridges the pure `recording-preflight.js` validator to UI warnings/logging.
+`runRecordingPreflight(...)` bridges the pure `src/recording-preflight.js` validator to UI warnings/logging.
 
 ### Spotify monitoring functions
 
@@ -279,7 +279,7 @@ normalizeTapeInventory(value, fallbackFormats)
 downloadJson(payload, filename)
 ```
 
-Import first calls `migrateImportedConfig(...)` from `config-migration.js`, then app-specific normalization. When adding a new project field, update serialization, app normalization, migration defaults, and consider whether `TAPE_CONFIG_VERSION` should be bumped.
+Import first calls `migrateImportedConfig(...)` from `src/config-migration.js`, then app-specific normalization. When adding a new project field, update serialization, app normalization, migration defaults, and consider whether `TAPE_CONFIG_VERSION` should be bumped.
 
 ### LAN status functions
 
@@ -291,11 +291,11 @@ fetchSharedStatus()
 renderRemoteStatus(status)
 ```
 
-If you add a field to the LAN status payload, also add it to `server.js` `sanitizeStatus()`.
+If you add a field to the LAN status payload, also add it to `server/server.js` `sanitizeStatus()`.
 
-## tape.js
+## src/tape.js
 
-`tape.js` contains pure cassette planning and formatting helpers.
+`src/tape.js` contains pure cassette planning and formatting helpers.
 
 Exports:
 
@@ -333,13 +333,13 @@ Tape 2 Side B
 ...
 ```
 
-It uses `formats[tapeIndex]` when available, otherwise `fallbackMinutes`. This powers mixed-format projects like C90 + C60. Optional `slackMarginMs` extends the per-side planning limit; warnings in `app.js` are responsible for telling the user when unofficial extra tape length is being used.
+It uses `formats[tapeIndex]` when available, otherwise `fallbackMinutes`. This powers mixed-format projects like C90 + C60. Optional `slackMarginMs` extends the per-side planning limit; warnings in `src/app.js` are responsible for telling the user when unofficial extra tape length is being used.
 
 ### fillSide
 
 Private helper used by the planner. Important behavior: if a single track is longer than the side length, the side still receives that track so the loop can progress and warnings can handle the overflow later.
 
-## spotify.js
+## src/spotify.js
 
 Small helper module for Spotify-related utilities.
 
@@ -360,7 +360,7 @@ base64Url(bytes)
 
 `sha256Base64Url()` and `base64Url()` support the PKCE login flow.
 
-## recording.js
+## src/recording.js
 
 Small pure helper module for recording timeline logic.
 
@@ -371,9 +371,9 @@ RECORD_CUE_SECONDS
 getExpectedTrackAtElapsed(tracks, elapsedMs)
 ```
 
-`getExpectedTrackAtElapsed()` maps an elapsed side time to the expected track, index, track start time, and playback position. It is used by `app.js` to detect wrong Spotify playback during recording.
+`getExpectedTrackAtElapsed()` maps an elapsed side time to the expected track, index, track start time, and playback position. It is used by `src/app.js` to detect wrong Spotify playback during recording.
 
-## recording-preflight.js
+## src/recording-preflight.js
 
 Pure recording start validator.
 
@@ -386,7 +386,7 @@ summarizePreflightIssues(result)
 
 `validateRecordingSide(...)` checks side contents and recording prerequisites. Real recording blocks unplayable Spotify data, missing token, empty sides, invalid durations, and overlong tracks. Dry Run can tolerate missing URI/local imported data but still blocks empty sides and invalid durations.
 
-## config-migration.js
+## src/config-migration.js
 
 Import compatibility module.
 
@@ -397,9 +397,9 @@ CURRENT_CONFIG_VERSION
 migrateImportedConfig(payload)
 ```
 
-It accepts legacy, current, and future JSON payloads and returns a normalized current-version payload before `app.js` performs app-specific import normalization. It supplies defaults for fields such as calibration, tape inventory, `slackMarginSeconds`, and `jCardOverrides`.
+It accepts legacy, current, and future JSON payloads and returns a normalized current-version payload before `src/app.js` performs app-specific import normalization. It supplies defaults for fields such as calibration, tape inventory, `slackMarginSeconds`, and `jCardOverrides`.
 
-## jcard.js
+## src/jcard.js
 
 Pure J-card markup renderer.
 
@@ -411,7 +411,7 @@ getJCardDensityClass(trackCount)
 cleanJCardTrackTitle(title)
 ```
 
-Input is fully prepared by `app.js`. The renderer receives title, cover HTML, tape format, tracks, side arrays, runtimes, split index, `escapeHtml`, and optional `titleOverrides`.
+Input is fully prepared by `src/app.js`. The renderer receives title, cover HTML, tape format, tracks, side arrays, runtimes, split index, `escapeHtml`, and optional `titleOverrides`.
 
 The returned object is:
 
@@ -426,7 +426,7 @@ The returned object is:
 
 `cleanJCardTrackTitle(...)` removes common print-unfriendly suffixes such as remaster, live, deluxe edition, and bonus-track labels. Manual overrides take precedence in rendered markup.
 
-## export.js
+## src/export.js
 
 Currently only contains:
 
@@ -436,7 +436,7 @@ export const TAPE_CONFIG_VERSION = 1;
 
 Bump this when the JSON project shape changes in a way import code should treat differently.
 
-## server.js
+## server/server.js
 
 Optional Node server for LAN monitoring.
 
@@ -454,11 +454,11 @@ The server stores status in memory only. It does not store Spotify tokens and do
 The server is ES module code and accepts cross-platform CLI options:
 
 ```text
-node server.js --host 127.0.0.1 --port 8787
-node server.js --host 0.0.0.0 --port 8787
+node server/server.js --host 127.0.0.1 --port 8787
+node server/server.js --host 0.0.0.0 --port 8787
 ```
 
-`HOST` and `PORT` environment variables are still supported, but `npm run start:local` and `npm run start:lan` are the preferred OS-neutral entrypoints.
+`HOST` and `PORT` environment variables are still supported, but `npm run start:local` and `npm run start:lan` are the preferred OS-neutral entrypoints. Convenience wrappers live in `scripts/`.
 
 Important function:
 
@@ -472,6 +472,6 @@ It whitelists status fields before exposing them to LAN clients. Add new LAN mon
 
 Automated Node test files run through `npm test` / `node --test`. Current coverage includes tape planning, config migration, recording preflight, and J-card title cleanup.
 
-## scratch/test_playback.js
+## scratch/*.cjs
 
-Playback regression script. It is intended to be runnable locally without Spotify login for logic and state-flow checks. New project/export regression tests should follow the same lightweight style unless a full test runner is introduced later.
+Scratch regression scripts are CommonJS `.cjs` files so they can run in this ESM project without transpilation. They are intended to be runnable locally without Spotify login for logic and state-flow checks. New project/export regression tests should follow the same lightweight style unless they belong in the automated `test/` suite.

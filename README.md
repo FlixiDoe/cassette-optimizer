@@ -60,13 +60,13 @@ npm run start:local
 Windows PowerShell convenience script:
 
 ```powershell
-.\start-local.ps1
+.\scripts\start-local.ps1
 ```
 
 Linux/macOS convenience script:
 
 ```sh
-./start-local.sh
+./scripts/start-local.sh
 ```
 
 Or manually with Python:
@@ -94,11 +94,11 @@ npm run start:lan
 PowerShell and POSIX shell convenience scripts are also available:
 
 ```powershell
-.\start-lan.ps1
+.\scripts\start-lan.ps1
 ```
 
 ```sh
-./start-lan.sh
+./scripts/start-lan.sh
 ```
 
 They serve the same app on all network interfaces and add a small `/api/status` endpoint. Open the printed LAN URL on another device to monitor the current playback status.
@@ -181,6 +181,7 @@ Before a real recording run:
 - Enable exclusive, fixed-volume, or direct hardware output for that device if available.
 - Set system output volume to 100% / maximum.
 - Adjust final recording level on the cassette deck input, not with OS mixer volume.
+- Disable notification sounds before recording.
 - Watch the deck meters and avoid clipping or distortion.
 - If using `Leader Tape Delay`, the cue phase shows `Advancing past leader tape...` while the shared cue delay pipeline runs.
 - The browser `Level Check` source can play 400 Hz, 1 kHz, or pink noise at `-12 dBFS`, `-6 dBFS`, or `0 dBFS`; it never auto-starts and must be stopped manually.
@@ -196,13 +197,13 @@ npm test
 Optional lightweight playback regression checks:
 
 ```sh
-node scratch/test_playback.js
+node scratch/test_playback.cjs
 ```
 
 Run the project model / export-import regression checks:
 
 ```sh
-node scratch/test_project_model.js
+node scratch/test_project_model.cjs
 ```
 
 For manual checklists:

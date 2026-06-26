@@ -5,7 +5,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 
 (async () => {
-  const { migrateImportedConfig, CURRENT_CONFIG_VERSION } = await import(pathToFileURL(path.join(root, "config-migration.js")).href);
+  const { migrateImportedConfig, CURRENT_CONFIG_VERSION } = await import(pathToFileURL(path.join(root, "src", "config-migration.js")).href);
 
   const legacy = migrateImportedConfig({
     playlistId: "legacy-playlist",

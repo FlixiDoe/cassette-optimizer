@@ -4,7 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 
-const root = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliOptions = parseCliOptions(process.argv.slice(2));
 const port = Number(cliOptions.port || process.env.PORT || 8787);
 const host = cliOptions.host || process.env.HOST || "127.0.0.1";

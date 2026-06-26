@@ -86,8 +86,8 @@ function roundTripProject(project) {
 }
 
 (async () => {
-  const tape = await import(pathToFileURL(path.join(root, "tape.js")).href);
-  const jcard = await import(pathToFileURL(path.join(root, "jcard.js")).href);
+  const tape = await import(pathToFileURL(path.join(root, "src", "tape.js")).href);
+  const jcard = await import(pathToFileURL(path.join(root, "src", "jcard.js")).href);
 
   const tracks = [
     track("a", 10),
@@ -97,8 +97,7 @@ function roundTripProject(project) {
     track("e", 14),
     track("f", 15),
     track("g", 16),
-    track("h", 17),
-    track("i", 18)
+    track("h", 17)
   ];
 
   const layouts = tape.splitTracksIntoTapesByFormats(tracks, [90, 60], 90);

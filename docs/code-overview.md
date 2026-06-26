@@ -4,11 +4,11 @@ This document explains how the code is organized. It is about implementation, st
 
 ## Runtime shape
 
-Cassette Optimizer is a static browser app. `index.html` loads `styles.css` and `app.js` directly:
+Cassette Optimizer is a static browser app. `index.html` stays at the repository root and loads CSS/JS from folders:
 
 ```html
-<link rel="stylesheet" href="styles.css">
-<script type="module" src="app.js"></script>
+<link rel="stylesheet" href="styles/styles.css">
+<script type="module" src="src/app.js"></script>
 ```
 
 There is no frontend build step. The cross-platform `npm run start:local` command starts the Node static server on `127.0.0.1:8787`. `npm run start:lan` binds the same server to all interfaces and exposes a tiny status API. PowerShell and POSIX shell helper scripts exist only as convenience wrappers around the same Node entrypoint.
@@ -16,45 +16,45 @@ There is no frontend build step. The cross-platform `npm run start:local` comman
 ## Main files
 
 ```text
-index.html        DOM structure and element IDs used by app.js
-styles.css        Layout, cassette visual, print layout, responsive behavior
-app.js            Main controller, state, event wiring, Spotify calls, rendering
-config-migration.js  JSON import migration and normalization defaults
-spotify.js        Small Spotify/auth helper functions and SpotifyApiError
-recording-preflight.js  Pure recording start validation
-recording.js      Recording timing helper for expected-track calculation
-tape.js           Pure cassette split, slack margin, duration, and formatting logic
-jcard.js          Pure J-card markup rendering and print title cleanup
-export.js         Current config version constant
-server.js         Optional LAN monitor static server and /api/status endpoint
-start-local.ps1  Windows convenience wrapper for local serving
-start-lan.ps1    Windows convenience wrapper for LAN serving
-start-local.sh   Linux/macOS convenience wrapper for local serving
-start-lan.sh     Linux/macOS convenience wrapper for LAN serving
+index.html               DOM structure and element IDs used by src/app.js
+src/app.js               Main controller, state, event wiring, Spotify calls, rendering
+src/config-migration.js  JSON import migration and normalization defaults
+src/spotify.js           Small Spotify/auth helper functions and SpotifyApiError
+src/recording-preflight.js  Pure recording start validation
+src/recording.js         Recording timing helper for expected-track calculation
+src/tape.js              Pure cassette split, slack margin, duration, and formatting logic
+src/jcard.js             Pure J-card markup rendering and print title cleanup
+src/export.js            Current config version constant
+styles/                  Layout, cassette visual, print layout, responsive behavior
+server/server.js         Optional LAN monitor static server and /api/status endpoint
+scripts/start-local.ps1  Windows convenience wrapper for local serving
+scripts/start-lan.ps1    Windows convenience wrapper for LAN serving
+scripts/start-local.sh   Linux/macOS convenience wrapper for local serving
+scripts/start-lan.sh     Linux/macOS convenience wrapper for LAN serving
 ```
 
 ## Code ownership boundaries
 
-`app.js` is intentionally the orchestration layer. It owns browser state, DOM events, Spotify network calls, rendering, recording mode, import/export, and localStorage persistence.
+`src/app.js` is intentionally the orchestration layer. It owns browser state, DOM events, Spotify network calls, rendering, recording mode, import/export, and localStorage persistence.
 
 The smaller modules are kept mostly pure:
 
-- `tape.js` does not touch the DOM or Spotify.
-- `recording-preflight.js` validates recording readiness without touching the DOM.
-- `config-migration.js` converts imported JSON into the current config shape before app normalization.
-- `recording.js` does not touch the DOM or Spotify.
-- `jcard.js` returns HTML strings and print-safe titles but does not decide which tape is active.
-- `spotify.js` only contains helpers for OAuth/Spotify parsing and error metadata.
-- `server.js` does not know Spotify tokens and only mirrors sanitized UI status.
+- `src/tape.js` does not touch the DOM or Spotify.
+- `src/recording-preflight.js` validates recording readiness without touching the DOM.
+- `src/config-migration.js` converts imported JSON into the current config shape before app normalization.
+- `src/recording.js` does not touch the DOM or Spotify.
+- `src/jcard.js` returns HTML strings and print-safe titles but does not decide which tape is active.
+- `src/spotify.js` only contains helpers for OAuth/Spotify parsing and error metadata.
+- `server/server.js` does not know Spotify tokens and only mirrors sanitized UI status.
 
-When adding new logic, prefer putting pure calculations in a small module and leaving `app.js` as the coordinator.
+When adding new logic, prefer putting pure calculations in a small module and leaving `src/app.js` as the coordinator.
 
 ## Main data flow
 
 ```text
 Browser loads index.html
         ↓
-app.js init()
+src/app.js init()
         ↓
 restore local settings and token
         ↓
@@ -66,7 +66,7 @@ fetch tracks from Spotify
         ↓
 createMixtapeProject(...)
         ↓
-build project.tapes[] from tape.js split logic
+build project.tapes[] from src/tape.js split logic
         ↓
 renderSplit() updates all visible planning, recording, and J-card UI
         ↓
@@ -75,7 +75,7 @@ Record Mode starts one selected side through Spotify or Dry Run
 
 ## Central state
 
-`app.js` keeps one central `state` object. Important groups inside it:
+`src/app.js` keeps one central `state` object. Important groups inside it:
 
 ```text
 Spotify session:
@@ -198,7 +198,7 @@ Do not update many DOM nodes manually in new code if an existing render function
 
 ## Spotify boundary
 
-Spotify API calls are made from `app.js` through `spotifyFetch(...)`. That wrapper:
+Spotify API calls are made from `src/app.js` through `spotifyFetch(...)`. That wrapper:
 
 - requires a token,
 - refreshes expired access tokens,
@@ -229,7 +229,7 @@ Do not store Spotify client secrets by default. The app only saves a client secr
 
 ## LAN monitor boundary
 
-`server.js` serves files and stores a sanitized status object in memory. The host browser posts `/api/status`; LAN clients fetch the same endpoint. LAN mode is monitor-only because Spotify OAuth redirect handling is restricted to localhost.
+`server/server.js` serves the repository root and stores a sanitized status object in memory. The host browser posts `/api/status`; LAN clients fetch the same endpoint. LAN mode is monitor-only because Spotify OAuth redirect handling is restricted to localhost.
 
 The server intentionally does not persist state, does not store tokens, and does not proxy Spotify requests.
 
@@ -240,12 +240,12 @@ HTTPS Tailscale Serve hosts ending in `.ts.net` get `body[data-host-mode="tailsc
 ## Where to add future code
 
 ```text
-New tape split rule        -> tape.js if pure, app.js only for UI wiring
-New recording timing rule  -> recording.js if pure, app.js for timers/DOM
-New J-card layout content  -> jcard.js and styles.css print rules
-New J-card project field    -> app.js export/import + config-migration.js defaults
-New Spotify helper         -> spotify.js if generic, app.js if tied to app state
-New status panel behavior  -> app.js renderSpotifyStatusPanel()
-New LAN status field       -> app.js getSharedStatusPayload() and server.js sanitizeStatus()
-New import/export field    -> app.js serialize/normalize functions, config-migration.js, and export.js version if format changes
+New tape split rule        -> src/tape.js if pure, src/app.js only for UI wiring
+New recording timing rule  -> src/recording.js if pure, src/app.js for timers/DOM
+New J-card layout content  -> src/jcard.js and styles/ print rules
+New J-card project field    -> src/app.js export/import + src/config-migration.js defaults
+New Spotify helper         -> src/spotify.js if generic, src/app.js if tied to app state
+New status panel behavior  -> src/app.js renderSpotifyStatusPanel()
+New LAN status field       -> src/app.js getSharedStatusPayload() and server/server.js sanitizeStatus()
+New import/export field    -> src/app.js serialize/normalize functions, src/config-migration.js, and src/export.js version if format changes
 ```

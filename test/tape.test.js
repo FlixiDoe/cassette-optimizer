@@ -7,7 +7,7 @@ import {
   splitTracksForSide,
   splitTracksIntoTapes,
   splitTracksIntoTapesByFormats
-} from "../tape.js";
+} from "../src/tape.js";
 
 function track(name, minutes) {
   return {

@@ -17,7 +17,7 @@ function track(overrides = {}) {
 }
 
 (async () => {
-  const { validateRecordingSide, summarizePreflightIssues } = await import(pathToFileURL(path.join(root, "recording-preflight.js")).href);
+  const { validateRecordingSide, summarizePreflightIssues } = await import(pathToFileURL(path.join(root, "src", "recording-preflight.js")).href);
 
   const valid = validateRecordingSide({
     sideName: "A",
