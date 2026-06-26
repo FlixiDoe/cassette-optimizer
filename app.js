@@ -616,6 +616,8 @@
       try {
         if (blockIfRecordingLocked("Apply to Spotify")) return;
         if (!projectTracks().length) throw new Error("Load a playlist first.");
+        const confirmed = await confirmPlaylistReorder();
+        if (!confirmed) return;
         const uris = plannedRecordingTracks().map(track => track.uri);
         await spotifyFetch(`/playlists/${state.playlistId}/tracks`, {
           method: "PUT",
@@ -631,6 +633,43 @@
       } catch (error) {
         log(error.message);
       }
+    }
+
+    function confirmPlaylistReorder() {
+      return new Promise(resolve => {
+        const existing = document.querySelector(".confirm-overlay");
+        if (existing) existing.remove();
+        const overlay = document.createElement("div");
+        overlay.className = "confirm-overlay";
+        overlay.innerHTML = `
+          <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="applyConfirmTitle">
+            <h3 id="applyConfirmTitle">Apply cassette order to Spotify?</h3>
+            <p>This will replace the remote playlist sequence with the current full multi-tape plan.</p>
+            <div class="confirm-actions">
+              <button type="button" data-confirm-action="cancel">Cancel</button>
+              <button type="button" data-confirm-action="backup">Export Backup</button>
+              <button type="button" class="warn" data-confirm-action="continue">Continue Anyway</button>
+            </div>
+          </div>
+        `;
+        document.body.append(overlay);
+        const finish = value => {
+          overlay.remove();
+          resolve(value);
+        };
+        overlay.addEventListener("click", event => {
+          if (event.target === overlay) finish(false);
+          const action = event.target?.dataset?.confirmAction;
+          if (action === "cancel") finish(false);
+          if (action === "backup") {
+            exportTapeConfig();
+            log("Backup exported. Spotify playlist order was not changed.");
+            finish(false);
+          }
+          if (action === "continue") finish(true);
+        });
+        overlay.querySelector("[data-confirm-action='cancel']").focus();
+      });
     }
 
     async function startSideA() {
