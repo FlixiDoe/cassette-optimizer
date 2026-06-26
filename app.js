@@ -892,7 +892,7 @@
     function getCuePhaseText(remaining, target) {
       const leadIn = state.calibration.leadInSeconds;
       const motor = state.calibration.motorLatencySeconds;
-      if (leadIn && remaining > RECORD_CUE_SECONDS + motor) return `WAITING FOR LEAD-IN - ${remaining}s`;
+      if (leadIn && remaining > RECORD_CUE_SECONDS + motor) return `ADVANCING PAST LEADER TAPE - ${remaining}s`;
       if (motor && remaining > RECORD_CUE_SECONDS) return `WAITING FOR MOTOR - ${remaining}s`;
       return `${target} STARTS IN ${remaining}`;
     }
@@ -900,7 +900,7 @@
     function getCueMonitorText(remaining) {
       const leadIn = state.calibration.leadInSeconds;
       const motor = state.calibration.motorLatencySeconds;
-      if (leadIn && remaining > RECORD_CUE_SECONDS + motor) return "Waiting for lead-in";
+      if (leadIn && remaining > RECORD_CUE_SECONDS + motor) return "Advancing past leader tape";
       if (motor && remaining > RECORD_CUE_SECONDS) return "Waiting for motor";
       return `${state.dryRun ? "Timer" : "Spotify"} starts in ${remaining}s`;
     }
@@ -1623,7 +1623,7 @@
       localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
       renderCalibration();
       renderSplit();
-      log(`Recording calibration saved: lead-in ${state.calibration.leadInSeconds}s, motor ${state.calibration.motorLatencySeconds}s, safety ${state.calibration.safetyMarginSeconds}s.`);
+      log(`Recording calibration saved: leader tape ${state.calibration.leadInSeconds}s, motor ${state.calibration.motorLatencySeconds}s, safety ${state.calibration.safetyMarginSeconds}s.`);
     }
 
     function normalizeCalibration(value) {
