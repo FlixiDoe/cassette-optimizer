@@ -208,6 +208,26 @@
         <details class="level-helper" id="levelCheckHelper">
           <summary>Level check</summary>
           <p>Before recording, set Spotify to Lossless, turn Auto-adjust quality off, set Crossfade to 0 seconds, turn Normalize volume and EQ off, use the same output device in Spotify and Windows, enable Exclusive mode and Force volume for that device, and set Windows volume to 100%. Then play a loud part of the playlist, put the deck into record-pause, and adjust the cassette deck input level so peaks stay below clipping or distortion. The app does not measure audio level automatically.</p>
+          <div class="level-check-controls">
+            <label>
+              <span class="label" for="levelToneType">Tone</span>
+              <select id="levelToneType">
+                <option value="400">400 Hz</option>
+                <option value="1000" selected>1 kHz</option>
+                <option value="pink">Pink noise</option>
+              </select>
+            </label>
+            <label>
+              <span class="label" for="levelToneLevel">Level</span>
+              <select id="levelToneLevel">
+                <option value="-12" selected>-12 dBFS</option>
+                <option value="-6">-6 dBFS</option>
+                <option value="0">0 dBFS</option>
+              </select>
+            </label>
+            <button id="startLevelToneBtn" type="button">Level Check</button>
+            <button id="stopLevelToneBtn" type="button" class="danger" disabled>Stop Tone</button>
+          </div>
         </details>
         <div class="timer">
           <strong id="countdown">00:00</strong>

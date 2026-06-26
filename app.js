@@ -84,6 +84,9 @@
       deckChecklistDone: [],
       skipDeckChecklist: false,
       dryRun: false,
+      audioContext: null,
+      levelToneNode: null,
+      levelToneGain: null,
       calibration: {
         leadInSeconds: 0,
         motorLatencySeconds: 0,
@@ -164,6 +167,8 @@
       el.motorLatency.addEventListener("input", updateCalibration);
       el.safetyMargin.addEventListener("change", updateCalibration);
       el.safetyMargin.addEventListener("input", updateCalibration);
+      el.startLevelToneBtn.addEventListener("click", startLevelTone);
+      el.stopLevelToneBtn.addEventListener("click", stopLevelTone);
       window.addEventListener("beforeunload", persistToken);
       startSharedStatusPolling();
       restoreTapeInventory();
@@ -1594,6 +1599,79 @@
       if (state.dryRun) stopPollingPlayback();
       renderRecordMode();
       log(state.dryRun ? "Dry Run enabled. Spotify playback commands will be skipped." : "Dry Run disabled. Spotify playback commands are active.");
+    }
+
+    async function startLevelTone() {
+      const warning = "This plays a continuous calibration signal through your selected system output. Turn deck input gain down first, then raise it slowly.";
+      if (!window.confirm(warning)) return;
+      stopLevelTone();
+      const context = state.audioContext || new AudioContext();
+      state.audioContext = context;
+      if (context.state === "suspended") await context.resume();
+      const gain = context.createGain();
+      gain.gain.value = dbToGain(Number(el.levelToneLevel.value));
+      const source = el.levelToneType.value === "pink"
+        ? createPinkNoiseSource(context)
+        : createToneOscillator(context, Number(el.levelToneType.value));
+      source.connect(gain).connect(context.destination);
+      source.start();
+      state.levelToneNode = source;
+      state.levelToneGain = gain;
+      el.startLevelToneBtn.disabled = true;
+      el.stopLevelToneBtn.disabled = false;
+      log(`Level check started: ${getLevelToneLabel()} at ${el.levelToneLevel.value} dBFS.`);
+    }
+
+    function stopLevelTone() {
+      if (state.levelToneNode) {
+        try {
+          state.levelToneNode.stop();
+        } catch {
+          // Source may already have stopped.
+        }
+        state.levelToneNode.disconnect();
+      }
+      state.levelToneGain?.disconnect();
+      state.levelToneNode = null;
+      state.levelToneGain = null;
+      if (el.startLevelToneBtn) el.startLevelToneBtn.disabled = false;
+      if (el.stopLevelToneBtn) el.stopLevelToneBtn.disabled = true;
+    }
+
+    function createToneOscillator(context, frequency) {
+      const oscillator = context.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      return oscillator;
+    }
+
+    function createPinkNoiseSource(context) {
+      const length = context.sampleRate * 2;
+      const buffer = context.createBuffer(1, length, context.sampleRate);
+      const output = buffer.getChannelData(0);
+      let b0 = 0;
+      let b1 = 0;
+      let b2 = 0;
+      for (let i = 0; i < length; i += 1) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99765 * b0 + white * 0.099046;
+        b1 = 0.963 * b1 + white * 0.2965164;
+        b2 = 0.57 * b2 + white * 1.0526913;
+        output[i] = (b0 + b1 + b2 + white * 0.1848) * 0.12;
+      }
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      return source;
+    }
+
+    function dbToGain(db) {
+      return Math.pow(10, db / 20);
+    }
+
+    function getLevelToneLabel() {
+      if (el.levelToneType.value === "pink") return "pink noise";
+      return `${el.levelToneType.value} Hz`;
     }
 
     function restoreCalibration() {
