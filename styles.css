@@ -1199,11 +1199,114 @@
       font-size: 12px;
     }
 
+    body[data-host-mode="lan-monitor"] button,
+    body[data-host-mode="lan-monitor"] input,
+    body[data-host-mode="lan-monitor"] select,
+    body[data-host-mode="lan-monitor"] textarea,
+    body[data-host-mode="lan-monitor"] .config-actions,
+    body[data-host-mode="lan-monitor"] .tape-plan,
+    body[data-host-mode="lan-monitor"] .calibration-panel,
+    body[data-host-mode="lan-monitor"] .deck-checklist,
+    body[data-host-mode="lan-monitor"] .level-helper,
+    body[data-host-mode="lan-monitor"] .jcard-section,
+    body[data-host-mode="lan-monitor"] .tracklists,
+    body[data-host-mode="lan-monitor"] .split-explanation,
+    body[data-host-mode="lan-monitor"] .recommendation {
+      display: none !important;
+    }
+
+    body[data-host-mode="lan-monitor"] aside.recording {
+      position: sticky;
+      top: 12px;
+    }
+
+    body[data-host-mode="lan-monitor"] .record-mode,
+    body[data-host-mode="lan-monitor"] .timer,
+    body[data-host-mode="lan-monitor"] .track-now,
+    body[data-host-mode="lan-monitor"] .flip,
+    body[data-host-mode="lan-monitor"] .log {
+      border-width: 2px;
+    }
+
     @media (max-width: 1100px) {
       .grid { grid-template-columns: 1fr; }
       .tracklists { grid-template-columns: 1fr; }
       header { align-items: flex-start; flex-direction: column; }
       .status { white-space: normal; }
+    }
+
+    @media (max-width: 760px) {
+      body[data-host-mode="lan-monitor"] {
+        padding: 10px;
+      }
+
+      body[data-host-mode="lan-monitor"] .app {
+        gap: 12px;
+      }
+
+      body[data-host-mode="lan-monitor"] header {
+        gap: 6px;
+      }
+
+      body[data-host-mode="lan-monitor"] header h1 {
+        font-size: 18px;
+      }
+
+      body[data-host-mode="lan-monitor"] .grid {
+        gap: 12px;
+      }
+
+      body[data-host-mode="lan-monitor"] .panel,
+      body[data-host-mode="lan-monitor"] aside.recording {
+        padding: 12px;
+      }
+
+      body[data-host-mode="lan-monitor"] .panel:first-child {
+        display: none;
+      }
+
+      body[data-host-mode="lan-monitor"] .record-mode {
+        gap: 12px;
+        padding: 14px;
+      }
+
+      body[data-host-mode="lan-monitor"] .record-row {
+        align-items: center;
+        font-size: 14px;
+      }
+
+      body[data-host-mode="lan-monitor"] .record-row b {
+        font-size: 22px;
+      }
+
+      body[data-host-mode="lan-monitor"] .timer {
+        padding: 18px 12px;
+      }
+
+      body[data-host-mode="lan-monitor"] .timer strong {
+        font-size: clamp(64px, 24vw, 128px);
+        line-height: .9;
+      }
+
+      body[data-host-mode="lan-monitor"] .timer span {
+        font-size: 18px;
+      }
+
+      body[data-host-mode="lan-monitor"] .progress {
+        height: 18px;
+      }
+
+      body[data-host-mode="lan-monitor"] .track-now,
+      body[data-host-mode="lan-monitor"] .log {
+        min-height: 92px;
+        font-size: 18px;
+      }
+
+      body[data-host-mode="lan-monitor"] .flip.show {
+        display: block !important;
+        padding: 20px;
+        font-size: 32px;
+      }
     }
 
     @media print {

@@ -120,6 +120,7 @@
 
     function applyHostMode() {
       if (isLocalhost()) return;
+      document.body.setAttribute("data-host-mode", "lan-monitor");
       // Spotify OAuth only allows loopback (127.0.0.1) as redirect URI.
       // On LAN IPs, hide all login/credential controls — device is monitor-only.
       el.credentialsPanel.hidden = true;
