@@ -1,5 +1,6 @@
     import { TAPE_CONFIG_VERSION } from "./export.js";
     import { renderJCardMarkup } from "./jcard.js";
+    import { validateRecordingSide, summarizePreflightIssues } from "./recording-preflight.js";
     import { RECORD_CUE_SECONDS, getExpectedTrackAtElapsed } from "./recording.js";
     import { SpotifyApiError, base64Url, parsePlaylistId, pickPlaylistCover, randomBytes, sha256Base64Url } from "./spotify.js";
     import { TAPE_FORMATS, analyzeTapeFitForTracks, duration, formatLongTime, formatTime, splitTracksForSide, splitTracksIntoTapes, splitTracksIntoTapesByFormats } from "./tape.js";
@@ -628,6 +629,7 @@
       try {
         if (!sideA().length) throw new Error("Side A has no tracks.");
         resuming = state.recordMode === "paused" && state.activeRecordSide === "A";
+        runRecordingPreflight("A", sideA());
         el.flipBanner.classList.remove("show");
         state.recordMode = "cue_a";
         state.activeRecordSide = "A";
@@ -667,6 +669,7 @@
       try {
         if (!sideB().length) throw new Error("Side B has no tracks.");
         resuming = state.recordMode === "paused" && state.activeRecordSide === "B";
+        runRecordingPreflight("B", sideB());
         el.flipBanner.classList.remove("show");
         state.recordMode = "cue_b";
         state.activeRecordSide = "B";
@@ -717,6 +720,39 @@
           showRecordCue(side, remaining);
         }, 1000);
       });
+    }
+
+    function runRecordingPreflight(side, tracks) {
+      const result = validateRecordingSide({
+        sideName: side,
+        tracks,
+        dryRun: state.dryRun,
+        token: state.token,
+        deviceReady: isSpotifyDeviceReady(),
+        checklistReady: isAudioChecklistConfirmed(),
+        checklistSkipped: state.skipDeckChecklist,
+        sideLengthMs: selectedSideLengthMs()
+      });
+      if (!result.ok) {
+        const message = summarizePreflightIssues(result);
+        const blocking = result.issues.filter(issue => issue.severity === "blocking").map(issue => issue.message).join("\n");
+        el.warnings.textContent = blocking || message;
+        const firstBlock = result.issues.find(issue => issue.severity === "blocking") || result.issues[0];
+        log(`Preflight blocked Side ${side}: ${firstBlock.message}`);
+        throw new Error(message);
+      }
+      const warnings = result.issues.filter(issue => issue.severity === "warning");
+      if (warnings.length) {
+        el.warnings.textContent = warnings.map(issue => issue.message).join("\n");
+        log(`Preflight warning Side ${side}: ${warnings[0].message}`);
+      }
+    }
+
+    function isSpotifyDeviceReady() {
+      if (state.dryRun) return true;
+      if (state.selectedDeviceId) return true;
+      if (state.playbackStatus.deviceActive || state.playbackStatus.deviceName) return true;
+      return state.devices.some(device => device.is_active);
     }
 
     function showRecordCue(side, remaining) {
@@ -1834,7 +1870,8 @@
           uri: String(track.uri || ""),
           name: String(track.name || "Unknown track"),
           artists: Array.isArray(track.artists) ? track.artists.join(", ") : String(track.artists || "Unknown artist"),
-          duration_ms: Math.max(0, Number(track.duration_ms || track.durationMs || 0))
+          duration_ms: Math.max(0, Number(track.duration_ms || track.durationMs || 0)),
+          is_local: Boolean(track.is_local)
         }))
         .filter(track => track.name && track.duration_ms);
     }
@@ -1868,7 +1905,8 @@
         uri: track.uri || "",
         name: track.name || "",
         artists: track.artists || "",
-        duration_ms: track.duration_ms || 0
+        duration_ms: track.duration_ms || 0,
+        is_local: Boolean(track.is_local)
       };
     }
 
