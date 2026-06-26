@@ -230,7 +230,7 @@ refactor: split static app into modules
 
 ---
 
-### 6. Add Deck Setup guide to README
+### 6. [Done] Add Deck Setup guide to README
 
 Users need to know how to connect their playback device, DAC, and cassette deck.
 

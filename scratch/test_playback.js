@@ -98,10 +98,14 @@ contains("Shared status explicit capability flag", "health?.statusApi === true")
 contains("Shared status disabled unless available", "if (!state.statusApiAvailable) return");
 
 const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
 assert.ok(server.includes('"/api/status"'), "Missing LAN status API");
 assert.ok(server.includes('"/api/health"'), "Missing LAN status health API");
 assert.ok(server.includes("statusApi: true"), "LAN health endpoint should advertise status API support");
 assert.ok(fs.readFileSync(path.join(root, "api", "health"), "utf8").includes('"statusApi":false'), "Static health fallback should disable status API");
+assert.ok(readme.includes("## Deck Setup"), "README should include deck setup guide");
+assert.ok(readme.includes("cassette deck LINE IN / AUX IN / REC IN"), "README should show deck signal path");
+assert.ok(readme.includes("Disable notification sounds before recording."), "README should include notification warning");
 assert.ok(server.includes("0.0.0.0"), "LAN server should listen on all interfaces by default");
 
 assert.deepEqual(buttonState("idle", null), {

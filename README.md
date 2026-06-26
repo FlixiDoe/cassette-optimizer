@@ -103,6 +103,26 @@ Required scopes:
 - `user-read-playback-state`
 - `user-modify-playback-state`
 
+## Deck Setup
+
+Use a clean line-level path from your Spotify playback device to the cassette deck.
+
+```text
+Spotify device / DAC / headphone output
+        ↓
+cassette deck LINE IN / AUX IN / REC IN
+        ↓
+deck monitor output / headphones / speakers
+```
+
+- Use the selected Spotify device, such as your PC, phone, tablet, or a dedicated playback device.
+- Connect through a USB-C DAC, audio interface, or headphone output.
+- Run the cable into the cassette deck `LINE IN`, `AUX IN`, or `REC IN`.
+- Avoid microphone input when a proper line input is available.
+- Monitor through the deck headphone jack, speakers, or receiver output.
+- Disable notification sounds before recording.
+- Do a short test recording and set the deck input level before the real run.
+
 ## Usage
 
 1. Open `http://127.0.0.1:8787/`.
