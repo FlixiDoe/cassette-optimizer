@@ -89,7 +89,9 @@ Keep this LAN server on a trusted private network only. Do not expose it directl
 
 Create your own Spotify app and paste its Client ID into the app UI. The repository does not ship with a default Client ID.
 
-The app supports an optional **Client Secret** field. Leave it blank to use the default PKCE flow (no secret needed). Fill it in only if your Spotify app is configured for the Authorization Code flow with a secret.
+The app defaults to OAuth PKCE without a Client Secret. This is the recommended path for normal local use.
+
+The optional **Client Secret** field is hidden under an advanced local-only control. Use it only for local testing with a Spotify app that requires a secret. Do not use a Client Secret on GitHub Pages, LAN devices, or public hosting. The app does not save the secret unless you explicitly enable local saving, and `Reset token` clears any saved secret.
 
 Do not add Spotify Client IDs, client secrets, GitHub tokens, OAuth access tokens, or refresh tokens to the repository.
 

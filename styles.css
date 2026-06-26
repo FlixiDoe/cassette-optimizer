@@ -132,6 +132,41 @@
     .row > * { flex: 1; }
     .label { color: var(--muted); font-size: 12px; text-transform: uppercase; margin-bottom: 6px; display: block; }
 
+    .advanced-secret {
+      border: 1px dashed #735d28;
+      border-radius: 6px;
+      background: rgba(255,191,73,.05);
+      padding: 10px;
+    }
+
+    .advanced-secret summary {
+      color: var(--amber);
+      cursor: pointer;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .secret-warning {
+      margin: 10px 0;
+      color: #ffd98a;
+      font-size: 12px;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .check-row input {
+      width: 14px;
+      min-height: 14px;
+      accent-color: var(--green);
+    }
+
     .segmented {
       display: grid;
       grid-template-columns: 1fr 1fr;

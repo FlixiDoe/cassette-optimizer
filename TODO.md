@@ -118,7 +118,7 @@ feat: add physical j-card print template
 
 ---
 
-### 3. Harden Client Secret handling
+### 3. [Done] Harden Client Secret handling
 
 A browser-only static app cannot keep a Client Secret truly secret. The current field is useful for local testing, but it should not look safe for public hosting.
 

@@ -55,7 +55,7 @@
 
     function init() {
       el.clientId.value = localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
-      el.clientSecret.value = localStorage.getItem("spotify_client_secret") || "";
+      restoreClientSecretPreference();
       applyHostMode();
       restoreToken();
       handleCallback();
@@ -82,7 +82,8 @@
 
     function bindEvents() {
       el.clientId.addEventListener("change", () => localStorage.setItem("spotify_client_id", el.clientId.value.trim()));
-      el.clientSecret.addEventListener("change", () => localStorage.setItem("spotify_client_secret", el.clientSecret.value.trim()));
+      el.clientSecret.addEventListener("change", persistClientSecretIfEnabled);
+      el.saveClientSecret.addEventListener("change", updateClientSecretStorage);
       el.connectBtn.addEventListener("click", login);
       el.logoutBtn.addEventListener("click", logout);
       el.loadBtn.addEventListener("click", loadPlaylist);
@@ -165,6 +166,7 @@
       state.refreshToken = null;
       state.expiresAt = 0;
       localStorage.removeItem("spotify_token");
+      clearSavedClientSecret();
       resetDevices();
       renderAuth();
       log("Token cleared.");
@@ -255,7 +257,41 @@
     }
 
     function getClientSecret() {
-      return el.clientSecret.value.trim() || localStorage.getItem("spotify_client_secret") || "";
+      if (!isLocalhost()) return "";
+      return el.clientSecret.value.trim();
+    }
+
+    function restoreClientSecretPreference() {
+      const saveSecret = localStorage.getItem("spotify_save_client_secret") === "true";
+      el.saveClientSecret.checked = saveSecret;
+      el.clientSecret.value = saveSecret ? localStorage.getItem("spotify_client_secret") || "" : "";
+      if (!saveSecret) localStorage.removeItem("spotify_client_secret");
+    }
+
+    function persistClientSecretIfEnabled() {
+      if (!el.saveClientSecret.checked) return;
+      const secret = el.clientSecret.value.trim();
+      if (secret) {
+        localStorage.setItem("spotify_client_secret", secret);
+      } else {
+        localStorage.removeItem("spotify_client_secret");
+      }
+    }
+
+    function updateClientSecretStorage() {
+      if (el.saveClientSecret.checked) {
+        localStorage.setItem("spotify_save_client_secret", "true");
+        persistClientSecretIfEnabled();
+      } else {
+        clearSavedClientSecret();
+      }
+    }
+
+    function clearSavedClientSecret() {
+      localStorage.removeItem("spotify_save_client_secret");
+      localStorage.removeItem("spotify_client_secret");
+      el.saveClientSecret.checked = false;
+      el.clientSecret.value = "";
     }
 
     async function fetchAccounts(body) {

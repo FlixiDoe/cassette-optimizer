@@ -33,10 +33,18 @@
             <label class="label" for="clientId">Spotify Client ID</label>
             <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID">
           </div>
-          <div>
-            <label class="label" for="clientSecret">Spotify Client Secret (Optional)</label>
-            <input id="clientSecret" type="password" autocomplete="off" placeholder="Paste your Spotify app client secret">
-          </div>
+          <details class="advanced-secret" id="clientSecretAdvanced">
+            <summary>Advanced local-only Client Secret</summary>
+            <p class="secret-warning">Advanced local-only option. Do not use a Client Secret on GitHub Pages, LAN devices, or public hosting.</p>
+            <div>
+              <label class="label" for="clientSecret">Spotify Client Secret (Optional)</label>
+              <input id="clientSecret" type="password" autocomplete="off" placeholder="Leave blank for normal PKCE">
+            </div>
+            <label class="check-row">
+              <input id="saveClientSecret" type="checkbox">
+              <span>Save Client Secret on this local device</span>
+            </label>
+          </details>
         </div>
         <div>
           <label class="label" for="playlistInput">Playlist URL or ID</label>
