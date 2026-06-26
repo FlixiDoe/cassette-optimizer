@@ -18,7 +18,7 @@ For the safest use, record only music you own, created yourself, or are otherwis
 
 ## Features
 
-- Single static HTML app, no backend and no build step.
+- Static HTML, CSS, and ES module app with no backend and no build step.
 - Spotify OAuth 2.0 PKCE flow. An optional client secret field enables Basic Auth for Spotify apps that require it.
 - Playlist input by Spotify URL/ID or account playlist picker.
 - Fetches all playlist tracks and durations.

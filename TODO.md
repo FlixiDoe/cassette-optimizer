@@ -185,7 +185,7 @@ docs: add responsible-use notice to app UI
 
 ## P1 – Important usability features
 
-### 5. Split `index.html` into static modules
+### 5. [Done] Split `index.html` into static modules
 
 The app should stay static and build-free, but the current single-file structure will become hard to maintain.
 

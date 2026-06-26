@@ -48,6 +48,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === "/api/health") {
     sendJson(res, 200, {
       ok: true,
+      statusApi: true,
       updatedAt: sharedStatus.updatedAt,
       urls: getLanUrls()
     });
