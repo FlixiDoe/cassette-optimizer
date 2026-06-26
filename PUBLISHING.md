@@ -43,7 +43,9 @@ Before a release, confirm the recording guides and in-app checklist cover these 
 - README mentions Windows output volume at 100% / maximum.
 - README explains that final recording gain is adjusted on the cassette deck input while watching deck meters for clipping or distortion.
 - In-app Deck Checklist has compact confirmations for Spotify quality, output device, Exclusive mode / Force volume, and Windows volume.
+- In-app Recording readiness panel shows Spotify connection, selected device, playback sync, Dry Run, and audio checklist state at a glance.
 - In-app Level check helper explains that the app does not measure audio level automatically.
+- README documents Export / Import Config for saving and restoring the full cassette project.
 
 ## Optional Public Repo Settings
 

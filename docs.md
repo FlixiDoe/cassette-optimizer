@@ -2,6 +2,18 @@
 
 Local web app for planning Spotify playlists across one or more physical cassettes and controlling cassette recording workflows.
 
+## Features
+
+- Local HTML/CSS/ES-module app with no backend and no build step.
+- Spotify OAuth 2.0 PKCE flow with optional local-only Client Secret support.
+- Spotify playlist URL/ID input and account playlist picker.
+- Full cassette project planning with track order preserved across one or more tapes.
+- Export and import of the full project as JSON.
+- Manual split explanation and override controls.
+- Recording readiness panel, Dry Run / Test Mode, and Record Mode with automatic side-end pause.
+- Tape inventory quantities, per-tape format selection, warnings, empty states, and J-card printing.
+- Reel animation and tape-fill feedback during recording with reduced-motion support.
+
 ## Responsible Use
 
 This project is a cassette workflow tool, not a music ripping or redistribution tool. Users are responsible for complying with Spotify's terms, copyright law, and the rules that apply in their country. Do not use it to bypass DRM, copy-protection, access controls, or licensing restrictions.
@@ -123,7 +135,14 @@ Each tape object stores:
 - `sideB[]`
 - `jCard`
 
-The selected physical tape is `project.tapes[selectedTapeIndex]`. The visible Side A / Side B lists, Record Mode, J-card preview, print output, and mirrored LAN status all read from that selected tape object. This avoids parallel state for multi-tape planning and keeps future JSON export/import and per-tape format selection straightforward.
+The selected physical tape is `project.tapes[selectedTapeIndex]`. The visible Side A / Side B lists, Record Mode, J-card preview, print output, and mirrored LAN status all read from that selected tape object. This avoids parallel state for multi-tape planning and keeps JSON export/import and per-tape format selection straightforward.
+
+## Export and Import
+
+- `Export Config` saves the current project as JSON, including source tracks, tape inventory, split mode, calibration, timestamps, and the per-tape layouts.
+- `Import Config` restores a saved project without fetching Spotify again.
+- Imported projects keep the full tape model and selected tape index.
+- If playback control is needed after import, reconnect Spotify and refresh devices.
 
 ## J-Card Generator
 
@@ -165,6 +184,9 @@ The selected physical tape is `project.tapes[selectedTapeIndex]`. The visible Si
 - At the end of Side B, the app pauses Spotify automatically and returns Record Mode to `Idle`.
 - `Abort Recording` pauses Spotify where possible, clears timers/cues/polling, and returns Record Mode to `Idle`.
 - If Spotify reports no active device, open Spotify on desktop/mobile and start playback once.
+- The recording readiness panel summarizes Spotify connection, device selection, playback sync, dry run state, and checklist status.
+- Dry Run mode keeps timing and control flow available while skipping Spotify playback and polling.
+- The cassette visual animates during recording and respects reduced-motion preferences.
 
 ## Spotify Scopes
 

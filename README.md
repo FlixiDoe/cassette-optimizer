@@ -29,8 +29,12 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Uses a central mixtape project model after playlist load, with one object per physical tape.
 - Keeps original track order.
 - Shows total runtime, cassette recommendation, side fill, tracklists, timestamps, and warnings.
+- Exports and imports the full cassette project as JSON, including tape inventory, split mode, calibration, timestamps, and per-tape layout data.
+- Shows split reasoning and lets you lock or nudge the split manually when you want a different side ending.
+- Shows a recording readiness panel with Spotify, device, playback sync, dry run, and audio-checklist status.
 - Optional `Apply to Spotify` button to sync the calculated order back to the playlist.
 - Spotify Connect device selector.
+- Dry Run / Test Mode for timing and recording flow checks without sending Spotify playback commands.
 - Record Mode with Side A / Side B start, pause, resume, automatic side-end pause, flip cue, and finish-time estimate.
 - Abort button to stop the current recording run and pause Spotify.
 - Red `PRESS RECORD NOW` cue before playback starts.
@@ -39,6 +43,8 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Optional LAN status server so another device can open the same UI and monitor the current state in read-only mode.
 - Selectable physical tape plan for multi-tape projects.
 - Per-tape format selection for multi-tape projects, so different physical cassettes can use different lengths.
+- Tape inventory quantities so the planner can compare the project against the number of cassettes you actually own.
+- Reel animation and tape fill feedback during recording, with reduced-motion support.
 - Printable J-card cassette inlays from playlist title, cover, side tracks, and runtime.
 - Multi-tape projects can print the selected J-card or all J-cards at once.
 
@@ -190,7 +196,13 @@ Each physical tape stores its own:
 - Side A and Side B tracks
 - J-card data
 
-The visible side lists, recording controls, J-card preview, print output, and status payload read from the selected tape object. This keeps multi-tape state in one place and prepares the app for future JSON export/import and per-tape format selection.
+The visible side lists, recording controls, J-card preview, print output, and status payload read from the selected tape object. This keeps multi-tape state in one place and powers JSON export/import and per-tape format selection.
+
+## Export and Import
+
+Use `Export Config` to save the current cassette project as JSON. The export includes project metadata, source tracks, tape inventory, selected tape index, split mode, calibration, timestamps, and the per-tape layouts that drive recording and printing.
+
+Use `Import Config` to restore a saved project without fetching the Spotify playlist again. Imported configs restore the full tape model, selected tape, split mode, calibration, and tape inventory. If Spotify control is needed after import, reconnect Spotify and refresh devices.
 
 ## Record Mode Notes
 
@@ -202,6 +214,9 @@ The visible side lists, recording controls, J-card preview, print output, and st
 - If Spotify jumps to a wrong track, the app attempts to correct playback to the track expected from the local recording time.
 - The app shows the estimated local clock time when the current side will finish.
 - `Abort Recording` pauses Spotify where possible, clears cue/timer/polling state, and returns the UI to idle.
+- The recording readiness panel summarizes Spotify connection, device selection, playback sync, dry run state, and checklist status before you start.
+- Dry Run mode keeps the timing and recording controls available while skipping Spotify playback and polling.
+- The cassette visual animates while recording and respects reduced-motion preferences.
 
 ## J-Card
 
