@@ -67,6 +67,11 @@
           <span class="label">Tapes you have</span>
           <div class="tape-inventory" id="tapeInventory"></div>
         </div>
+        <div class="config-actions">
+          <button id="exportConfigBtn" type="button" disabled>Export Config</button>
+          <button id="importConfigBtn" type="button">Import Config</button>
+          <input id="importConfigFile" type="file" accept="application/json,.json" hidden>
+        </div>
         <button id="loadBtn" class="primary">Load playlist</button>
         <button id="applyBtn" class="warn" disabled>Apply to Spotify</button>
         <div class="warnings" id="warnings"></div>

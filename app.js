@@ -112,6 +112,9 @@
       el.connectBtn.addEventListener("click", login);
       el.logoutBtn.addEventListener("click", logout);
       el.loadBtn.addEventListener("click", loadPlaylist);
+      el.exportConfigBtn.addEventListener("click", exportTapeConfig);
+      el.importConfigBtn.addEventListener("click", () => el.importConfigFile.click());
+      el.importConfigFile.addEventListener("change", importTapeConfig);
       el.loadPlaylistsBtn.addEventListener("click", loadUserPlaylists);
       el.playlistSelect.addEventListener("change", selectUserPlaylist);
       el.loadDevicesBtn.addEventListener("click", loadDevices);
@@ -1361,6 +1364,7 @@
       el.finishTime.textContent = tracks.length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + aMs))}` : "Finish time pending";
       renderTapeRecommendation(totalMs);
       el.applyBtn.disabled = !tracks.length || !state.token;
+      el.exportConfigBtn.disabled = !state.project || !tracks.length;
       el.pauseBtn.disabled = !state.token;
       el.loadPlaylistsBtn.disabled = !state.token;
       el.loadDevicesBtn.disabled = !state.token;
@@ -1429,6 +1433,201 @@
       }
 
       el.tapeRecommendation.innerHTML = `<b>${escapeHtml(recommendation)}</b><span>${escapeHtml(reason)}</span>`;
+    }
+
+    function exportTapeConfig() {
+      try {
+        if (!state.project) throw new Error("Load or import a project before exporting.");
+        syncStateFromProject();
+        const exportedAt = new Date().toISOString();
+        const payload = {
+          app: "cassette-optimizer",
+          configVersion: TAPE_CONFIG_VERSION,
+          exportedAt,
+          projectTitle: state.project.projectTitle,
+          playlistId: state.project.sourcePlaylistId,
+          playlistName: state.project.sourcePlaylistName,
+          playlistCoverUrl: state.project.coverUrl,
+          selectedTapeIndex: state.project.selectedTapeIndex,
+          selectedTapeMinutes: selectedTapeMinutes(),
+          availableTapeFormats: getAvailableTapeFormats(),
+          splitMode: state.project.splitMode || "automatic",
+          calibration: { ...state.calibration },
+          timestamps: {
+            createdAt: state.project.createdAt,
+            updatedAt: state.project.updatedAt,
+            exportedAt
+          },
+          tracks: state.project.sourceTracks.map(serializeTrack),
+          tapes: state.project.tapes.map(serializeTape)
+        };
+        downloadJson(payload, `${slugify(payload.projectTitle || "cassette-config")}.cassette.json`);
+        log("Tape config exported as JSON.");
+      } catch (error) {
+        log(error.message);
+      }
+    }
+
+    async function importTapeConfig(event) {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const payload = JSON.parse(text);
+        const project = normalizeImportedConfig(payload);
+        state.availableTapeFormats = normalizeTapeFormats(payload.availableTapeFormats, [project.tapes[0]?.tapeFormat || state.tapeMinutes]);
+        state.calibration = normalizeCalibration(payload.calibration || project.calibration || {});
+        localStorage.setItem("available_tape_formats", JSON.stringify(state.availableTapeFormats));
+        localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
+        state.tapeMinutes = project.tapes[project.selectedTapeIndex]?.tapeFormat || state.availableTapeFormats[0] || 90;
+        setProject(project);
+        resetRecordingProgress();
+        renderTapeOptions();
+        renderTapeInventory();
+        renderCalibration();
+        renderSplit();
+        log(state.token ? "Tape config imported. Refresh Spotify devices before recording." : "Tape config imported without Spotify data. Connect Spotify before playback control.");
+      } catch (error) {
+        log(`Import failed: ${error.message}`);
+      }
+    }
+
+    function normalizeImportedConfig(payload) {
+      if (!payload || typeof payload !== "object") throw new Error("Invalid config file.");
+      const rawTracks = Array.isArray(payload.tracks) ? payload.tracks : payload.sourceTracks;
+      const sourceTracks = normalizeTracks(rawTracks);
+      const rawTapes = Array.isArray(payload.tapes) ? payload.tapes : [];
+      if (!sourceTracks.length && !rawTapes.length) throw new Error("Imported config has no tracks.");
+      const now = new Date().toISOString();
+      const project = {
+        configVersion: Number(payload.configVersion) || TAPE_CONFIG_VERSION,
+        projectTitle: String(payload.projectTitle || payload.playlistName || "Imported mixtape"),
+        sourcePlaylistId: String(payload.playlistId || payload.sourcePlaylistId || ""),
+        sourcePlaylistName: String(payload.playlistName || payload.sourcePlaylistName || payload.projectTitle || ""),
+        coverUrl: String(payload.playlistCoverUrl || payload.coverUrl || ""),
+        sourceTracks,
+        selectedTapeIndex: 0,
+        tapes: [],
+        splitMode: payload.splitMode === "manual" ? "manual" : "automatic",
+        calibration: normalizeCalibration(payload.calibration || {}),
+        createdAt: payload.timestamps?.createdAt || payload.createdAt || now,
+        updatedAt: now,
+        importedAt: now
+      };
+      project.tapes = rawTapes.length
+        ? rawTapes.map((tape, index) => normalizeImportedTape(tape, index, sourceTracks))
+        : buildProjectTapes(project, Number(payload.selectedTapeMinutes) || state.tapeMinutes, [Number(payload.selectedTapeMinutes) || state.tapeMinutes]);
+      project.selectedTapeIndex = clampTapeIndex(payload.selectedTapeIndex, project.tapes.length);
+      return project;
+    }
+
+    function normalizeImportedTape(tape, index, sourceTracks) {
+      const tapeFormat = TAPE_FORMATS.includes(Number(tape.tapeFormat || tape.tapeMinutes)) ? Number(tape.tapeFormat || tape.tapeMinutes) : state.tapeMinutes;
+      const sideA = normalizeTracks(tape.sideA || []);
+      const sideB = normalizeTracks(tape.sideB || []);
+      const sideAStartIndex = Number.isInteger(tape.sideAStartIndex) ? tape.sideAStartIndex : findTrackOffset(sourceTracks, sideA[0]);
+      const sideBStartIndex = Number.isInteger(tape.sideBStartIndex) ? tape.sideBStartIndex : sideAStartIndex + sideA.length;
+      return {
+        number: Number(tape.number || tape.tapeNumber) || index + 1,
+        tapeNumber: Number(tape.tapeNumber || tape.number) || index + 1,
+        tapeTitle: String(tape.tapeTitle || ""),
+        tapeMinutes: tapeFormat,
+        tapeFormat,
+        sideLengthMs: tapeFormat * 30 * 1000,
+        sideAStartIndex,
+        sideAEndIndex: Number.isInteger(tape.sideAEndIndex) ? tape.sideAEndIndex : sideAStartIndex + sideA.length,
+        sideBStartIndex,
+        sideBEndIndex: Number.isInteger(tape.sideBEndIndex) ? tape.sideBEndIndex : sideBStartIndex + sideB.length,
+        sideA,
+        sideB,
+        jCard: {
+          title: String(tape.jCard?.title || ""),
+          notes: String(tape.jCard?.notes || "")
+        },
+        splitMode: tape.splitMode === "manual" ? "manual" : "automatic",
+        manualSplitIndex: Number.isInteger(tape.manualSplitIndex) ? tape.manualSplitIndex : null
+      };
+    }
+
+    function normalizeTracks(tracks) {
+      if (!Array.isArray(tracks)) return [];
+      return tracks
+        .filter(track => track && typeof track === "object")
+        .map(track => ({
+          id: String(track.id || track.uri || ""),
+          uri: String(track.uri || ""),
+          name: String(track.name || "Unknown track"),
+          artists: Array.isArray(track.artists) ? track.artists.join(", ") : String(track.artists || "Unknown artist"),
+          duration_ms: Math.max(0, Number(track.duration_ms || track.durationMs || 0))
+        }))
+        .filter(track => track.name && track.duration_ms);
+    }
+
+    function serializeTape(tape) {
+      return {
+        number: tape.number,
+        tapeNumber: tape.tapeNumber || tape.number,
+        tapeTitle: tape.tapeTitle || "",
+        tapeMinutes: tape.tapeMinutes,
+        tapeFormat: tape.tapeFormat || tape.tapeMinutes,
+        sideLengthMs: tape.sideLengthMs,
+        sideAStartIndex: tape.sideAStartIndex,
+        sideAEndIndex: tape.sideAEndIndex,
+        sideBStartIndex: tape.sideBStartIndex,
+        sideBEndIndex: tape.sideBEndIndex,
+        splitMode: tape.splitMode || state.project?.splitMode || "automatic",
+        manualSplitIndex: tape.manualSplitIndex ?? null,
+        sideA: (tape.sideA || []).map(serializeTrack),
+        sideB: (tape.sideB || []).map(serializeTrack),
+        jCard: {
+          title: tape.jCard?.title || "",
+          notes: tape.jCard?.notes || ""
+        }
+      };
+    }
+
+    function serializeTrack(track) {
+      return {
+        id: track.id || "",
+        uri: track.uri || "",
+        name: track.name || "",
+        artists: track.artists || "",
+        duration_ms: track.duration_ms || 0
+      };
+    }
+
+    function normalizeTapeFormats(values, fallback) {
+      const formats = (Array.isArray(values) ? values : fallback)
+        .map(Number)
+        .filter(minutes => TAPE_FORMATS.includes(minutes));
+      return [...new Set(formats.length ? formats : [90])].sort((a, b) => a - b);
+    }
+
+    function findTrackOffset(tracks, track) {
+      if (!track) return 0;
+      const index = tracks.findIndex(candidate => candidate.uri && candidate.uri === track.uri);
+      return index >= 0 ? index : 0;
+    }
+
+    function downloadJson(payload, filename) {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function slugify(value) {
+      return String(value || "cassette-config")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 64) || "cassette-config";
     }
 
     function analyzeTapeFit(minutes) {

@@ -218,6 +218,12 @@
       background: rgba(156,255,106,.09);
     }
 
+    .config-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
     .meta {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
