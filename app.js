@@ -63,6 +63,14 @@
       lastStatusPushAt: 0,
       statusPollId: null,
       statusApiAvailable: false,
+      playbackStatus: {
+        deviceActive: false,
+        deviceName: "",
+        expectedTrackPlaying: false,
+        playbackInSync: false,
+        driftMs: null,
+        isPlaying: false
+      },
       deckChecklistDone: [],
       skipDeckChecklist: false,
       dryRun: false,
@@ -988,11 +996,26 @@
       try {
         const data = await spotifyFetch("/me/player");
         if (!data || !data.item) {
+          state.playbackStatus = {
+            ...state.playbackStatus,
+            deviceActive: Boolean(data?.device?.is_active),
+            deviceName: data?.device?.name || "",
+            expectedTrackPlaying: false,
+            playbackInSync: false,
+            driftMs: null,
+            isPlaying: false
+          };
           el.currentTrack.textContent = "No active playback. Open Spotify first if playback commands fail.";
           renderRecordMode("No device");
           schedulePlaybackPoll(10000);
           return;
         }
+        state.playbackStatus = {
+          ...state.playbackStatus,
+          deviceActive: Boolean(data.device?.is_active),
+          deviceName: data.device?.name || "",
+          isPlaying: Boolean(data.is_playing)
+        };
         const remain = Math.max(0, data.item.duration_ms - data.progress_ms);
         el.currentTrack.innerHTML = `<b>${escapeHtml(data.item.name)}</b>${escapeHtml((data.item.artists || []).map(a => a.name).join(", "))} · ${formatTime(remain)} remaining`;
         await syncRecordProgressFromSpotify(data);
@@ -1009,6 +1032,14 @@
           return;
         }
         el.currentTrack.textContent = error.message;
+        state.playbackStatus = {
+          ...state.playbackStatus,
+          deviceActive: false,
+          expectedTrackPlaying: false,
+          playbackInSync: false,
+          driftMs: null,
+          isPlaying: false
+        };
         renderRecordMode("Monitor error");
         schedulePlaybackPoll(10000);
       }
@@ -1024,12 +1055,19 @@
       await correctUnexpectedPlaybackTrack(tracks, playback);
       const elapsed = getSpotifySideElapsed(tracks, playback.item.uri, playback.progress_ms || 0);
       if (elapsed === null) {
+        state.playbackStatus.expectedTrackPlaying = false;
+        state.playbackStatus.playbackInSync = false;
+        state.playbackStatus.driftMs = null;
         renderRecordMode("Outside side");
         schedulePlaybackPoll(8000);
         return;
       }
       const localElapsed = getLocalRecordElapsed();
       const driftMs = elapsed - localElapsed;
+      const expected = getExpectedTrackAtElapsed(tracks, localElapsed);
+      state.playbackStatus.expectedTrackPlaying = Boolean(expected && playback.item.uri === expected.track.uri);
+      state.playbackStatus.playbackInSync = Math.abs(driftMs) <= 5000;
+      state.playbackStatus.driftMs = driftMs;
       if (driftMs > -2000 && driftMs < 10000) {
         state.spotifySideElapsedMs = elapsed;
       }
@@ -1167,6 +1205,7 @@
       el.pauseBtn.disabled = cueing || (needsToken && !state.token) || !recording;
       el.abortBtn.disabled = !abortable;
       updateDeckChecklistState();
+      renderSpotifyStatusPanel();
       pushSharedStatus();
     }
 
@@ -1208,6 +1247,79 @@
       el.deckChecklist.classList.toggle("incomplete", !skipped && done < total);
       el.deckChecklist.classList.toggle("skipped", skipped);
       el.deckChecklistStatus.textContent = skipped ? "Skipped" : `${done}/${total} ready`;
+      renderSpotifyStatusPanel();
+    }
+
+    function renderSpotifyStatusPanel() {
+      if (!el.spotifyStatusItems) return;
+      const checklistReady = isAudioChecklistConfirmed();
+      const selectedDevice = state.devices.find(device => device.id === state.selectedDeviceId);
+      const activeSelectedDevice = selectedDevice ? selectedDevice.is_active : state.playbackStatus.deviceActive;
+      const statuses = [
+        {
+          label: "Spotify connected",
+          ok: Boolean(state.token),
+          value: state.token ? "Ready" : "Reconnect"
+        },
+        {
+          label: "Device selected",
+          ok: Boolean(state.selectedDeviceId || state.playbackStatus.deviceName || state.dryRun),
+          warn: state.dryRun,
+          value: state.dryRun ? "Dry Run" : selectedDevice?.name || state.playbackStatus.deviceName || "Missing"
+        },
+        {
+          label: "Device active",
+          ok: Boolean(activeSelectedDevice || state.dryRun),
+          warn: state.dryRun,
+          value: state.dryRun ? "Skipped" : activeSelectedDevice ? "Active" : "Open Spotify"
+        },
+        {
+          label: "Expected track playing",
+          ok: Boolean(state.playbackStatus.expectedTrackPlaying || state.dryRun || state.recordMode === "idle"),
+          warn: state.recordMode === "idle",
+          value: state.dryRun ? "Dry Run" : state.recordMode === "idle" ? "Idle" : state.playbackStatus.expectedTrackPlaying ? "Yes" : "No"
+        },
+        {
+          label: "Playback in sync",
+          ok: Boolean(state.playbackStatus.playbackInSync || state.dryRun || state.recordMode === "idle"),
+          warn: state.recordMode === "idle",
+          value: state.dryRun ? "Dry Run" : state.recordMode === "idle" ? "Idle" : state.playbackStatus.playbackInSync ? formatDrift(state.playbackStatus.driftMs) : "Check"
+        },
+        {
+          label: "Dry Run",
+          ok: state.dryRun,
+          warn: !state.dryRun,
+          value: state.dryRun ? "Enabled" : "Disabled"
+        },
+        {
+          label: "Audio checklist",
+          ok: checklistReady,
+          value: checklistReady ? "Confirmed" : "Review"
+        }
+      ];
+      el.spotifyStatusItems.innerHTML = statuses.map(item => {
+        const className = item.ok ? "ok" : item.warn ? "warn" : "bad";
+        return `<div class="status-chip ${className}"><span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`;
+      }).join("");
+      const warnings = [];
+      if (!state.dryRun && !state.token) warnings.push("Connect Spotify before recording.");
+      if (!state.dryRun && !activeSelectedDevice) warnings.push("Select and activate a Spotify device.");
+      if (!checklistReady) warnings.push("Confirm the audio quality checklist before recording.");
+      el.spotifyStatusWarning.textContent = warnings.join(" ");
+    }
+
+    function isAudioChecklistConfirmed() {
+      if (state.skipDeckChecklist) return true;
+      const total = DECK_CHECKLIST_ITEMS.length;
+      const done = state.deckChecklistDone.filter(Boolean).length;
+      return done >= total;
+    }
+
+    function formatDrift(driftMs) {
+      if (!Number.isFinite(driftMs)) return "In sync";
+      const seconds = Math.round(driftMs / 1000);
+      if (!seconds) return "In sync";
+      return `${seconds > 0 ? "+" : ""}${seconds}s`;
     }
 
     function restoreDryRun() {

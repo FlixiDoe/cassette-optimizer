@@ -515,6 +515,46 @@
       color: var(--amber);
     }
 
+    .spotify-status-panel {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #11150f;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .spotify-status-panel h3 {
+      color: var(--green);
+      text-transform: uppercase;
+    }
+
+    .status-chips {
+      display: grid;
+      gap: 6px;
+    }
+
+    .status-chip {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .status-chip b {
+      color: #ffd98a;
+      text-align: right;
+    }
+
+    .status-chip.ok b { color: var(--green); }
+    .status-chip.warn b { color: var(--amber); }
+    .status-chip.bad b { color: var(--red); }
+
     .calibration-panel {
       border: 1px solid var(--line);
       border-radius: 6px;
