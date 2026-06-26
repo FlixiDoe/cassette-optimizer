@@ -57,7 +57,12 @@
       statusApiAvailable: false,
       deckChecklistDone: [],
       skipDeckChecklist: false,
-      dryRun: false
+      dryRun: false,
+      calibration: {
+        leadInSeconds: 0,
+        motorLatencySeconds: 0,
+        safetyMarginSeconds: 0
+      }
     };
     state.configVersion = TAPE_CONFIG_VERSION;
 
@@ -114,15 +119,23 @@
       el.deckChecklist.addEventListener("change", updateDeckChecklist);
       el.skipDeckChecklist.addEventListener("change", updateDeckChecklist);
       el.dryRunToggle.addEventListener("change", updateDryRun);
+      el.leadInDelay.addEventListener("change", updateCalibration);
+      el.leadInDelay.addEventListener("input", updateCalibration);
+      el.motorLatency.addEventListener("change", updateCalibration);
+      el.motorLatency.addEventListener("input", updateCalibration);
+      el.safetyMargin.addEventListener("change", updateCalibration);
+      el.safetyMargin.addEventListener("input", updateCalibration);
       window.addEventListener("beforeunload", persistToken);
       startSharedStatusPolling();
       restoreTapeInventory();
       restoreDeckChecklist();
       restoreDryRun();
+      restoreCalibration();
       renderTapeOptions();
       renderTapeInventory();
       renderDeckChecklist();
       renderDryRun();
+      renderCalibration();
     }
 
     async function login() {
@@ -560,9 +573,9 @@
 
     function runRecordCue(side) {
       clearRecordCue();
-      let remaining = RECORD_CUE_SECONDS;
+      let remaining = getRecordCueSeconds();
       showRecordCue(side, remaining);
-      log(`Cue Side ${side}: press record now. ${state.dryRun ? "Dry Run timer" : "Spotify"} starts in ${RECORD_CUE_SECONDS}s.`);
+      log(`Cue Side ${side}: press record now. ${state.dryRun ? "Dry Run timer" : "Spotify"} starts in ${remaining}s.`);
       return new Promise(resolve => {
         state.cueTimerId = setInterval(() => {
           remaining -= 1;
@@ -577,11 +590,32 @@
     }
 
     function showRecordCue(side, remaining) {
-      el.recordCue.textContent = `PRESS RECORD NOW - SIDE ${side} - ${state.dryRun ? "DRY RUN TIMER" : "SPOTIFY"} STARTS IN ${remaining}`;
+      const target = state.dryRun ? "DRY RUN TIMER" : "SPOTIFY";
+      el.recordCue.textContent = `PRESS RECORD NOW - SIDE ${side} - ${getCuePhaseText(remaining, target)}`;
       el.recordCue.classList.add("show");
       const currentSide = side === "B" ? sideB() : sideA();
       renderFinishTime(Math.max(0, duration(currentSide) - getProjectedRecordElapsed()));
-      renderRecordMode(`Record now ${remaining}s`);
+      renderRecordMode(getCueMonitorText(remaining));
+    }
+
+    function getRecordCueSeconds() {
+      return RECORD_CUE_SECONDS + state.calibration.leadInSeconds + state.calibration.motorLatencySeconds;
+    }
+
+    function getCuePhaseText(remaining, target) {
+      const leadIn = state.calibration.leadInSeconds;
+      const motor = state.calibration.motorLatencySeconds;
+      if (leadIn && remaining > RECORD_CUE_SECONDS + motor) return `WAITING FOR LEAD-IN - ${remaining}s`;
+      if (motor && remaining > RECORD_CUE_SECONDS) return `WAITING FOR MOTOR - ${remaining}s`;
+      return `${target} STARTS IN ${remaining}`;
+    }
+
+    function getCueMonitorText(remaining) {
+      const leadIn = state.calibration.leadInSeconds;
+      const motor = state.calibration.motorLatencySeconds;
+      if (leadIn && remaining > RECORD_CUE_SECONDS + motor) return "Waiting for lead-in";
+      if (motor && remaining > RECORD_CUE_SECONDS) return "Waiting for motor";
+      return `${state.dryRun ? "Timer" : "Spotify"} starts in ${remaining}s`;
     }
 
     function clearRecordCue() {
@@ -708,7 +742,7 @@
     }
 
     function getCueRemainingMs() {
-      const match = el.recordCue.textContent.match(/IN\s+(\d+)/i);
+      const match = el.recordCue.textContent.match(/(?:IN|-)\s+(\d+)s?/i);
       return match ? Number(match[1]) * 1000 : 0;
     }
 
@@ -1078,6 +1112,48 @@
       log(state.dryRun ? "Dry Run enabled. Spotify playback commands will be skipped." : "Dry Run disabled. Spotify playback commands are active.");
     }
 
+    function restoreCalibration() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("recording_calibration") || "null");
+        if (!saved || typeof saved !== "object") return;
+        state.calibration = normalizeCalibration(saved);
+      } catch {
+        localStorage.removeItem("recording_calibration");
+      }
+    }
+
+    function renderCalibration() {
+      el.leadInDelay.value = state.calibration.leadInSeconds;
+      el.motorLatency.value = state.calibration.motorLatencySeconds;
+      el.safetyMargin.value = state.calibration.safetyMarginSeconds;
+    }
+
+    function updateCalibration() {
+      state.calibration = normalizeCalibration({
+        leadInSeconds: el.leadInDelay.value,
+        motorLatencySeconds: el.motorLatency.value,
+        safetyMarginSeconds: el.safetyMargin.value
+      });
+      localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
+      renderCalibration();
+      renderSplit();
+      log(`Recording calibration saved: lead-in ${state.calibration.leadInSeconds}s, motor ${state.calibration.motorLatencySeconds}s, safety ${state.calibration.safetyMarginSeconds}s.`);
+    }
+
+    function normalizeCalibration(value) {
+      return {
+        leadInSeconds: clampSeconds(value.leadInSeconds, 0, 120),
+        motorLatencySeconds: clampSeconds(value.motorLatencySeconds, 0, 30),
+        safetyMarginSeconds: clampSeconds(value.safetyMarginSeconds, 0, 300)
+      };
+    }
+
+    function clampSeconds(value, min, max) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return min;
+      return Math.min(max, Math.max(min, Math.round(number)));
+    }
+
     function setTapeLength(minutes) {
       state.tapeMinutes = minutes;
       el.tapeLabel.textContent = `C${minutes}`;
@@ -1305,6 +1381,11 @@
       }
       if (duration(sideB()) > halfMs) {
         messages.push(`Side B exceeds ${formatTime(halfMs)}. Extra tracks remain listed so original order is preserved.`);
+      }
+      const safetyMs = state.calibration.safetyMarginSeconds * 1000;
+      if (state.tracks.length && safetyMs) {
+        if (halfMs - duration(sideA()) < safetyMs) messages.push(`Side A has less than the configured ${state.calibration.safetyMarginSeconds}s safety margin remaining.`);
+        if (duration(sideB()) && halfMs - duration(sideB()) < safetyMs) messages.push(`Side B has less than the configured ${state.calibration.safetyMarginSeconds}s safety margin remaining.`);
       }
       el.warnings.textContent = messages.join("\n");
     }

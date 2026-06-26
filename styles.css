@@ -412,6 +412,31 @@
       color: var(--amber);
     }
 
+    .calibration-panel {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #11150f;
+      padding: 10px;
+    }
+
+    .calibration-panel summary {
+      color: var(--amber);
+      cursor: pointer;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .calibration-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .calibration-grid input {
+      min-height: 36px;
+    }
+
     .timer {
       border: 1px solid var(--line);
       background: #0b0d0a;

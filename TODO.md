@@ -342,7 +342,7 @@ feat: add dry run recording mode
 
 ---
 
-### 9. Add recording delay calibration
+### 9. [Done] Add recording delay calibration
 
 Cassette decks and tapes have small physical delays before usable recording starts.
 
