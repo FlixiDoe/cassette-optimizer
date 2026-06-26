@@ -5,8 +5,7 @@ A local-first Spotify playlist planner and playback controller for recording mix
 Cassette Optimizer keeps a playlist in order, plans it across one or more physical cassettes, shows a recording countdown, and controls Spotify playback so the user can record one side at a time.
 
 Repository: https://github.com/FlixiDoe/cassette-optimizer  
-Current visibility: private  
-GitHub Pages: disabled
+Current visibility: private
 
 ## Responsible Use
 
@@ -142,7 +141,7 @@ The app cannot verify these settings automatically. Check them manually before e
 Spotify settings:
 
 - Select the exact output device you will record from.
-- Set Streaming quality to Lossless.
+- Set Streaming quality to Lossless if available, otherwise choose the highest available quality.
 - Turn Auto-adjust quality off.
 - Set Crossfade to 0 seconds.
 - Turn Normalize volume off.
@@ -170,7 +169,7 @@ Windows / device settings:
 7. Click `Load playlist`.
 8. Review total runtime, recommendation, Side A, Side B, physical tape plan, and warnings.
 9. Optional: refresh Spotify devices and choose the target device.
-10. Complete the Spotify / Windows audio settings checklist: Lossless, Auto-adjust quality off, Crossfade 0 seconds, Normalize volume off, EQ off, correct output device, Exclusive mode, Force volume, and Windows volume at maximum.
+10. Complete the Spotify / Windows audio settings checklist: Lossless if available or highest quality, Auto-adjust quality off, Crossfade 0 seconds, Normalize volume off, EQ off, correct output device, Exclusive mode, Force volume, and Windows volume at maximum.
 11. Use `Apply to Spotify` only if you want to sync the order back to Spotify.
 12. Use the in-app Level check helper with your deck in record-pause and adjust the cassette deck input level so peaks stay below clipping or distortion.
 13. Click `Start Side A`.
@@ -208,7 +207,7 @@ Use `Import Config` to restore a saved project without fetching the Spotify play
 
 - Side starts are sent to Spotify as an explicit side queue.
 - Fresh side starts disable shuffle and repeat first.
-- Audio quality setup is manual: the app reminds you to set Spotify to Lossless, disable Auto-adjust quality, Crossfade, Normalize volume, and EQ, use the intended output device with Exclusive mode and Force volume enabled, and keep Windows output volume at 100%.
+- Audio quality setup is manual: the app reminds you to set Spotify to Lossless if available or otherwise the highest available quality, disable Auto-adjust quality, Crossfade, Normalize volume, and EQ, use the intended output device with Exclusive mode and Force volume enabled, and keep Windows output volume at 100%.
 - The local record timer is authoritative for the side countdown.
 - Spotify playback state is polled sparingly to avoid unnecessary API load.
 - If Spotify jumps to a wrong track, the app attempts to correct playback to the track expected from the local recording time.
@@ -220,7 +219,7 @@ Use `Import Config` to restore a saved project without fetching the Spotify play
 
 ## J-Card
 
-After loading a playlist, use `Print J-Card` to print the selected cassette inlay. For multi-tape projects, use `Print All J-Cards` to print every cassette inlay in one print run. Each J-card includes:
+After loading a playlist, use `Print Selected` to print the selected cassette inlay. For multi-tape projects, use `Print All` to print every cassette inlay in one print run. Each J-card includes:
 
 - Playlist name
 - Playlist cover
