@@ -56,7 +56,8 @@
       statusPollId: null,
       statusApiAvailable: false,
       deckChecklistDone: [],
-      skipDeckChecklist: false
+      skipDeckChecklist: false,
+      dryRun: false
     };
     state.configVersion = TAPE_CONFIG_VERSION;
 
@@ -112,13 +113,16 @@
       el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
       el.deckChecklist.addEventListener("change", updateDeckChecklist);
       el.skipDeckChecklist.addEventListener("change", updateDeckChecklist);
+      el.dryRunToggle.addEventListener("change", updateDryRun);
       window.addEventListener("beforeunload", persistToken);
       startSharedStatusPolling();
       restoreTapeInventory();
       restoreDeckChecklist();
+      restoreDryRun();
       renderTapeOptions();
       renderTapeInventory();
       renderDeckChecklist();
+      renderDryRun();
     }
 
     async function login() {
@@ -494,13 +498,17 @@
         state.recordMode = "recording_a";
         state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
-        el.currentTrack.textContent = resuming ? "Resuming Side A..." : "Starting Side A from track 1...";
+      el.currentTrack.textContent = state.dryRun
+        ? (resuming ? "Dry Run: resuming Side A timer." : "Dry Run: Side A timer started.")
+        : (resuming ? "Resuming Side A..." : "Starting Side A from track 1...");
+      if (!state.dryRun) {
         if (!resuming) await preparePlaybackOrder();
         await playSpotify(resuming ? { method: "PUT" } : buildSidePlaybackPayload(sideA(), 0, 0));
-        startTimer();
-        startPollingPlayback();
-        renderRecordMode();
-        log(resuming ? "Resumed Side A." : "Started Side A.");
+      }
+      startTimer();
+      if (!state.dryRun) startPollingPlayback();
+      renderRecordMode();
+      log(state.dryRun ? (resuming ? "Dry Run: resumed Side A." : "Dry Run: started Side A.") : (resuming ? "Resumed Side A." : "Started Side A."));
       } catch (error) {
         clearRecordCue();
         stopTimer();
@@ -529,13 +537,17 @@
         state.recordMode = "recording_b";
         state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
-        el.currentTrack.textContent = resuming ? "Resuming Side B..." : `Starting Side B from track ${state.splitIndex + 1}...`;
+      el.currentTrack.textContent = state.dryRun
+        ? (resuming ? "Dry Run: resuming Side B timer." : "Dry Run: Side B timer started.")
+        : (resuming ? "Resuming Side B..." : `Starting Side B from track ${state.splitIndex + 1}...`);
+      if (!state.dryRun) {
         if (!resuming) await preparePlaybackOrder();
         await playSpotify(resuming ? { method: "PUT" } : buildSidePlaybackPayload(sideB(), 0, 0));
-        startTimer();
-        startPollingPlayback();
-        renderRecordMode();
-        log(resuming ? "Resumed Side B." : "Started Side B.");
+      }
+      startTimer();
+      if (!state.dryRun) startPollingPlayback();
+      renderRecordMode();
+      log(state.dryRun ? (resuming ? "Dry Run: resumed Side B." : "Dry Run: started Side B.") : (resuming ? "Resumed Side B." : "Started Side B."));
       } catch (error) {
         clearRecordCue();
         stopTimer();
@@ -550,7 +562,7 @@
       clearRecordCue();
       let remaining = RECORD_CUE_SECONDS;
       showRecordCue(side, remaining);
-      log(`Cue Side ${side}: press record now. Spotify starts in ${RECORD_CUE_SECONDS}s.`);
+      log(`Cue Side ${side}: press record now. ${state.dryRun ? "Dry Run timer" : "Spotify"} starts in ${RECORD_CUE_SECONDS}s.`);
       return new Promise(resolve => {
         state.cueTimerId = setInterval(() => {
           remaining -= 1;
@@ -565,7 +577,7 @@
     }
 
     function showRecordCue(side, remaining) {
-      el.recordCue.textContent = `PRESS RECORD NOW - SIDE ${side} - SPOTIFY STARTS IN ${remaining}`;
+      el.recordCue.textContent = `PRESS RECORD NOW - SIDE ${side} - ${state.dryRun ? "DRY RUN TIMER" : "SPOTIFY"} STARTS IN ${remaining}`;
       el.recordCue.classList.add("show");
       const currentSide = side === "B" ? sideB() : sideA();
       renderFinishTime(Math.max(0, duration(currentSide) - getProjectedRecordElapsed()));
@@ -591,7 +603,7 @@
 
     async function pausePlayback() {
       try {
-        await spotifyFetch("/me/player/pause", { method: "PUT" });
+        if (!state.dryRun) await spotifyFetch("/me/player/pause", { method: "PUT" });
         if (state.sideAStartedAt) {
           state.sideAElapsedBeforePause += Date.now() - state.sideAStartedAt;
           state.sideAStartedAt = 0;
@@ -601,8 +613,8 @@
         state.recordMode = "paused";
         stopTimer();
         renderRecordMode();
-        schedulePlaybackPoll(getPlaybackPollDelay());
-        log("Playback paused.");
+        if (!state.dryRun) schedulePlaybackPoll(getPlaybackPollDelay());
+        log(state.dryRun ? "Dry Run paused." : "Playback paused.");
       } catch (error) {
         log(error.message);
       }
@@ -613,7 +625,7 @@
         clearRecordCue();
         stopTimer();
         stopPollingPlayback();
-        if (state.token) {
+        if (state.token && !state.dryRun) {
           try {
             await spotifyFetch("/me/player/pause", { method: "PUT" });
           } catch (error) {
@@ -637,7 +649,7 @@
         el.countdownLabel.textContent = "left on Side A";
         el.finishTime.textContent = state.tracks.length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + duration(sideA())))}` : "Finish time pending";
         renderRecordMode("Aborted");
-        log("Recording aborted.");
+        log(state.dryRun ? "Dry Run aborted." : "Recording aborted.");
         pushSharedStatus(true);
       } catch (error) {
         log(error.message);
@@ -716,6 +728,7 @@
         countdownLabel: el.countdownLabel.textContent,
         finishTime: el.finishTime.textContent,
         currentTrack: el.currentTrack.textContent,
+        dryRun: state.dryRun,
         playProgress: el.playProgress.style.width || "0%",
         tapeProgress: el.tapeProgress.style.width || "0%",
         sideATime: el.sideATime.textContent,
@@ -934,8 +947,8 @@
       state.autoPauseDone = true;
       stopTimer();
       try {
-        await spotifyFetch("/me/player/pause", { method: "PUT" });
-        log("Record Mode: Side A complete. Spotify paused automatically.");
+        if (!state.dryRun) await spotifyFetch("/me/player/pause", { method: "PUT" });
+        log(state.dryRun ? "Dry Run: Side A complete." : "Record Mode: Side A complete. Spotify paused automatically.");
       } catch (error) {
         log(error.message);
       }
@@ -944,7 +957,7 @@
       el.flipBanner.classList.add("show");
       el.startB.disabled = !sideB().length;
       renderRecordMode("Flip now");
-      schedulePlaybackPoll(getPlaybackPollDelay());
+      if (!state.dryRun) schedulePlaybackPoll(getPlaybackPollDelay());
     }
 
     async function completeSideB() {
@@ -952,15 +965,15 @@
       state.autoPauseDone = true;
       stopTimer();
       try {
-        await spotifyFetch("/me/player/pause", { method: "PUT" });
-        log("Record Mode: Side B complete. Spotify paused automatically.");
+        if (!state.dryRun) await spotifyFetch("/me/player/pause", { method: "PUT" });
+        log(state.dryRun ? "Dry Run: Side B complete." : "Record Mode: Side B complete. Spotify paused automatically.");
       } catch (error) {
         log(error.message);
       }
       state.recordMode = "idle";
       state.activeRecordSide = null;
       renderRecordMode("Complete");
-      schedulePlaybackPoll(getPlaybackPollDelay());
+      if (!state.dryRun) schedulePlaybackPoll(getPlaybackPollDelay());
     }
 
     function renderRecordMode(monitorText) {
@@ -973,7 +986,7 @@
         paused: "Paused",
         flip: "Flip cassette"
       };
-      el.recordModeStatus.textContent = labels[state.recordMode] || "Idle";
+      el.recordModeStatus.textContent = state.dryRun ? `Dry Run - ${labels[state.recordMode] || "Idle"}` : labels[state.recordMode] || "Idle";
       el.recordSide.textContent = state.activeRecordSide || "-";
       const defaultMonitor = {
         idle: "Waiting",
@@ -999,9 +1012,10 @@
       const abortable = cueing || recording || state.recordMode === "paused" || state.recordMode === "flip";
       el.startA.textContent = pausedA ? "Resume Side A" : "Start Side A";
       el.startB.textContent = pausedB ? "Resume Side B" : "Start Side B";
-      el.startA.disabled = cueing || !a.length || !state.token || !(state.recordMode === "idle" || pausedA);
-      el.startB.disabled = cueing || !b.length || !state.token || !(state.recordMode === "flip" || pausedB);
-      el.pauseBtn.disabled = cueing || !state.token || !recording;
+      const needsToken = !state.dryRun;
+      el.startA.disabled = cueing || !a.length || (needsToken && !state.token) || !(state.recordMode === "idle" || pausedA);
+      el.startB.disabled = cueing || !b.length || (needsToken && !state.token) || !(state.recordMode === "flip" || pausedB);
+      el.pauseBtn.disabled = cueing || (needsToken && !state.token) || !recording;
       el.abortBtn.disabled = !abortable;
       updateDeckChecklistState();
       pushSharedStatus();
@@ -1045,6 +1059,23 @@
       el.deckChecklist.classList.toggle("incomplete", !skipped && done < total);
       el.deckChecklist.classList.toggle("skipped", skipped);
       el.deckChecklistStatus.textContent = skipped ? "Skipped" : `${done}/${total} ready`;
+    }
+
+    function restoreDryRun() {
+      state.dryRun = localStorage.getItem("dry_run_mode") === "true";
+    }
+
+    function renderDryRun() {
+      el.dryRunToggle.checked = state.dryRun;
+      renderRecordMode();
+    }
+
+    function updateDryRun() {
+      state.dryRun = el.dryRunToggle.checked;
+      localStorage.setItem("dry_run_mode", String(state.dryRun));
+      if (state.dryRun) stopPollingPlayback();
+      renderRecordMode();
+      log(state.dryRun ? "Dry Run enabled. Spotify playback commands will be skipped." : "Dry Run disabled. Spotify playback commands are active.");
     }
 
     function setTapeLength(minutes) {

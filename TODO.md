@@ -310,7 +310,7 @@ feat: add pre-recording deck checklist
 
 ---
 
-### 8. Add Dry Run / Safe Mode
+### 8. [Done] Add Dry Run / Safe Mode
 
 Users should be able to test the recording workflow without starting Spotify playback.
 

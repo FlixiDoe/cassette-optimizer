@@ -138,6 +138,7 @@ function sanitizeStatus(input) {
     "countdownLabel",
     "finishTime",
     "currentTrack",
+    "dryRun",
     "playProgress",
     "tapeProgress",
     "sideATime",

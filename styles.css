@@ -387,6 +387,31 @@
       font-size: 12px;
     }
 
+    .mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #11150f;
+      color: var(--ink);
+      padding: 10px;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .mode-toggle input {
+      width: 14px;
+      min-height: 14px;
+      accent-color: var(--amber);
+    }
+
+    .mode-toggle:has(input:checked) {
+      border-color: var(--amber);
+      background: rgba(255,191,73,.09);
+      color: var(--amber);
+    }
+
     .timer {
       border: 1px solid var(--line);
       background: #0b0d0a;
