@@ -4,57 +4,48 @@ Prioritized roadmap for the next implementation steps.
 
 ## P0 – Release blockers
 
-### 1. [Highest priority] Multi-tape splitter with per-tape J-Cards
+### 1. Add per-tape format selection for multi-tape projects
 
-Long playlists should be split across multiple physical cassettes. This is now the top roadmap item because it turns Cassette Optimizer from a one-tape helper into a real mixtape planning system.
-
-**Status: Implemented**
-
-- Long playlists are split into multiple physical tapes while preserving track order.
-- The selected physical tape drives the visible Side A / Side B lists and recording controls.
-- J-Cards get automatic volume titles and can be printed for one selected tape or for all tapes.
+Multi-tape projects should not use one global tape format for every physical cassette. If a playlist spans multiple tapes, each tape needs its own tape format selector because users may have mixed cassette lengths available, for example Tape 1 as C90 and Tape 2 as C60.
 
 **Goal**
 
-Example output:
+Replace or extend the global `Tape format` selector with per-tape format selection when the project contains more than one tape.
+
+Example UI:
 
 ```text
-This playlist fits on 2x C90.
-
-Tape 1:
-- Side A
-- Side B
-
-Tape 2:
-- Side A
-- Side B
-```
-
-The app should also generate separate J-Cards for every physical cassette:
-
-```text
-Playlist Title – Vol. 1
-Playlist Title – Vol. 2
-Playlist Title – Vol. 3
+Tape 1 format: C90 - 1:30:00 total / 45:00 per side
+Tape 2 format: C60 - 1:00:00 total / 30:00 per side
+Tape 3 format: C90 - 1:30:00 total / 45:00 per side
 ```
 
 **Implementation notes**
 
-- Preserve original track order.
-- Do not cut tracks.
-- Generate one layout per tape.
-- Generate one Side A and Side B per tape.
-- Generate one J-Card per tape.
-- Each tape gets its own spine, cover, back, Side A and Side B.
-- Print all J-Cards at once or one selected tape at a time.
-- Export all J-Cards as one HTML file if possible.
-- Add automatic titles such as `Vol. 1`, `Vol. 2`, etc.
-- Make sure this can later use tape inventory quantities.
+- Keep a default/global tape format for simple one-tape projects.
+- For multi-tape projects, show one selector per physical tape.
+- Changing the format of one tape should recalculate only the affected multi-tape layout where possible.
+- If recalculating one tape changes track overflow, continue filling later tapes while preserving original track order.
+- Show warnings when a selected tape format cannot fit its assigned tracks.
+- Make Side A / Side B lists update based on the currently selected physical tape.
+- J-Cards must use the tape format of their own tape, not a global tape format.
+- Recording controls must use the selected physical tape's side lengths.
+- Export/import JSON should store `tapeFormat` per tape.
+- Future tape inventory quantities should limit how often each format can be selected.
+
+**Acceptance criteria**
+
+- A multi-tape project can use mixed formats such as Tape 1 C90 and Tape 2 C60.
+- Each tape shows its own total runtime and side length.
+- Changing Tape 2 format does not silently change Tape 1 format.
+- J-Card for Tape 2 prints with Tape 2's own format.
+- Record Mode for Tape 2 uses Tape 2's side length.
+- Exported project JSON restores all per-tape format choices.
 
 **Suggested commit**
 
 ```text
-feat: add multi-tape splitter with per-tape j-cards
+feat: add per-tape format selection
 ```
 
 ---
@@ -156,6 +147,7 @@ Add `Export Config` and `Import Config` buttons.
 - Playlist cover URL
 - Selected tape format
 - Available tape formats
+- Per-tape format choices
 - Split mode: automatic or manual
 - Split index
 - Side A tracks
@@ -170,6 +162,7 @@ Add `Export Config` and `Import Config` buttons.
 - Load a saved JSON file.
 - Restore the exact split.
 - Restore Side A / Side B.
+- Restore per-tape format choices.
 - Restore J-Card data.
 - Work without fetching the Spotify playlist again.
 - Warn if Spotify playback control needs reconnection.
@@ -197,11 +190,11 @@ projectTitle
 sourcePlaylistId
 sourcePlaylistName
 coverUrl
-tapeFormat
-sideLengthMs
+tapes[]
+tapeFormat per tape
+sideLengthMs per tape
 splitMode
-sideA
-sideB
+sideA/sideB per tape
 calibration
 jCard
 createdAt
@@ -212,7 +205,8 @@ updatedAt
 
 - Use the project object as the source of truth after playlist load/import.
 - Avoid duplicating state between split rendering, J-Card, and recording.
-- Make future multi-tape support easier.
+- Model multi-tape projects as an array of physical tape objects.
+- Make future tape inventory support easier.
 
 **Suggested commit**
 
@@ -293,6 +287,8 @@ Add clearer warnings for cassette planning and Spotify playback.
 - Client Secret is configured while not on localhost.
 - Manual split exceeds side length.
 - Audio quality checklist has not been confirmed before recording.
+- One selected tape format cannot fit its assigned tracks.
+- A later tape overflows after changing an earlier tape format.
 
 **Suggested commit**
 
@@ -344,6 +340,7 @@ Use this for:
 - better recommendations
 - multi-tape splitting
 - warnings when a playlist needs more tapes than available
+- limiting per-tape format selection to available physical inventory
 
 **Suggested commit**
 
@@ -371,6 +368,8 @@ The split engine should be tested independently from the UI.
 - Safety margin enabled.
 - Multi-tape split uses correct tape count.
 - Per-tape side split preserves original order.
+- Multi-tape project with mixed C60/C90 formats.
+- Changing Tape 2 format does not change Tape 1 format.
 
 **Suggested commit**
 
@@ -392,6 +391,7 @@ Print layout is hard to unit test, but the project should document manual checks
 - Grayscale output is readable.
 - Browser print-to-PDF works.
 - Multi-tape projects can print one J-Card per tape.
+- Mixed-format multi-tape projects print the correct format on each J-Card.
 
 **Suggested commit**
 
@@ -428,7 +428,7 @@ docs: add audio setup regression checklist
 
 ## Recommended implementation order
 
-1. Add Multi-tape splitter with per-tape J-Cards.
+1. Add per-tape format selection for multi-tape projects.
 2. Add split explanation in UI.
 3. Add manual split override.
 4. Add Export/Import JSON.
