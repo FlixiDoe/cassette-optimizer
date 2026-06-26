@@ -20,6 +20,11 @@
       "Correct side selected",
       "Record level checked",
       "Spotify device selected",
+      "Spotify quality: Lossless, auto-adjust off, crossfade 0, normalize off",
+      "Spotify EQ and system sound enhancements off",
+      "Spotify output device matches Windows output device",
+      "Exclusive mode and Force volume enabled for the Spotify output device",
+      "Windows output volume set to 100%",
       "Notifications muted",
       "Deck is in record/pause"
     ];

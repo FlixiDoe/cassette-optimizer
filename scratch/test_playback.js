@@ -74,8 +74,15 @@ containsHtml("Responsible use app notice", "Use responsibly: this tool controls 
 containsHtml("Deck checklist panel", 'id="deckChecklist"');
 containsHtml("Deck checklist skip option", 'id="skipDeckChecklist"');
 contains("Deck checklist item source", "const DECK_CHECKLIST_ITEMS");
+contains("Deck checklist audio quality item", "Spotify quality: Lossless, auto-adjust off, crossfade 0, normalize off");
+contains("Deck checklist output device item", "Spotify output device matches Windows output device");
+contains("Deck checklist exclusive force volume item", "Exclusive mode and Force volume enabled");
+contains("Deck checklist Windows volume item", "Windows output volume set to 100%");
 contains("Deck checklist persistence", 'localStorage.setItem("deck_checklist"');
 contains("Deck checklist render", "function renderDeckChecklist");
+containsHtml("Level check helper", 'id="levelCheckHelper"');
+containsHtml("Level check helper mentions Lossless", "set Spotify to Lossless");
+containsHtml("Level check helper mentions deck input", "adjust the cassette deck input level");
 containsHtml("Dry Run toggle markup", 'id="dryRunToggle"');
 contains("Dry Run state persistence", 'localStorage.setItem("dry_run_mode"');
 contains("Dry Run skips Spotify playback", "if (!state.dryRun) {");
@@ -116,6 +123,8 @@ contains("Shared status disabled unless available", "if (!state.statusApiAvailab
 
 const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
 const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+const docs = fs.readFileSync(path.join(root, "docs.md"), "utf8");
+const publishing = fs.readFileSync(path.join(root, "PUBLISHING.md"), "utf8");
 assert.ok(server.includes('"/api/status"'), "Missing LAN status API");
 assert.ok(server.includes('"/api/health"'), "Missing LAN status health API");
 assert.ok(server.includes('"dryRun"'), "LAN status should allow Dry Run flag");
@@ -124,6 +133,18 @@ assert.ok(fs.readFileSync(path.join(root, "api", "health"), "utf8").includes('"s
 assert.ok(readme.includes("## Deck Setup"), "README should include deck setup guide");
 assert.ok(readme.includes("cassette deck LINE IN / AUX IN / REC IN"), "README should show deck signal path");
 assert.ok(readme.includes("Disable notification sounds before recording."), "README should include notification warning");
+for (const text of [readme, docs, publishing]) {
+  assert.ok(text.includes("Lossless"), "Recording guides should mention Lossless");
+  assert.ok(text.includes("Auto-adjust quality"), "Recording guides should mention Auto-adjust quality");
+  assert.ok(text.includes("Crossfade"), "Recording guides should mention Crossfade");
+  assert.ok(text.includes("Normalize volume"), "Recording guides should mention Normalize volume");
+  assert.ok(text.includes("EQ"), "Recording guides should mention EQ");
+  assert.ok(text.includes("output device"), "Recording guides should mention output device");
+  assert.ok(text.includes("Exclusive mode"), "Recording guides should mention Exclusive mode");
+  assert.ok(text.includes("Force volume"), "Recording guides should mention Force volume");
+  assert.ok(text.includes("Windows output volume"), "Recording guides should mention Windows output volume");
+  assert.ok(text.includes("cassette deck input"), "Recording guides should mention deck input level control");
+}
 assert.ok(server.includes("0.0.0.0"), "LAN server should listen on all interfaces by default");
 
 assert.deepEqual(buttonState("idle", null), {

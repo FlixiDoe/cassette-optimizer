@@ -44,10 +44,35 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 6. Click `Load playlist`.
 7. Review total runtime, tape recommendation, Side A, and Side B.
 8. In `Playback`, click `Refresh` under `Spotify device` if you want to target a specific Spotify Connect device.
-9. Use `Apply to Spotify` only when you want to sync the order to Spotify.
-10. Use `Start Side A`; when the red `PRESS RECORD NOW` cue appears, start recording on your cassette/cable deck.
-11. Spotify starts automatically after the 5-second cue. Wait for auto-pause, flip the cassette, then use `Start Side B` and start recording again when the cue appears.
-12. Use `Abort Recording` only if you want to stop the current recording run and reset Record Mode.
+9. Complete the Spotify / Windows audio settings checklist below.
+10. Use `Apply to Spotify` only when you want to sync the order to Spotify.
+11. Use `Start Side A`; when the red `PRESS RECORD NOW` cue appears, start recording on your cassette/cable deck.
+12. Spotify starts automatically after the cue and any configured delay calibration. Wait for auto-pause, flip the cassette, then use `Start Side B` and start recording again when the cue appears.
+13. Use `Abort Recording` only if you want to stop the current recording run and reset Record Mode.
+
+## Spotify / Windows Audio Settings Before Recording
+
+The app cannot verify these settings automatically. Use them as a manual checklist before real recording.
+
+Spotify settings:
+
+- Select the exact output device you will record from.
+- Set Streaming quality to Lossless.
+- Turn Auto-adjust quality off.
+- Set Crossfade to 0 seconds.
+- Turn Normalize volume off.
+- Turn all Spotify Equalizer/EQ processing off.
+- Open the selected output device settings.
+- Enable Exclusive mode for this device.
+- Enable Force volume for this device.
+
+Windows / device settings:
+
+- Set Windows output device to the same device used in Spotify.
+- Set Windows output volume to 100% / maximum.
+- Turn off system-wide EQ, sound enhancements, loudness normalization, virtual surround, or other processing if you use them.
+- Control final recording level on the cassette deck input, not with Windows volume.
+- Watch the deck meters and avoid clipping or distortion.
 
 ## LAN Status Mode
 
@@ -89,6 +114,7 @@ The LAN server listens on `0.0.0.0:8787`, serves the same app, and exposes `/api
 - `Start Side A` starts Spotify playback with the calculated Side A queue.
 - Playback starts from an explicit Side A/B track queue so Spotify receives only the tracks for the current cassette side.
 - For fresh side starts, the app disables Spotify shuffle and repeat before playback so Side A/B does not jump to later songs.
+- Before recording, set Spotify to Lossless, turn Auto-adjust quality off, set Crossfade to 0 seconds, turn Normalize volume and EQ off, select the same output device in Spotify and Windows, enable Exclusive mode and Force volume, and keep Windows output volume at 100%. Adjust final gain on the cassette deck input.
 - During recording, the app compares Spotify's current track with the track expected from the local record timer and corrects Spotify if it jumps ahead.
 - Before Spotify starts, the app shows `PRESS RECORD NOW - SIDE A` for 5 seconds so you can start recording first.
 - If Side A is paused, the button changes to `Resume Side A` and resumes Spotify without resetting the queue.

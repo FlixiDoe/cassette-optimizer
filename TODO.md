@@ -4,7 +4,7 @@ Prioritized roadmap for the next implementation steps.
 
 ## P0 – Release blockers
 
-### 0. [Highest priority] Add Spotify and Windows audio quality checklist to all recording guides
+### 0. [Done] [Highest priority] Add Spotify and Windows audio quality checklist to all recording guides
 
 Cassette recording quality depends on the Spotify output chain. This must be documented before other release work, because otherwise recordings can be inconsistent even when the app logic works correctly.
 

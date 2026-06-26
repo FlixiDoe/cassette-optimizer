@@ -122,6 +122,31 @@ deck monitor output / headphones / speakers
 - Monitor through the deck headphone jack, speakers, or receiver output.
 - Disable notification sounds before recording.
 - Do a short test recording and set the deck input level before the real run.
+- Before recording, complete the Spotify / Windows audio settings checklist below. The goal is a clean fixed digital source level; final recording gain should be adjusted on the cassette deck input.
+
+## Spotify / Windows Audio Settings Before Recording
+
+The app cannot verify these settings automatically. Check them manually before each real recording run.
+
+Spotify settings:
+
+- Select the exact output device you will record from.
+- Set Streaming quality to Lossless.
+- Turn Auto-adjust quality off.
+- Set Crossfade to 0 seconds.
+- Turn Normalize volume off.
+- Turn all Spotify Equalizer/EQ processing off.
+- Open the selected output device settings.
+- Enable Exclusive mode for this device.
+- Enable Force volume for this device.
+
+Windows / device settings:
+
+- Set Windows output device to the same device used in Spotify.
+- Set Windows output volume to 100% / maximum.
+- Turn off system-wide EQ, sound enhancements, loudness normalization, virtual surround, or other processing if you use them.
+- Control final recording level on the cassette deck input, not with Windows volume.
+- Watch the deck meters and avoid clipping or distortion.
 
 ## Usage
 
@@ -134,16 +159,19 @@ deck monitor output / headphones / speakers
 7. Click `Load playlist`.
 8. Review total runtime, recommendation, Side A, Side B, and warnings.
 9. Optional: refresh Spotify devices and choose the target device.
-10. Use `Apply to Spotify` only if you want to sync the order back to Spotify.
-11. Click `Start Side A`.
-12. When the red `PRESS RECORD NOW` cue appears, start recording on your deck.
-13. Spotify starts automatically after the 5-second cue.
-14. Wait for auto-pause, flip the cassette, then use `Start Side B`.
+10. Complete the Spotify / Windows audio settings checklist: Lossless, Auto-adjust quality off, Crossfade 0 seconds, Normalize volume off, EQ off, correct output device, Exclusive mode, Force volume, and Windows volume at maximum.
+11. Use `Apply to Spotify` only if you want to sync the order back to Spotify.
+12. Use the in-app Level check helper with your deck in record-pause and adjust the cassette deck input level so peaks stay below clipping or distortion.
+13. Click `Start Side A`.
+14. When the red `PRESS RECORD NOW` cue appears, start recording on your deck.
+15. Spotify starts automatically after the cue and any configured delay calibration.
+16. Wait for auto-pause, flip the cassette, then use `Start Side B`.
 
 ## Record Mode Notes
 
 - Side starts are sent to Spotify as an explicit side queue.
 - Fresh side starts disable shuffle and repeat first.
+- Audio quality setup is manual: the app reminds you to set Spotify to Lossless, disable Auto-adjust quality, Crossfade, Normalize volume, and EQ, use the intended output device with Exclusive mode and Force volume enabled, and keep Windows output volume at 100%.
 - The local record timer is authoritative for the side countdown.
 - Spotify playback state is polled sparingly to avoid unnecessary API load.
 - If Spotify jumps to a wrong track, the app attempts to correct playback to the track expected from the local recording time.

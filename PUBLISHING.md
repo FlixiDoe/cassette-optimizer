@@ -28,6 +28,23 @@ rg -n "secret|token|ghp_|github_pat_|sk-|client_secret|refresh_token|access_toke
 7. If hosting publicly, add the final public callback URL to the Spotify Developer Dashboard.
 8. If enabling GitHub Pages, document the Pages URL and update OAuth setup instructions.
 
+## Manual Recording Setup Test
+
+Before a release, confirm the recording guides and in-app checklist cover these manual audio setup items:
+
+- README mentions Spotify Streaming quality set to Lossless.
+- README mentions Auto-adjust quality off.
+- README mentions Crossfade set to 0 seconds.
+- README mentions Normalize volume off.
+- README mentions Spotify EQ off.
+- README mentions selecting the exact Spotify output device.
+- README mentions Exclusive mode and Force volume for that output device.
+- README mentions Windows output device matching Spotify.
+- README mentions Windows output volume at 100% / maximum.
+- README explains that final recording gain is adjusted on the cassette deck input while watching deck meters for clipping or distortion.
+- In-app Deck Checklist has compact confirmations for Spotify quality, output device, Exclusive mode / Force volume, and Windows volume.
+- In-app Level check helper explains that the app does not measure audio level automatically.
+
 ## Optional Public Repo Settings
 
 - Add repository topics such as `spotify`, `cassette`, `mixtape`, `pkce`, `vanilla-js`.

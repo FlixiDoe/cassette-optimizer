@@ -572,6 +572,26 @@
       color: #ffd98a;
     }
 
+    .level-helper {
+      border: 1px solid #45633c;
+      border-radius: 6px;
+      background: rgba(156,255,106,.05);
+      padding: 10px;
+    }
+
+    .level-helper summary {
+      color: var(--green);
+      cursor: pointer;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .level-helper p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .record-cue {
       display: none;
       border: 2px solid var(--red);
