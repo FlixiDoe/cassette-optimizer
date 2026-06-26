@@ -51,15 +51,27 @@ If you use Tailscale Serve, also add the exact HTTPS Tailscale callback URL, for
 https://der-dicke.tenrec-typhon.ts.net/callback
 ```
 
-Start the local server:
+Start the local server on Windows, Linux, or macOS:
+
+```sh
+npm run start:local
+```
+
+Windows PowerShell convenience script:
 
 ```powershell
 .\start-local.ps1
 ```
 
-Or manually:
+Linux/macOS convenience script:
 
-```powershell
+```sh
+./start-local.sh
+```
+
+Or manually with Python:
+
+```sh
 python -m http.server 8787 --bind 127.0.0.1
 ```
 
@@ -75,11 +87,21 @@ Do not use `file://` for Spotify login. OAuth PKCE requires the local HTTP origi
 
 For monitoring from another device on the same network, use the optional Node server:
 
+```sh
+npm run start:lan
+```
+
+PowerShell and POSIX shell convenience scripts are also available:
+
 ```powershell
 .\start-lan.ps1
 ```
 
-It serves the same app on all network interfaces and adds a small `/api/status` endpoint. Open the printed LAN URL on another device to monitor the current playback status.
+```sh
+./start-lan.sh
+```
+
+They serve the same app on all network interfaces and add a small `/api/status` endpoint. Open the printed LAN URL on another device to monitor the current playback status.
 
 LAN clients are monitor-only. Spotify OAuth and playback control must be done from `http://127.0.0.1:8787` on the host machine.
 
@@ -89,8 +111,8 @@ Keep the LAN server on a trusted private network only. Do not expose it directly
 
 Tailscale Serve can expose the local app over your private tailnet with HTTPS:
 
-```powershell
-.\start-lan.ps1
+```sh
+npm run start:lan
 tailscale serve 8787
 ```
 
@@ -155,10 +177,10 @@ Before a real recording run:
 - Select the exact Spotify output device you will record from.
 - Set Spotify Streaming quality to Lossless if available, otherwise choose the highest available quality.
 - Turn Auto-adjust quality, Crossfade, Normalize volume, Spotify EQ, and system sound enhancements off.
-- Use the same output device in Spotify and Windows.
-- Enable Exclusive mode and Force volume for that device if available.
-- Set Windows output volume to 100% / maximum.
-- Adjust final recording level on the cassette deck input, not with Windows volume.
+- Use the same output device in Spotify and your operating system mixer.
+- Enable exclusive, fixed-volume, or direct hardware output for that device if available.
+- Set system output volume to 100% / maximum.
+- Adjust final recording level on the cassette deck input, not with OS mixer volume.
 - Watch the deck meters and avoid clipping or distortion.
 - If using `Leader Tape Delay`, the cue phase shows `Advancing past leader tape...` while the shared cue delay pipeline runs.
 - The browser `Level Check` source can play 400 Hz, 1 kHz, or pink noise at `-12 dBFS`, `-6 dBFS`, or `0 dBFS`; it never auto-starts and must be stopped manually.
@@ -167,19 +189,19 @@ Before a real recording run:
 
 Run the automated test suite:
 
-```powershell
+```sh
 npm test
 ```
 
 Optional lightweight playback regression checks:
 
-```powershell
+```sh
 node scratch/test_playback.js
 ```
 
 Run the project model / export-import regression checks:
 
-```powershell
+```sh
 node scratch/test_project_model.js
 ```
 
@@ -190,7 +212,7 @@ For manual checklists:
 
 ## Troubleshooting
 
-- `ERR_CONNECTION_REFUSED` after Spotify login: start `.\start-local.ps1` and reload the callback URL.
+- `ERR_CONNECTION_REFUSED` after Spotify login: start `npm run start:local` and reload the callback URL.
 - `OAuth callback rejected`: start from `http://127.0.0.1:8787/` and connect again.
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
 - Wrong target device: click `Refresh` under `Spotify device`, select the intended Spotify Connect device, then retry.

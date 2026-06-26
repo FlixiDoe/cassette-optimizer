@@ -11,7 +11,7 @@ Cassette Optimizer is a static browser app. `index.html` loads `styles.css` and 
 <script type="module" src="app.js"></script>
 ```
 
-There is no frontend build step. The local PowerShell launcher starts a Python static server on `127.0.0.1:8787`. The optional LAN launcher starts `server.js`, which serves the same static files and exposes a tiny status API.
+There is no frontend build step. The cross-platform `npm run start:local` command starts the Node static server on `127.0.0.1:8787`. `npm run start:lan` binds the same server to all interfaces and exposes a tiny status API. PowerShell and POSIX shell helper scripts exist only as convenience wrappers around the same Node entrypoint.
 
 ## Main files
 
@@ -27,6 +27,10 @@ tape.js           Pure cassette split, slack margin, duration, and formatting lo
 jcard.js          Pure J-card markup rendering and print title cleanup
 export.js         Current config version constant
 server.js         Optional LAN monitor static server and /api/status endpoint
+start-local.ps1  Windows convenience wrapper for local serving
+start-lan.ps1    Windows convenience wrapper for LAN serving
+start-local.sh   Linux/macOS convenience wrapper for local serving
+start-lan.sh     Linux/macOS convenience wrapper for LAN serving
 ```
 
 ## Code ownership boundaries

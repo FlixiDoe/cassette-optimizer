@@ -451,6 +451,15 @@ GET /api/health reports server status and LAN URLs
 
 The server stores status in memory only. It does not store Spotify tokens and does not call Spotify.
 
+The server is ES module code and accepts cross-platform CLI options:
+
+```text
+node server.js --host 127.0.0.1 --port 8787
+node server.js --host 0.0.0.0 --port 8787
+```
+
+`HOST` and `PORT` environment variables are still supported, but `npm run start:local` and `npm run start:lan` are the preferred OS-neutral entrypoints.
+
 Important function:
 
 ```text

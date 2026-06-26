@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
 Set-Location -LiteralPath $PSScriptRoot
-$env:HOST = "0.0.0.0"
-$env:PORT = "8787"
-node .\server.js
+$hostName = if ($env:HOST) { $env:HOST } else { "0.0.0.0" }
+$port = if ($env:PORT) { $env:PORT } else { "8787" }
+node .\server.js --host $hostName --port $port

@@ -24,9 +24,9 @@
       "Spotify device selected",
       "Spotify quality: Lossless, auto-adjust off, crossfade 0, normalize off",
       "Spotify EQ and system sound enhancements off",
-      "Spotify output device matches Windows output device",
-      "Exclusive mode and Force volume enabled for the Spotify output device",
-      "Windows output volume set to 100%",
+      "Spotify output device matches the system output device",
+      "Exclusive, fixed-volume, or direct hardware output enabled where available",
+      "System output volume set to 100%",
       "Notifications muted",
       "Deck is in record/pause"
     ];
@@ -2842,7 +2842,7 @@
 
     function warnIfFileProtocol() {
       if (location.protocol !== "file:") return;
-      log("Run python -m http.server 8787 --bind 127.0.0.1, then open http://127.0.0.1:8787. Spotify OAuth will not complete from file://.");
+      log("Run npm run start:local, then open http://127.0.0.1:8787. Spotify OAuth will not complete from file://.");
     }
 
     function escapeHtml(value) {

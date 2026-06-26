@@ -10,18 +10,17 @@ Use this checklist before a release or after changing recording setup copy, the 
 - README says Normalize volume should be off.
 - README says Spotify EQ and other sound processing should be off.
 - README mentions selecting the exact Spotify output device used for recording.
-- README mentions using the same Windows output device.
-- README mentions Exclusive mode for the chosen output device.
-- README mentions Force volume for the chosen output device.
-- README says Windows output volume should be at 100% / maximum.
+- README mentions using the same Spotify and operating system output device.
+- README mentions exclusive, fixed-volume, or direct hardware output where available.
+- README says system output volume should be at 100% / maximum.
 - README explains that final recording gain is adjusted on the cassette deck input.
 
 ## In-App Checks
 
 - The Deck Checklist includes a compact audio-settings confirmation.
 - The Deck Checklist reminds the user to turn Spotify EQ and system sound enhancements off.
-- The Deck Checklist reminds the user that Spotify and Windows output devices should match.
-- The Deck Checklist mentions Exclusive mode and Force volume.
+- The Deck Checklist reminds the user that Spotify and operating system output devices should match.
+- The Deck Checklist mentions exclusive, fixed-volume, or direct hardware output.
 - The Level check helper explains that final recording gain is adjusted on the cassette deck input.
 - `Leader Tape Delay` appears in the calibration panel instead of `Lead-in delay`.
 - During a leader-tape cue, the monitor copy says `Advancing past leader tape`.
@@ -40,7 +39,7 @@ Use this checklist before a release or after changing recording setup copy, the 
 - Disable Normalize volume.
 - Disable Spotify EQ.
 - Disable system EQ, loudness normalization, virtual surround, and sound enhancements where applicable.
-- Set Windows output volume to 100%.
+- Set system output volume to 100%.
 - Put the cassette deck into record-pause and set deck input gain from the deck meters.
 - Confirm peaks stay below clipping or audible distortion.
 - Start and stop the browser Level Check tone at a low deck input gain.

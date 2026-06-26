@@ -16,7 +16,7 @@ Do not make the repository public until this checklist is reviewed.
 
 1. Confirm there are no secrets in the repository:
 
-```powershell
+```sh
 rg -n "secret|token|ghp_|github_pat_|sk-|client_secret|refresh_token|access_token" .
 ```
 
@@ -38,11 +38,11 @@ Before a release, confirm the recording guides and in-app checklist cover these 
 - README mentions Normalize volume off.
 - README mentions Spotify EQ off.
 - README mentions selecting the exact Spotify output device.
-- README mentions Exclusive mode and Force volume for that output device.
-- README mentions Windows output device matching Spotify.
-- README mentions Windows output volume at 100% / maximum.
+- README mentions exclusive, fixed-volume, or direct hardware output where available.
+- README mentions operating system output device matching Spotify.
+- README mentions system output volume at 100% / maximum.
 - README explains that final recording gain is adjusted on the cassette deck input while watching deck meters for clipping or distortion.
-- In-app Deck Checklist has compact confirmations for Spotify quality, output device, Exclusive mode / Force volume, and Windows volume.
+- In-app Deck Checklist has compact confirmations for Spotify quality, output device, exclusive/fixed/direct output, and system volume.
 - In-app Recording readiness panel shows Spotify connection, selected device, playback sync, Dry Run, and audio checklist state at a glance.
 - In-app Level check helper explains that the app does not measure audio level automatically.
 - README documents Export / Import Config for saving and restoring the full cassette project.
@@ -72,13 +72,13 @@ Local Spotify playlist optimizer and cassette recording controller
 
 Start the local server:
 
-```powershell
-.\start-local.ps1
+```sh
+npm run start:local
 ```
 
-Or:
+Optional Python fallback:
 
-```powershell
+```sh
 python -m http.server 8787 --bind 127.0.0.1
 ```
 

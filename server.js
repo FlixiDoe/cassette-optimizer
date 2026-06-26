@@ -5,8 +5,9 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const port = Number(process.env.PORT || 8787);
-const host = process.env.HOST || "0.0.0.0";
+const cliOptions = parseCliOptions(process.argv.slice(2));
+const port = Number(cliOptions.port || process.env.PORT || 8787);
+const host = cliOptions.host || process.env.HOST || "127.0.0.1";
 const maxBodyBytes = 64 * 1024;
 
 let sharedStatus = {
@@ -63,6 +64,25 @@ server.listen(port, host, () => {
   console.log(`Cassette Optimizer server listening on http://127.0.0.1:${port}/`);
   for (const url of getLanUrls()) console.log(`LAN: ${url}`);
 });
+
+function parseCliOptions(args) {
+  const options = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--host" && args[index + 1]) {
+      options.host = args[index + 1];
+      index += 1;
+    } else if (arg.startsWith("--host=")) {
+      options.host = arg.slice("--host=".length);
+    } else if (arg === "--port" && args[index + 1]) {
+      options.port = args[index + 1];
+      index += 1;
+    } else if (arg.startsWith("--port=")) {
+      options.port = arg.slice("--port=".length);
+    }
+  }
+  return options;
+}
 
 function serveStatic(requestPath, res) {
   const decoded = decodeURIComponent(requestPath);
