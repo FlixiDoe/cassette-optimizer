@@ -126,7 +126,10 @@
       el.logoutBtn.addEventListener("click", logout);
       el.loadBtn.addEventListener("click", loadPlaylist);
       el.exportConfigBtn.addEventListener("click", exportTapeConfig);
-      el.importConfigBtn.addEventListener("click", () => el.importConfigFile.click());
+      el.importConfigBtn.addEventListener("click", () => {
+        if (blockIfRecordingLocked("Import Config")) return;
+        el.importConfigFile.click();
+      });
       el.importConfigFile.addEventListener("change", importTapeConfig);
       el.moveSplitEarlier.addEventListener("click", () => moveManualSplit(-1));
       el.moveSplitLater.addEventListener("click", () => moveManualSplit(1));
@@ -376,6 +379,7 @@
 
     async function loadPlaylist() {
       try {
+        if (blockIfRecordingLocked("Load playlist")) return;
         const playlistId = parsePlaylistId(el.playlistInput.value.trim());
         if (!playlistId) throw new Error("Paste a Spotify playlist URL or ID.");
         log(`Loading playlist ${playlistId}...`);
@@ -452,6 +456,10 @@
     }
 
     function selectUserPlaylist() {
+      if (blockIfRecordingLocked("Playlist selection")) {
+        renderPlaylistOptions();
+        return;
+      }
       const selected = state.playlists.find(playlist => playlist.id === el.playlistSelect.value);
       if (!selected) return;
       state.playlistId = selected.id;
@@ -606,6 +614,7 @@
 
     async function applyToSpotify() {
       try {
+        if (blockIfRecordingLocked("Apply to Spotify")) return;
         if (!projectTracks().length) throw new Error("Load a playlist first.");
         const uris = plannedRecordingTracks().map(track => track.uri);
         await spotifyFetch(`/playlists/${state.playlistId}/tracks`, {
@@ -1253,9 +1262,64 @@
       el.startB.disabled = cueing || !b.length || (needsToken && !state.token) || !(state.recordMode === "flip" || pausedB);
       el.pauseBtn.disabled = cueing || (needsToken && !state.token) || !recording;
       el.abortBtn.disabled = !abortable;
+      renderRecordingLockState();
       updateDeckChecklistState();
       renderSpotifyStatusPanel();
       pushSharedStatus();
+    }
+
+    function isRecordingLockActive() {
+      return ["cue_a", "cue_b", "recording_a", "recording_b", "paused", "flip"].includes(state.recordMode);
+    }
+
+    function blockIfRecordingLocked(action) {
+      if (!isRecordingLockActive()) return false;
+      log(`${action} is locked while recording is active. Abort or finish the current recording first.`);
+      renderRecordingLockState();
+      return true;
+    }
+
+    function renderRecordingLockState() {
+      const locked = isRecordingLockActive();
+      if (locked) {
+        document.body.setAttribute("data-recording-state", "active");
+      } else {
+        document.body.removeAttribute("data-recording-state");
+      }
+      const lockedControls = getRecordingLockedControls();
+      lockedControls.forEach(control => {
+        if (locked) {
+          if (!control.dataset.recordingLockStored) {
+            control.dataset.recordingLockWasDisabled = String(control.disabled);
+            control.dataset.recordingLockStored = "true";
+          }
+          control.disabled = true;
+        } else if (control.dataset.recordingLockStored) {
+          control.disabled = control.dataset.recordingLockWasDisabled === "true";
+          delete control.dataset.recordingLockWasDisabled;
+          delete control.dataset.recordingLockStored;
+        }
+      });
+    }
+
+    function getRecordingLockedControls() {
+      return [
+        el.tapeSelect,
+        el.tapePlanSelect,
+        el.tapeInventory,
+        el.moveSplitEarlier,
+        el.moveSplitLater,
+        el.lockSplitBtn,
+        el.resetSplitBtn,
+        el.manualSplitTrack,
+        el.importConfigBtn,
+        el.importConfigFile,
+        el.loadBtn,
+        el.applyBtn,
+        el.playlistSelect,
+        ...el.tapeFormatList.querySelectorAll("select"),
+        ...el.tapeInventory.querySelectorAll("input")
+      ].filter(Boolean);
     }
 
     function updateReelVisual(elapsedMs, totalMs) {
@@ -1390,6 +1454,10 @@
     }
 
     function updateDryRun() {
+      if (blockIfRecordingLocked("Dry Run mode")) {
+        renderDryRun();
+        return;
+      }
       state.dryRun = el.dryRunToggle.checked;
       localStorage.setItem("dry_run_mode", String(state.dryRun));
       if (state.dryRun) stopPollingPlayback();
@@ -1441,6 +1509,10 @@
     }
 
     function setTapeLength(minutes) {
+      if (blockIfRecordingLocked("Tape format")) {
+        el.tapeSelect.value = String(state.tapeMinutes);
+        return;
+      }
       state.tapeMinutes = minutes;
       el.tapeLabel.textContent = `C${minutes}`;
       if (state.project && state.project.tapes.length <= 1 && state.project.tapes[0]) {
@@ -1470,6 +1542,10 @@
     }
 
     function updateAvailableTapeFormats() {
+      if (blockIfRecordingLocked("Tape inventory")) {
+        renderTapeInventory();
+        return;
+      }
       state.tapeInventory = normalizeTapeInventory(Object.fromEntries(
         [...el.tapeInventory.querySelectorAll("[data-tape-inventory-minutes]")].map(input => [input.dataset.tapeInventoryMinutes, input.value])
       ), [state.tapeMinutes]);
@@ -1514,6 +1590,10 @@
     }
 
     function updatePerTapeFormat(event) {
+      if (blockIfRecordingLocked("Per-tape format")) {
+        renderSplit();
+        return;
+      }
       const select = event.target.closest("[data-tape-format-index]");
       if (!select || !state.project) return;
       const index = Number(select.dataset.tapeFormatIndex);
@@ -1653,13 +1733,14 @@
     function renderManualSplitControls(a, b, sideLengthMs) {
       const layout = selectedTapeLayout();
       const hasProject = Boolean(state.project && layout && projectTracks().length);
+      const locked = isRecordingLockActive();
       const mode = layout?.splitMode === "manual" ? "Manual" : "Automatic";
       el.splitModeStatus.textContent = mode;
-      el.moveSplitEarlier.disabled = !hasProject || layout.sideBStartIndex <= layout.sideAStartIndex + 1;
-      el.moveSplitLater.disabled = !hasProject || !canMoveSplitLater(layout);
-      el.lockSplitBtn.disabled = !hasProject;
-      el.resetSplitBtn.disabled = !hasProject || layout.splitMode !== "manual";
-      el.manualSplitTrack.disabled = !hasProject;
+      el.moveSplitEarlier.disabled = locked || !hasProject || layout.sideBStartIndex <= layout.sideAStartIndex + 1;
+      el.moveSplitLater.disabled = locked || !hasProject || !canMoveSplitLater(layout);
+      el.lockSplitBtn.disabled = locked || !hasProject;
+      el.resetSplitBtn.disabled = locked || !hasProject || layout.splitMode !== "manual";
+      el.manualSplitTrack.disabled = locked || !hasProject;
       if (!hasProject) {
         el.manualSplitTrack.innerHTML = `<option value="">Load a playlist first</option>`;
         el.manualSplitWarning.textContent = "";
@@ -1680,12 +1761,14 @@
     }
 
     function moveManualSplit(delta) {
+      if (blockIfRecordingLocked("Manual split")) return;
       const layout = selectedTapeLayout();
       if (!layout) return;
       setManualSplit(layout.sideBStartIndex + delta);
     }
 
     function lockManualSplitFromSelect() {
+      if (blockIfRecordingLocked("Manual split")) return;
       setManualSplit(Number(el.manualSplitTrack.value));
     }
 
@@ -1707,6 +1790,7 @@
     }
 
     function resetAutomaticSplit() {
+      if (blockIfRecordingLocked("Manual split reset")) return;
       const layout = selectedTapeLayout();
       if (!state.project || !layout) return;
       layout.splitMode = "automatic";
@@ -1778,6 +1862,7 @@
       event.target.value = "";
       if (!file) return;
       try {
+        if (blockIfRecordingLocked("Import Config")) return;
         const text = await file.text();
         const payload = JSON.parse(text);
         const project = normalizeImportedConfig(payload);
