@@ -3,8 +3,13 @@ import { formatLongTime, formatTime } from "./tape.js";
 export function renderJCardMarkup({ title, coverHtml, tapeMinutes, tracks, sideA, sideB, sideAMs, sideBMs, totalMs, splitIndex, escapeHtml }) {
   const densityClass = getJCardDensityClass(sideA.length + sideB.length);
   const html = `
-        <div class="j-spine"><span>${escapeHtml(title)}</span><span>C${tapeMinutes}</span></div>
-        <div class="j-cover">
+        <section class="j-panel j-spine" aria-label="J-Card spine">
+          <span class="j-panel-label">Spine</span>
+          <span class="j-spine-title">${escapeHtml(title)}</span>
+          <span class="j-spine-format">C${tapeMinutes}</span>
+        </section>
+        <section class="j-panel j-front" aria-label="J-Card front cover">
+          <span class="j-panel-label">Front</span>
           <div class="j-title">${escapeHtml(title)}</div>
           <div class="j-cover-art">${coverHtml}</div>
           <div class="j-meta">
@@ -13,11 +18,12 @@ export function renderJCardMarkup({ title, coverHtml, tapeMinutes, tracks, sideA
             <span>Side B: ${formatLongTime(sideBMs)}</span>
             <span>${tracks.length} tracks - C${tapeMinutes}</span>
           </div>
-        </div>
-        <div class="j-tracks">
+        </section>
+        <section class="j-panel j-back" aria-label="J-Card back cover tracklist">
+          <span class="j-panel-label">Back</span>
           ${renderJCardSide("Side A", sideA, sideAMs, 0, escapeHtml)}
           ${renderJCardSide("Side B", sideB, sideBMs, splitIndex, escapeHtml)}
-        </div>
+        </section>
       `;
   return { html, densityClass };
 }

@@ -89,7 +89,7 @@ fix: make j-card print layout single-page
 
 ---
 
-### 2. Add real physical J-Card layout
+### 2. [Done] Add real physical J-Card layout
 
 The print layout should look like a cassette inlay instead of a full-page app print.
 

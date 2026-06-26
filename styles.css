@@ -537,10 +537,31 @@
       page-break-inside: avoid;
     }
 
+    .j-panel {
+      position: relative;
+      min-width: 0;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .j-panel + .j-panel {
+      border-left: 1px dashed #555;
+    }
+
+    .j-panel-label {
+      position: absolute;
+      top: 2mm;
+      right: 2mm;
+      color: #555;
+      font-size: 7px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
     .j-spine {
       writing-mode: vertical-rl;
       transform: rotate(180deg);
-      border-left: 1px dashed #777;
       background: #111;
       color: #f2f0df;
       padding: 8mm 4mm;
@@ -550,8 +571,21 @@
       font-weight: 700;
     }
 
-    .j-cover {
-      border-right: 1px dashed #777;
+    .j-spine .j-panel-label {
+      color: #c7c2ae;
+      right: auto;
+      left: 2mm;
+    }
+
+    .j-spine-title {
+      overflow-wrap: anywhere;
+    }
+
+    .j-spine-format {
+      color: #f2f0df;
+    }
+
+    .j-front {
       padding: 7mm;
       display: grid;
       grid-template-rows: auto 1fr auto;
@@ -595,7 +629,7 @@
       gap: 2mm;
     }
 
-    .j-tracks {
+    .j-back {
       padding: 6mm;
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -627,12 +661,12 @@
       line-height: 1.12;
     }
 
-    .jcard-print.dense .j-cover {
+    .jcard-print.dense .j-front {
       padding: 5mm;
       gap: 3mm;
     }
 
-    .jcard-print.dense .j-tracks {
+    .jcard-print.dense .j-back {
       padding: 4mm;
       gap: 4mm;
     }
@@ -733,8 +767,8 @@
 
       .jcard-print,
       .j-spine,
-      .j-cover,
-      .j-tracks,
+      .j-front,
+      .j-back,
       .j-side {
         break-inside: avoid;
         page-break-inside: avoid;
@@ -745,7 +779,7 @@
         page-break-inside: auto;
       }
 
-      .jcard-print.dense .j-tracks,
+      .jcard-print.dense .j-back,
       .jcard-print.dense .j-side {
         break-inside: auto;
         page-break-inside: auto;
