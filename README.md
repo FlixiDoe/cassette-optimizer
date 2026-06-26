@@ -2,7 +2,7 @@
 
 A local-first Spotify playlist planner and playback controller for recording mixtapes to cassette.
 
-Cassette Optimizer keeps a playlist in order, calculates the best Side A / Side B split for common cassette lengths, shows a recording countdown, and controls Spotify playback so the user can record one side at a time.
+Cassette Optimizer keeps a playlist in order, plans it across one or more physical cassettes, shows a recording countdown, and controls Spotify playback so the user can record one side at a time.
 
 Repository: https://github.com/FlixiDoe/cassette-optimizer  
 Current visibility: private  
@@ -25,6 +25,8 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Supports cassette formats from `C30` through `C120`.
 - Lets you select which tape formats you physically have.
 - Calculates Side A / Side B without cutting tracks.
+- Splits long playlists across multiple physical cassettes while preserving track order.
+- Uses a central mixtape project model after playlist load, with one object per physical tape.
 - Keeps original track order.
 - Shows total runtime, cassette recommendation, side fill, tracklists, timestamps, and warnings.
 - Optional `Apply to Spotify` button to sync the calculated order back to the playlist.
@@ -35,7 +37,9 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Automatic shuffle/repeat disable before fresh side starts.
 - Conservative playback correction if Spotify jumps to an unexpected track.
 - Optional LAN status server so another device can open the same UI and monitor the current state in read-only mode.
-- Printable J-card cassette inlay from playlist title, cover, side tracks, and runtime.
+- Selectable physical tape plan for multi-tape projects.
+- Printable J-card cassette inlays from playlist title, cover, side tracks, and runtime.
+- Multi-tape projects can print the selected J-card or all J-cards at once.
 
 ## Local Setup
 
@@ -157,7 +161,7 @@ Windows / device settings:
 5. Select the cassette formats you have under `Tapes you have`.
 6. Choose a tape format.
 7. Click `Load playlist`.
-8. Review total runtime, recommendation, Side A, Side B, and warnings.
+8. Review total runtime, recommendation, Side A, Side B, physical tape plan, and warnings.
 9. Optional: refresh Spotify devices and choose the target device.
 10. Complete the Spotify / Windows audio settings checklist: Lossless, Auto-adjust quality off, Crossfade 0 seconds, Normalize volume off, EQ off, correct output device, Exclusive mode, Force volume, and Windows volume at maximum.
 11. Use `Apply to Spotify` only if you want to sync the order back to Spotify.
@@ -166,6 +170,20 @@ Windows / device settings:
 14. When the red `PRESS RECORD NOW` cue appears, start recording on your deck.
 15. Spotify starts automatically after the cue and any configured delay calibration.
 16. Wait for auto-pause, flip the cassette, then use `Start Side B`.
+17. For multi-tape projects, choose the next physical cassette from the plan selector and repeat the Side A / Side B recording flow.
+
+## Mixtape Project Model
+
+After a playlist is loaded, the app creates one central project object. The project stores playlist metadata, source tracks, selected physical tape index, calibration settings, and a `tapes[]` array.
+
+Each physical tape stores its own:
+
+- Tape number and title
+- Tape format and side length
+- Side A and Side B tracks
+- J-card data
+
+The visible side lists, recording controls, J-card preview, print output, and status payload read from the selected tape object. This keeps multi-tape state in one place and prepares the app for future JSON export/import and per-tape format selection.
 
 ## Record Mode Notes
 
@@ -180,14 +198,16 @@ Windows / device settings:
 
 ## J-Card
 
-After loading a playlist, use `Print J-Card` to print a cassette inlay. The J-card includes:
+After loading a playlist, use `Print J-Card` to print the selected cassette inlay. For multi-tape projects, use `Print All J-Cards` to print every cassette inlay in one print run. Each J-card includes:
 
 - Playlist name
 - Playlist cover
-- Selected tape format
+- Selected physical tape format
 - Total runtime
 - Side A and Side B runtime
 - Side A and Side B tracklists
+
+For multi-tape projects, volume titles are generated automatically, such as `Playlist Title - Vol. 1` and `Playlist Title - Vol. 2`.
 
 ## Regression Test
 

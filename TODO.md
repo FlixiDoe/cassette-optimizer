@@ -8,6 +8,8 @@ Prioritized roadmap for the next implementation steps.
 
 The app should treat the result as a cassette project, not just a temporary playlist calculation. This should come before per-tape format selection so multi-tape state has one clean source of truth.
 
+**Status: Implemented**
+
 **Goal**
 
 Create a central project object that can power UI state, JSON export/import, J-Card rendering, recording, and per-tape format selection.

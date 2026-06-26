@@ -1,6 +1,6 @@
 # Cassette Optimizer Docs
 
-Local web app for optimizing Spotify playlists for cassette recording workflows.
+Local web app for planning Spotify playlists across one or more physical cassettes and controlling cassette recording workflows.
 
 ## Responsible Use
 
@@ -42,13 +42,14 @@ Do not use `file://` for Spotify login. OAuth PKCE needs the local HTTP origin, 
 4. Check the cassette formats you own under `Tapes you have`.
 5. Choose the tape format to plan against.
 6. Click `Load playlist`.
-7. Review total runtime, tape recommendation, Side A, and Side B.
+7. Review total runtime, tape recommendation, physical tape plan, Side A, and Side B.
 8. In `Playback`, click `Refresh` under `Spotify device` if you want to target a specific Spotify Connect device.
 9. Complete the Spotify / Windows audio settings checklist below.
 10. Use `Apply to Spotify` only when you want to sync the order to Spotify.
 11. Use `Start Side A`; when the red `PRESS RECORD NOW` cue appears, start recording on your cassette/cable deck.
 12. Spotify starts automatically after the cue and any configured delay calibration. Wait for auto-pause, flip the cassette, then use `Start Side B` and start recording again when the cue appears.
-13. Use `Abort Recording` only if you want to stop the current recording run and reset Record Mode.
+13. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+14. Use `Abort Recording` only if you want to stop the current recording run and reset Record Mode.
 
 ## Spotify / Windows Audio Settings Before Recording
 
@@ -93,17 +94,36 @@ The LAN server listens on `0.0.0.0:8787`, serves the same app, and exposes `/api
 - Tracks are never cut.
 - Original playlist order is preserved.
 - Side A is filled until the next full track would exceed half of the selected tape.
-- Side B contains the remaining tracks.
+- Side B is filled the same way from the next remaining track.
+- If tracks remain after Side B, the app creates another physical tape and continues filling it.
 - Recommendations only use cassette formats selected under `Tapes you have`.
 - The app recommends the smallest available format where total runtime and Side B fit cleanly.
 - If total runtime fits but one side does not, the app warns that manual rebalancing would be needed.
-- If the playlist exceeds the largest selected tape, the app reports how much audio must be removed.
+- If the playlist exceeds one selected tape, the app plans multiple physical cassettes while preserving order.
+
+## Mixtape Project Model
+
+After loading a playlist, the app creates a central project object. It stores playlist metadata, source tracks, selected physical tape index, split mode, calibration settings, timestamps, and a `tapes[]` array.
+
+Each tape object stores:
+
+- `tapeNumber`
+- `tapeTitle`
+- `tapeFormat`
+- `sideLengthMs`
+- `sideA[]`
+- `sideB[]`
+- `jCard`
+
+The selected physical tape is `project.tapes[selectedTapeIndex]`. The visible Side A / Side B lists, Record Mode, J-card preview, print output, and mirrored LAN status all read from that selected tape object. This avoids parallel state for multi-tape planning and keeps future JSON export/import and per-tape format selection straightforward.
 
 ## J-Card Generator
 
 - The app renders a printable cassette inlay after a playlist is loaded.
-- The J-card includes playlist name, Spotify cover image, total runtime, selected tape format, Side A tracks, and Side B tracks.
-- Use `Print J-Card` to open the browser print dialog.
+- The J-card includes playlist name or generated volume title, Spotify cover image, total runtime, selected physical tape format, Side A tracks, and Side B tracks.
+- Multi-tape projects automatically generate volume titles such as `Playlist Title - Vol. 1`.
+- Use `Print J-Card` to print the selected physical tape.
+- Use `Print All J-Cards` to print all physical tapes in one print run.
 - Print CSS hides the app UI and prints only the J-card layout on A4 landscape paper.
 - Fold/cut guides are shown as dashed panel borders.
 
@@ -113,6 +133,7 @@ The LAN server listens on `0.0.0.0:8787`, serves the same app, and exposes `/api
 - If a device is selected, playback commands use that device with `device_id`; otherwise Spotify uses the default active device.
 - `Start Side A` starts Spotify playback with the calculated Side A queue.
 - Playback starts from an explicit Side A/B track queue so Spotify receives only the tracks for the current cassette side.
+- In multi-tape projects, Record Mode follows the selected physical tape from the plan selector.
 - For fresh side starts, the app disables Spotify shuffle and repeat before playback so Side A/B does not jump to later songs.
 - Before recording, set Spotify to Lossless, turn Auto-adjust quality off, set Crossfade to 0 seconds, turn Normalize volume and EQ off, select the same output device in Spotify and Windows, enable Exclusive mode and Force volume, and keep Windows output volume at 100%. Adjust final gain on the cassette deck input.
 - During recording, the app compares Spotify's current track with the track expected from the local record timer and corrects Spotify if it jumps ahead.

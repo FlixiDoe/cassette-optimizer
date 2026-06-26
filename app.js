@@ -41,6 +41,7 @@
       selectedDeviceId: localStorage.getItem("spotify_device_id") || "",
       tapeMinutes: 90,
       availableTapeFormats: [60, 90],
+      project: null,
       tapeLayouts: [],
       selectedTapeIndex: 0,
       splitIndex: 0,
@@ -354,16 +355,24 @@
 
     async function loadPlaylist() {
       try {
-        state.playlistId = parsePlaylistId(el.playlistInput.value.trim());
-        if (!state.playlistId) throw new Error("Paste a Spotify playlist URL or ID.");
-        log(`Loading playlist ${state.playlistId}...`);
-        const playlist = await spotifyFetch(`/playlists/${state.playlistId}?fields=name,images(url,width,height),tracks(total)`);
-        state.playlistName = playlist.name || state.playlistId;
-        state.playlistCoverUrl = pickPlaylistCover(playlist.images || []);
-        state.tracks = await fetchAllTracks(state.playlistId);
-        computeSplit();
+        const playlistId = parsePlaylistId(el.playlistInput.value.trim());
+        if (!playlistId) throw new Error("Paste a Spotify playlist URL or ID.");
+        log(`Loading playlist ${playlistId}...`);
+        const playlist = await spotifyFetch(`/playlists/${playlistId}?fields=name,images(url,width,height),tracks(total)`);
+        const playlistName = playlist.name || playlistId;
+        const coverUrl = pickPlaylistCover(playlist.images || []);
+        const tracks = await fetchAllTracks(playlistId);
+        setProject(createMixtapeProject({
+          projectTitle: playlistName,
+          playlistId,
+          playlistName,
+          coverUrl,
+          tracks,
+          tapeMinutes: state.tapeMinutes,
+          selectedTapeIndex: 0
+        }));
         renderSplit();
-        log(`Loaded ${state.tracks.length} tracks from ${state.playlistName}.`);
+        log(`Loaded ${tracks.length} tracks from ${playlistName}.`);
       } catch (error) {
         log(error.message);
       }
@@ -429,6 +438,71 @@
       log(`Selected playlist: ${selected.name}. Click Load playlist to fetch tracks.`);
     }
 
+    function createMixtapeProject({ projectTitle, playlistId, playlistName, coverUrl, tracks, tapeMinutes, selectedTapeIndex = 0 }) {
+      const now = new Date().toISOString();
+      const project = {
+        configVersion: TAPE_CONFIG_VERSION,
+        projectTitle: projectTitle || playlistName || playlistId || "Untitled mixtape",
+        sourcePlaylistId: playlistId || "",
+        sourcePlaylistName: playlistName || "",
+        coverUrl: coverUrl || "",
+        sourceTracks: [...tracks],
+        selectedTapeIndex,
+        tapes: [],
+        splitMode: "automatic",
+        calibration: { ...state.calibration },
+        createdAt: now,
+        updatedAt: now
+      };
+      project.tapes = buildProjectTapes(project, tapeMinutes);
+      project.selectedTapeIndex = clampTapeIndex(selectedTapeIndex, project.tapes.length);
+      return project;
+    }
+
+    function buildProjectTapes(project, tapeMinutes) {
+      return splitTracksIntoTapes(project.sourceTracks, tapeMinutes).map(layout => ({
+        ...layout,
+        tapeNumber: layout.number,
+        tapeTitle: project.sourceTracks.length > layout.sideA.length + layout.sideB.length || layout.number > 1
+          ? `${project.projectTitle} - Vol. ${layout.number}`
+          : project.projectTitle,
+        tapeFormat: layout.tapeMinutes,
+        sideLengthMs: layout.sideLengthMs,
+        sideA: [...layout.sideA],
+        sideB: [...layout.sideB],
+        jCard: {
+          title: "",
+          notes: ""
+        }
+      }));
+    }
+
+    function setProject(project) {
+      state.project = project;
+      syncStateFromProject();
+      resetRecordingProgress();
+    }
+
+    function syncStateFromProject() {
+      if (!state.project) return;
+      state.project.updatedAt = new Date().toISOString();
+      state.playlistId = state.project.sourcePlaylistId;
+      state.playlistName = state.project.sourcePlaylistName || state.project.projectTitle;
+      state.playlistCoverUrl = state.project.coverUrl;
+      state.tracks = [...state.project.sourceTracks];
+      state.selectedTapeIndex = clampTapeIndex(state.project.selectedTapeIndex, state.project.tapes.length);
+      state.project.selectedTapeIndex = state.selectedTapeIndex;
+      state.tapeLayouts = state.project.tapes;
+      state.splitIndex = selectedTapeLayout()?.sideBStartIndex || 0;
+      state.project.calibration = { ...state.calibration };
+    }
+
+    function clampTapeIndex(index, tapeCount) {
+      if (!tapeCount) return 0;
+      const number = Number(index);
+      return Number.isFinite(number) ? Math.max(0, Math.min(number, tapeCount - 1)) : 0;
+    }
+
     function selectDevice() {
       state.selectedDeviceId = el.deviceSelect.value;
       persistSelectedDevice();
@@ -472,10 +546,16 @@
     }
 
     function computeSplit() {
-      const halfMs = state.tapeMinutes * 60 * 1000 / 2;
-      state.tapeLayouts = splitTracksIntoTapes(state.tracks, state.tapeMinutes);
-      state.selectedTapeIndex = Math.min(state.selectedTapeIndex, Math.max(0, state.tapeLayouts.length - 1));
-      state.splitIndex = selectedTapeLayout()?.sideBStartIndex || splitTracksForSide(state.tracks, halfMs).split;
+      if (state.project) {
+        state.project.tapes = buildProjectTapes(state.project, state.tapeMinutes);
+        state.project.selectedTapeIndex = clampTapeIndex(state.selectedTapeIndex, state.project.tapes.length);
+        syncStateFromProject();
+      } else {
+        const halfMs = state.tapeMinutes * 60 * 1000 / 2;
+        state.tapeLayouts = splitTracksIntoTapes(state.tracks, state.tapeMinutes);
+        state.selectedTapeIndex = clampTapeIndex(state.selectedTapeIndex, state.tapeLayouts.length);
+        state.splitIndex = selectedTapeLayout()?.sideBStartIndex || splitTracksForSide(state.tracks, halfMs).split;
+      }
       state.sideAElapsedBeforePause = 0;
       state.spotifySideElapsedMs = 0;
       state.lastSideProgressMs = 0;
@@ -485,7 +565,7 @@
 
     async function applyToSpotify() {
       try {
-        if (!state.tracks.length) throw new Error("Load a playlist first.");
+        if (!projectTracks().length) throw new Error("Load a playlist first.");
         const uris = plannedRecordingTracks().map(track => track.uri);
         await spotifyFetch(`/playlists/${state.playlistId}/tracks`, {
           method: "PUT",
@@ -691,7 +771,7 @@
         el.tapeProgress.style.width = "0%";
         el.countdown.textContent = formatTime(duration(sideA()));
         el.countdownLabel.textContent = "left on Side A";
-        el.finishTime.textContent = state.tracks.length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + duration(sideA())))}` : "Finish time pending";
+        el.finishTime.textContent = projectTracks().length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + duration(sideA())))}` : "Finish time pending";
         renderRecordMode("Aborted");
         log(state.dryRun ? "Dry Run aborted." : "Recording aborted.");
         pushSharedStatus(true);
@@ -761,7 +841,7 @@
         updatedAt: new Date().toISOString(),
         playlistName: state.playlistName || "",
         playlistId: state.playlistId || "",
-        tapeMinutes: state.tapeMinutes,
+        tapeMinutes: selectedTapeMinutes(),
         totalTime: el.totalTime.textContent,
         trackCount: el.trackCount.textContent,
         splitPoint: el.splitPoint.textContent,
@@ -1144,6 +1224,7 @@
         motorLatencySeconds: el.motorLatency.value,
         safetyMarginSeconds: el.safetyMargin.value
       });
+      if (state.project) state.project.calibration = { ...state.calibration };
       localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
       renderCalibration();
       renderSplit();
@@ -1221,7 +1302,8 @@
 
     function selectTapeLayout() {
       const index = Number(el.tapePlanSelect.value);
-      state.selectedTapeIndex = Number.isFinite(index) ? Math.max(0, Math.min(index, state.tapeLayouts.length - 1)) : 0;
+      state.selectedTapeIndex = clampTapeIndex(index, state.tapeLayouts.length);
+      if (state.project) state.project.selectedTapeIndex = state.selectedTapeIndex;
       resetRecordingProgress();
       renderSplit();
     }
@@ -1230,16 +1312,18 @@
       const a = sideA();
       const b = sideB();
       const selectedLayout = selectedTapeLayout();
-      const halfMs = state.tapeMinutes * 60 * 1000 / 2;
-      const tapeMs = state.tapeMinutes * 60 * 1000;
-      const totalMs = duration(state.tracks);
+      const halfMs = selectedSideLengthMs();
+      const tapeMs = selectedTapeMinutes() * 60 * 1000;
+      const tracks = projectTracks();
+      const totalMs = duration(tracks);
       const aMs = duration(a);
       const bMs = duration(b);
 
       el.playlistTitle.textContent = state.playlistName || "No playlist loaded";
       el.totalTime.textContent = formatLongTime(totalMs);
-      el.trackCount.textContent = String(state.tracks.length);
-      el.splitPoint.textContent = selectedLayout ? `T${selectedLayout.number} #${selectedLayout.sideBStartIndex}` : "-";
+      el.trackCount.textContent = String(tracks.length);
+      el.tapeLabel.textContent = `C${selectedTapeMinutes()}`;
+      el.splitPoint.textContent = selectedLayout ? `T${selectedLayout.tapeNumber || selectedLayout.number} #${selectedLayout.sideBStartIndex}` : "-";
       el.sideATime.textContent = `${formatTime(aMs)} / ${formatTime(halfMs)}`;
       el.sideBTime.textContent = `${formatTime(bMs)} / ${formatTime(halfMs)}`;
       el.sideAFill.style.width = `${Math.min(100, aMs / halfMs * 100 || 0)}%`;
@@ -1247,9 +1331,9 @@
       el.sideACount.textContent = `${a.length} tracks`;
       el.sideBCount.textContent = `${b.length} tracks`;
       el.countdown.textContent = formatTime(aMs);
-      el.finishTime.textContent = state.tracks.length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + aMs))}` : "Finish time pending";
+      el.finishTime.textContent = tracks.length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + aMs))}` : "Finish time pending";
       renderTapeRecommendation(totalMs);
-      el.applyBtn.disabled = !state.tracks.length || !state.token;
+      el.applyBtn.disabled = !tracks.length || !state.token;
       el.pauseBtn.disabled = !state.token;
       el.loadPlaylistsBtn.disabled = !state.token;
       el.loadDevicesBtn.disabled = !state.token;
@@ -1273,7 +1357,7 @@
       const { html: cardHtml, densityClass } = renderJCardMarkup({
         title,
         coverHtml: cover,
-        tapeMinutes: state.tapeMinutes,
+        tapeMinutes: selectedTapeMinutes(),
         tracks: [...a, ...b],
         sideA: a,
         sideB: b,
@@ -1283,15 +1367,15 @@
         splitIndex: selectedLayout?.sideBStartIndex || 0,
         escapeHtml
       });
-      el.printJCardBtn.disabled = !state.tracks.length;
-      el.printAllJCardsBtn.disabled = !state.tracks.length;
+      el.printJCardBtn.disabled = !projectTracks().length;
+      el.printAllJCardsBtn.disabled = !projectTracks().length;
       el.jCardPreview.className = `jcard-print${densityClass}`;
       el.jCardPreview.innerHTML = cardHtml;
       renderJCardPrint("selected");
     }
 
     function renderTapeRecommendation(totalMs) {
-      if (!state.tracks.length) {
+      if (!projectTracks().length) {
         el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>Load a playlist to compare the cassette formats you marked as available.</span>`;
         return;
       }
@@ -1321,11 +1405,11 @@
     }
 
     function analyzeTapeFit(minutes) {
-      return analyzeTapeFitForTracks(state.tracks, minutes);
+      return analyzeTapeFitForTracks(projectTracks(), minutes);
     }
 
     function renderTapePlanSelector(totalMs) {
-      if (!state.tracks.length || !state.tapeLayouts.length) {
+      if (!projectTracks().length || !state.tapeLayouts.length) {
         el.tapePlanSelect.innerHTML = `<option value="0">Load a playlist first</option>`;
         el.tapePlanSelect.disabled = true;
         el.tapePlanSummary.textContent = "The selected tape controls the visible sides, recording controls, and J-Card preview.";
@@ -1336,7 +1420,7 @@
       el.tapePlanSelect.innerHTML = state.tapeLayouts.map((layout, index) => {
         const aMs = duration(layout.sideA);
         const bMs = duration(layout.sideB);
-        const label = `Tape ${layout.number} - ${layout.sideA.length + layout.sideB.length} tracks - A ${formatLongTime(aMs)} / B ${formatLongTime(bMs)}`;
+        const label = `Tape ${layout.tapeNumber || layout.number} - C${layout.tapeFormat || layout.tapeMinutes} - ${layout.sideA.length + layout.sideB.length} tracks - A ${formatLongTime(aMs)} / B ${formatLongTime(bMs)}`;
         const selected = index === state.selectedTapeIndex ? " selected" : "";
         return `<option value="${index}"${selected}>${escapeHtml(label)}</option>`;
       }).join("");
@@ -1372,7 +1456,7 @@
       return renderJCardMarkup({
         title: getVolumeTitle(layout),
         coverHtml: cover,
-        tapeMinutes: state.tapeMinutes,
+        tapeMinutes: layout.tapeFormat || layout.tapeMinutes,
         tracks: [...layout.sideA, ...layout.sideB],
         sideA: layout.sideA,
         sideB: layout.sideB,
@@ -1385,9 +1469,11 @@
     }
 
     function getVolumeTitle(layout) {
-      const baseTitle = state.playlistName || "No playlist loaded";
+      const baseTitle = state.project?.projectTitle || state.playlistName || "No playlist loaded";
+      if (layout?.jCard?.title) return layout.jCard.title;
+      if (layout?.tapeTitle) return layout.tapeTitle;
       if (!layout || state.tapeLayouts.length <= 1) return baseTitle;
-      return `${baseTitle} - Vol. ${layout.number}`;
+      return `${baseTitle} - Vol. ${layout.tapeNumber || layout.number}`;
     }
 
     function renderPlaylistOptions() {
@@ -1455,20 +1541,21 @@
     function renderWarnings(totalMs, tapeMs, halfMs) {
       const messages = [];
       const selectedTotalMs = duration(sideA()) + duration(sideB());
-      if (state.tracks.length && state.tapeLayouts.length <= 1 && totalMs < tapeMs) {
-        messages.push(`Playlist total is shorter than C${state.tapeMinutes}; recording will have ${formatTime(tapeMs - totalMs)} blank tape.`);
+      const tracks = projectTracks();
+      if (tracks.length && state.tapeLayouts.length <= 1 && totalMs < tapeMs) {
+        messages.push(`Playlist total is shorter than C${selectedTapeMinutes()}; recording will have ${formatTime(tapeMs - totalMs)} blank tape.`);
       }
-      if (state.tracks.length && state.tapeLayouts.length > 1) {
-        messages.push(`Playlist exceeds one C${state.tapeMinutes}; it is split across ${state.tapeLayouts.length} physical tapes with original order preserved.`);
+      if (tracks.length && state.tapeLayouts.length > 1) {
+        messages.push(`Playlist exceeds one C${selectedTapeMinutes()}; it is split across ${state.tapeLayouts.length} physical tapes with original order preserved.`);
       }
-      if (state.tracks.length && selectedTotalMs < tapeMs) {
-        messages.push(`Selected tape ${selectedTapeLayout()?.number || 1} has ${formatTime(tapeMs - selectedTotalMs)} blank tape.`);
+      if (tracks.length && selectedTotalMs < tapeMs) {
+        messages.push(`Selected tape ${selectedTapeLayout()?.tapeNumber || selectedTapeLayout()?.number || 1} has ${formatTime(tapeMs - selectedTotalMs)} blank tape.`);
       }
       if (duration(sideB()) > halfMs) {
         messages.push(`Side B exceeds ${formatTime(halfMs)}. Extra tracks remain listed so original order is preserved.`);
       }
       const safetyMs = state.calibration.safetyMarginSeconds * 1000;
-      if (state.tracks.length && safetyMs) {
+      if (tracks.length && safetyMs) {
         if (halfMs - duration(sideA()) < safetyMs) messages.push(`Side A has less than the configured ${state.calibration.safetyMarginSeconds}s safety margin remaining.`);
         if (duration(sideB()) && halfMs - duration(sideB()) < safetyMs) messages.push(`Side B has less than the configured ${state.calibration.safetyMarginSeconds}s safety margin remaining.`);
       }
@@ -1488,11 +1575,11 @@
     }
 
     function sideA() {
-      return selectedTapeLayout()?.sideA || state.tracks.slice(0, state.splitIndex);
+      return selectedTapeLayout()?.sideA || projectTracks().slice(0, state.splitIndex);
     }
 
     function sideB() {
-      return selectedTapeLayout()?.sideB || state.tracks.slice(state.splitIndex);
+      return selectedTapeLayout()?.sideB || projectTracks().slice(state.splitIndex);
     }
 
     function sideBStartNumber() {
@@ -1501,7 +1588,21 @@
     }
 
     function selectedTapeLayout() {
-      return state.tapeLayouts[state.selectedTapeIndex] || null;
+      return state.project?.tapes[state.selectedTapeIndex] || state.tapeLayouts[state.selectedTapeIndex] || null;
+    }
+
+    function projectTracks() {
+      return state.project?.sourceTracks || state.tracks;
+    }
+
+    function selectedTapeMinutes() {
+      const layout = selectedTapeLayout();
+      return layout?.tapeFormat || layout?.tapeMinutes || state.tapeMinutes;
+    }
+
+    function selectedSideLengthMs() {
+      const layout = selectedTapeLayout();
+      return layout?.sideLengthMs || selectedTapeMinutes() * 60 * 1000 / 2;
     }
 
     function plannedRecordingTracks() {
