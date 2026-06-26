@@ -8,6 +8,12 @@ Prioritized roadmap for the next implementation steps.
 
 Long playlists should be split across multiple physical cassettes. This is now the top roadmap item because it turns Cassette Optimizer from a one-tape helper into a real mixtape planning system.
 
+**Status: Implemented**
+
+- Long playlists are split into multiple physical tapes while preserving track order.
+- The selected physical tape drives the visible Side A / Side B lists and recording controls.
+- J-Cards get automatic volume titles and can be printed for one selected tape or for all tapes.
+
 **Goal**
 
 Example output:

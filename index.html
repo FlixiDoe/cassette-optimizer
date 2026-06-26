@@ -109,6 +109,15 @@
           <b>Tape recommendation pending</b>
           <span>Load a playlist to compare C60 and C90 fit.</span>
         </div>
+        <div class="tape-plan" id="tapePlanPanel">
+          <div>
+            <label class="label" for="tapePlanSelect">Physical cassette</label>
+            <select id="tapePlanSelect" disabled>
+              <option value="0">Load a playlist first</option>
+            </select>
+          </div>
+          <p class="small" id="tapePlanSummary">The selected tape controls the visible sides, recording controls, and J-Card preview.</p>
+        </div>
       </section>
 
       <aside class="panel transport">
@@ -200,15 +209,16 @@
           <h2>J-Card Generator</h2>
           <p class="small">Printable cassette inlay from playlist cover, sides, tracks, and runtime.</p>
         </div>
-        <button id="printJCardBtn" type="button" disabled>Print J-Card</button>
+        <div class="jcard-buttons">
+          <button id="printJCardBtn" type="button" disabled>Print Selected</button>
+          <button id="printAllJCardsBtn" type="button" disabled>Print All</button>
+        </div>
       </div>
       <div class="jcard-print" id="jCardPreview"></div>
     </section>
   </main>
   <div class="print-only" aria-hidden="true">
-    <div class="print-jcard-page">
-      <div class="jcard-print" id="jCardPrint"></div>
-    </div>
+    <div class="jcard-print" id="jCardPrint"></div>
   </div>
 
   <script type="module" src="app.js"></script>

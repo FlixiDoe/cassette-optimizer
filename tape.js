@@ -12,6 +12,35 @@ export function splitTracksForSide(tracks, sideLengthMs) {
   return { split, sideAMs };
 }
 
+export function splitTracksIntoTapes(tracks, minutes) {
+  const sideLengthMs = minutes * 60 * 1000 / 2;
+  const tapes = [];
+  let cursor = 0;
+
+  while (cursor < tracks.length) {
+    const sideAStartIndex = cursor;
+    const sideAEndIndex = fillSide(tracks, cursor, sideLengthMs);
+    const sideBStartIndex = sideAEndIndex;
+    const sideBEndIndex = fillSide(tracks, sideBStartIndex, sideLengthMs);
+
+    tapes.push({
+      number: tapes.length + 1,
+      tapeMinutes: minutes,
+      sideLengthMs,
+      sideAStartIndex,
+      sideAEndIndex,
+      sideBStartIndex,
+      sideBEndIndex,
+      sideA: tracks.slice(sideAStartIndex, sideAEndIndex),
+      sideB: tracks.slice(sideBStartIndex, sideBEndIndex)
+    });
+
+    cursor = sideBEndIndex;
+  }
+
+  return tapes;
+}
+
 export function analyzeTapeFitForTracks(tracks, minutes) {
   const halfMs = minutes * 60 * 1000 / 2;
   const { split, sideAMs } = splitTracksForSide(tracks, halfMs);
@@ -26,6 +55,19 @@ export function analyzeTapeFitForTracks(tracks, minutes) {
 
 export function duration(tracks) {
   return tracks.reduce((sum, track) => sum + track.duration_ms, 0);
+}
+
+function fillSide(tracks, startIndex, sideLengthMs) {
+  let endIndex = startIndex;
+  let sideMs = 0;
+  while (endIndex < tracks.length) {
+    const nextMs = sideMs + tracks[endIndex].duration_ms;
+    if (nextMs > sideLengthMs && endIndex > startIndex) break;
+    sideMs = nextMs;
+    endIndex += 1;
+    if (sideMs > sideLengthMs) break;
+  }
+  return endIndex;
 }
 
 export function formatTime(ms) {

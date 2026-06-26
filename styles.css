@@ -254,6 +254,15 @@
       display: block;
     }
 
+    .tape-plan {
+      display: grid;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      background: #11150f;
+    }
+
     .warnings {
       min-height: 44px;
       border: 1px dashed #735d28;
@@ -670,6 +679,13 @@
       margin-bottom: 12px;
     }
 
+    .jcard-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     .print-only {
       display: none;
     }
@@ -685,6 +701,12 @@
       min-height: 120mm;
       overflow: hidden;
       box-shadow: var(--shadow);
+    }
+
+    .jcard-print-stack {
+      display: grid;
+      gap: 12mm;
+      width: 100%;
     }
 
     .print-jcard-page {
@@ -906,10 +928,13 @@
         display: block;
       }
 
+      .jcard-print-stack {
+        gap: 10mm;
+      }
+
       .print-jcard-page {
         width: 190mm;
-        max-height: 554mm;
-        overflow: hidden;
+        overflow: visible;
       }
 
       .jcard-print {

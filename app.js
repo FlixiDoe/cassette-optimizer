@@ -2,7 +2,7 @@
     import { renderJCardMarkup } from "./jcard.js";
     import { RECORD_CUE_SECONDS, getExpectedTrackAtElapsed } from "./recording.js";
     import { SpotifyApiError, base64Url, parsePlaylistId, pickPlaylistCover, randomBytes, sha256Base64Url } from "./spotify.js";
-    import { TAPE_FORMATS, analyzeTapeFitForTracks, duration, formatLongTime, formatTime, splitTracksForSide } from "./tape.js";
+    import { TAPE_FORMATS, analyzeTapeFitForTracks, duration, formatLongTime, formatTime, splitTracksForSide, splitTracksIntoTapes } from "./tape.js";
 
     const DEFAULT_SPOTIFY_CLIENT_ID = "";
     const APP_BASE_URL = getAppBaseUrl();
@@ -41,6 +41,8 @@
       selectedDeviceId: localStorage.getItem("spotify_device_id") || "",
       tapeMinutes: 90,
       availableTapeFormats: [60, 90],
+      tapeLayouts: [],
+      selectedTapeIndex: 0,
       splitIndex: 0,
       sideAStartedAt: 0,
       sideAElapsedBeforePause: 0,
@@ -118,8 +120,10 @@
       el.startB.addEventListener("click", startSideB);
       el.pauseBtn.addEventListener("click", pausePlayback);
       el.abortBtn.addEventListener("click", abortRecording);
-      el.printJCardBtn.addEventListener("click", () => window.print());
+      el.printJCardBtn.addEventListener("click", () => printJCards("selected"));
+      el.printAllJCardsBtn.addEventListener("click", () => printJCards("all"));
       el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
+      el.tapePlanSelect.addEventListener("change", selectTapeLayout);
       el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
       el.deckChecklist.addEventListener("change", updateDeckChecklist);
       el.skipDeckChecklist.addEventListener("change", updateDeckChecklist);
@@ -469,8 +473,9 @@
 
     function computeSplit() {
       const halfMs = state.tapeMinutes * 60 * 1000 / 2;
-      const { split } = splitTracksForSide(state.tracks, halfMs);
-      state.splitIndex = split;
+      state.tapeLayouts = splitTracksIntoTapes(state.tracks, state.tapeMinutes);
+      state.selectedTapeIndex = Math.min(state.selectedTapeIndex, Math.max(0, state.tapeLayouts.length - 1));
+      state.splitIndex = selectedTapeLayout()?.sideBStartIndex || splitTracksForSide(state.tracks, halfMs).split;
       state.sideAElapsedBeforePause = 0;
       state.spotifySideElapsedMs = 0;
       state.lastSideProgressMs = 0;
@@ -481,7 +486,7 @@
     async function applyToSpotify() {
       try {
         if (!state.tracks.length) throw new Error("Load a playlist first.");
-        const uris = [...sideA(), ...sideB()].map(track => track.uri);
+        const uris = plannedRecordingTracks().map(track => track.uri);
         await spotifyFetch(`/playlists/${state.playlistId}/tracks`, {
           method: "PUT",
           body: JSON.stringify({ uris: uris.slice(0, 100) })
@@ -492,7 +497,7 @@
             body: JSON.stringify({ uris: uris.slice(i, i + 100) })
           });
         }
-        log("Playlist order synced to Spotify.");
+        log("Playlist order synced to Spotify from the full multi-tape plan.");
       } catch (error) {
         log(error.message);
       }
@@ -557,7 +562,7 @@
         state.sideAStartedAt = Date.now();
       el.currentTrack.textContent = state.dryRun
         ? (resuming ? "Dry Run: resuming Side B timer." : "Dry Run: Side B timer started.")
-        : (resuming ? "Resuming Side B..." : `Starting Side B from track ${state.splitIndex + 1}...`);
+        : (resuming ? "Resuming Side B..." : `Starting Side B from track ${sideBStartNumber()}...`);
       if (!state.dryRun) {
         if (!resuming) await preparePlaybackOrder();
         await playSpotify(resuming ? { method: "PUT" } : buildSidePlaybackPayload(sideB(), 0, 0));
@@ -1214,9 +1219,17 @@
         .sort((a, b) => a - b);
     }
 
+    function selectTapeLayout() {
+      const index = Number(el.tapePlanSelect.value);
+      state.selectedTapeIndex = Number.isFinite(index) ? Math.max(0, Math.min(index, state.tapeLayouts.length - 1)) : 0;
+      resetRecordingProgress();
+      renderSplit();
+    }
+
     function renderSplit() {
       const a = sideA();
       const b = sideB();
+      const selectedLayout = selectedTapeLayout();
       const halfMs = state.tapeMinutes * 60 * 1000 / 2;
       const tapeMs = state.tapeMinutes * 60 * 1000;
       const totalMs = duration(state.tracks);
@@ -1226,7 +1239,7 @@
       el.playlistTitle.textContent = state.playlistName || "No playlist loaded";
       el.totalTime.textContent = formatLongTime(totalMs);
       el.trackCount.textContent = String(state.tracks.length);
-      el.splitPoint.textContent = state.splitIndex ? `#${state.splitIndex}` : "-";
+      el.splitPoint.textContent = selectedLayout ? `T${selectedLayout.number} #${selectedLayout.sideBStartIndex}` : "-";
       el.sideATime.textContent = `${formatTime(aMs)} / ${formatTime(halfMs)}`;
       el.sideBTime.textContent = `${formatTime(bMs)} / ${formatTime(halfMs)}`;
       el.sideAFill.style.width = `${Math.min(100, aMs / halfMs * 100 || 0)}%`;
@@ -1243,36 +1256,38 @@
       el.playlistSelect.disabled = !state.token || !state.playlists.length;
       el.deviceSelect.disabled = !state.token || !state.devices.length;
       renderRecordMode();
-      renderTracks(el.sideAList, a, 0);
-      renderTracks(el.sideBList, b, state.splitIndex);
+      renderTapePlanSelector(totalMs);
+      renderTracks(el.sideAList, a, selectedLayout?.sideAStartIndex || 0);
+      renderTracks(el.sideBList, b, selectedLayout?.sideBStartIndex || 0);
       renderJCard(a, b, aMs, bMs, totalMs);
       renderWarnings(totalMs, tapeMs, halfMs);
       pushSharedStatus(true);
     }
 
     function renderJCard(a, b, aMs, bMs, totalMs) {
-      const title = state.playlistName || "No playlist loaded";
       const cover = state.playlistCoverUrl
         ? `<img src="${escapeHtml(state.playlistCoverUrl)}" alt="">`
         : `<span>No cover loaded</span>`;
+      const selectedLayout = selectedTapeLayout();
+      const title = getVolumeTitle(selectedLayout);
       const { html: cardHtml, densityClass } = renderJCardMarkup({
         title,
         coverHtml: cover,
         tapeMinutes: state.tapeMinutes,
-        tracks: state.tracks,
+        tracks: [...a, ...b],
         sideA: a,
         sideB: b,
         sideAMs: aMs,
         sideBMs: bMs,
-        totalMs,
-        splitIndex: state.splitIndex,
+        totalMs: aMs + bMs,
+        splitIndex: selectedLayout?.sideBStartIndex || 0,
         escapeHtml
       });
       el.printJCardBtn.disabled = !state.tracks.length;
+      el.printAllJCardsBtn.disabled = !state.tracks.length;
       el.jCardPreview.className = `jcard-print${densityClass}`;
-      el.jCardPrint.className = `jcard-print${densityClass}`;
       el.jCardPreview.innerHTML = cardHtml;
-      el.jCardPrint.innerHTML = cardHtml;
+      renderJCardPrint("selected");
     }
 
     function renderTapeRecommendation(totalMs) {
@@ -1297,8 +1312,9 @@
         reason = `Total ${formatLongTime(totalMs)} fits C${totalOnlyFit.minutes}, but keeping original order makes one side exceed ${formatLongTime(totalOnlyFit.minutes * 30 * 1000)}.`;
       } else {
         const longest = availableFormats[availableFormats.length - 1];
-        recommendation = `Too long for C${longest}`;
-        reason = `Total ${formatLongTime(totalMs)} exceeds your largest selected tape, C${longest}. Select a longer tape or remove about ${formatLongTime(totalMs - longest * 60 * 1000)}.`;
+        const tapesNeeded = Math.max(1, Math.ceil(totalMs / (longest * 60 * 1000)));
+        recommendation = `Use ${tapesNeeded}x C${longest}`;
+        reason = `Total ${formatLongTime(totalMs)} exceeds one C${longest}, so the playlist is split across ${state.tapeLayouts.length || tapesNeeded} physical tapes while preserving order.`;
       }
 
       el.tapeRecommendation.innerHTML = `<b>${escapeHtml(recommendation)}</b><span>${escapeHtml(reason)}</span>`;
@@ -1306,6 +1322,72 @@
 
     function analyzeTapeFit(minutes) {
       return analyzeTapeFitForTracks(state.tracks, minutes);
+    }
+
+    function renderTapePlanSelector(totalMs) {
+      if (!state.tracks.length || !state.tapeLayouts.length) {
+        el.tapePlanSelect.innerHTML = `<option value="0">Load a playlist first</option>`;
+        el.tapePlanSelect.disabled = true;
+        el.tapePlanSummary.textContent = "The selected tape controls the visible sides, recording controls, and J-Card preview.";
+        return;
+      }
+
+      el.tapePlanSelect.disabled = false;
+      el.tapePlanSelect.innerHTML = state.tapeLayouts.map((layout, index) => {
+        const aMs = duration(layout.sideA);
+        const bMs = duration(layout.sideB);
+        const label = `Tape ${layout.number} - ${layout.sideA.length + layout.sideB.length} tracks - A ${formatLongTime(aMs)} / B ${formatLongTime(bMs)}`;
+        const selected = index === state.selectedTapeIndex ? " selected" : "";
+        return `<option value="${index}"${selected}>${escapeHtml(label)}</option>`;
+      }).join("");
+      const tapeWord = state.tapeLayouts.length === 1 ? "tape" : "tapes";
+      el.tapePlanSummary.textContent = `${formatLongTime(totalMs)} is planned as ${state.tapeLayouts.length} ${tapeWord}. Recording controls and preview follow the selected tape; Print All outputs every J-Card.`;
+    }
+
+    function printJCards(mode) {
+      renderJCardPrint(mode);
+      window.print();
+      renderJCardPrint("selected");
+    }
+
+    function renderJCardPrint(mode) {
+      const layouts = mode === "all" ? state.tapeLayouts : [selectedTapeLayout()].filter(Boolean);
+      if (!layouts.length) {
+        el.jCardPrint.className = "jcard-print";
+        el.jCardPrint.innerHTML = "";
+        return;
+      }
+
+      el.jCardPrint.className = "jcard-print-stack";
+      el.jCardPrint.innerHTML = layouts.map(layout => {
+        const card = renderJCardForLayout(layout);
+        return `<div class="print-jcard-page"><div class="jcard-print${card.densityClass}">${card.html}</div></div>`;
+      }).join("");
+    }
+
+    function renderJCardForLayout(layout) {
+      const cover = state.playlistCoverUrl
+        ? `<img src="${escapeHtml(state.playlistCoverUrl)}" alt="">`
+        : `<span>No cover loaded</span>`;
+      return renderJCardMarkup({
+        title: getVolumeTitle(layout),
+        coverHtml: cover,
+        tapeMinutes: state.tapeMinutes,
+        tracks: [...layout.sideA, ...layout.sideB],
+        sideA: layout.sideA,
+        sideB: layout.sideB,
+        sideAMs: duration(layout.sideA),
+        sideBMs: duration(layout.sideB),
+        totalMs: duration(layout.sideA) + duration(layout.sideB),
+        splitIndex: layout.sideBStartIndex,
+        escapeHtml
+      });
+    }
+
+    function getVolumeTitle(layout) {
+      const baseTitle = state.playlistName || "No playlist loaded";
+      if (!layout || state.tapeLayouts.length <= 1) return baseTitle;
+      return `${baseTitle} - Vol. ${layout.number}`;
     }
 
     function renderPlaylistOptions() {
@@ -1372,17 +1454,15 @@
 
     function renderWarnings(totalMs, tapeMs, halfMs) {
       const messages = [];
-      if (state.tracks.length && totalMs < tapeMs) {
+      const selectedTotalMs = duration(sideA()) + duration(sideB());
+      if (state.tracks.length && state.tapeLayouts.length <= 1 && totalMs < tapeMs) {
         messages.push(`Playlist total is shorter than C${state.tapeMinutes}; recording will have ${formatTime(tapeMs - totalMs)} blank tape.`);
       }
-      if (state.tracks.length && totalMs > tapeMs) {
-        let running = 0;
-        const overflow = [];
-        for (const track of state.tracks) {
-          running += track.duration_ms;
-          if (running > tapeMs) overflow.push(track.name);
-        }
-        messages.push(`Playlist exceeds C${state.tapeMinutes}; songs that will not fit include: ${overflow.slice(0, 5).join(", ")}${overflow.length > 5 ? "..." : ""}`);
+      if (state.tracks.length && state.tapeLayouts.length > 1) {
+        messages.push(`Playlist exceeds one C${state.tapeMinutes}; it is split across ${state.tapeLayouts.length} physical tapes with original order preserved.`);
+      }
+      if (state.tracks.length && selectedTotalMs < tapeMs) {
+        messages.push(`Selected tape ${selectedTapeLayout()?.number || 1} has ${formatTime(tapeMs - selectedTotalMs)} blank tape.`);
       }
       if (duration(sideB()) > halfMs) {
         messages.push(`Side B exceeds ${formatTime(halfMs)}. Extra tracks remain listed so original order is preserved.`);
@@ -1408,11 +1488,40 @@
     }
 
     function sideA() {
-      return state.tracks.slice(0, state.splitIndex);
+      return selectedTapeLayout()?.sideA || state.tracks.slice(0, state.splitIndex);
     }
 
     function sideB() {
-      return state.tracks.slice(state.splitIndex);
+      return selectedTapeLayout()?.sideB || state.tracks.slice(state.splitIndex);
+    }
+
+    function sideBStartNumber() {
+      const layout = selectedTapeLayout();
+      return layout ? layout.sideBStartIndex + 1 : state.splitIndex + 1;
+    }
+
+    function selectedTapeLayout() {
+      return state.tapeLayouts[state.selectedTapeIndex] || null;
+    }
+
+    function plannedRecordingTracks() {
+      if (!state.tapeLayouts.length) return [...sideA(), ...sideB()];
+      return state.tapeLayouts.flatMap(layout => [...layout.sideA, ...layout.sideB]);
+    }
+
+    function resetRecordingProgress() {
+      state.splitIndex = selectedTapeLayout()?.sideBStartIndex || 0;
+      state.sideAElapsedBeforePause = 0;
+      state.spotifySideElapsedMs = 0;
+      state.lastSideProgressMs = 0;
+      state.lastProgressUpdatedAt = 0;
+      state.recordMode = "idle";
+      state.activeRecordSide = null;
+      state.autoPauseDone = false;
+      stopTimer();
+      stopPollingPlayback();
+      el.flipBanner.classList.remove("show");
+      el.recordCue.classList.remove("show");
     }
 
     function formatClockTime(date) {
