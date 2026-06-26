@@ -13,11 +13,17 @@ export function splitTracksForSide(tracks, sideLengthMs) {
 }
 
 export function splitTracksIntoTapes(tracks, minutes) {
-  const sideLengthMs = minutes * 60 * 1000 / 2;
+  return splitTracksIntoTapesByFormats(tracks, [minutes], minutes);
+}
+
+export function splitTracksIntoTapesByFormats(tracks, formats, fallbackMinutes) {
   const tapes = [];
   let cursor = 0;
 
   while (cursor < tracks.length) {
+    const formatIndex = tapes.length;
+    const minutes = formats[formatIndex] || fallbackMinutes;
+    const sideLengthMs = minutes * 60 * 1000 / 2;
     const sideAStartIndex = cursor;
     const sideAEndIndex = fillSide(tracks, cursor, sideLengthMs);
     const sideBStartIndex = sideAEndIndex;

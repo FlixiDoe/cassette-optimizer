@@ -2,7 +2,7 @@
     import { renderJCardMarkup } from "./jcard.js";
     import { RECORD_CUE_SECONDS, getExpectedTrackAtElapsed } from "./recording.js";
     import { SpotifyApiError, base64Url, parsePlaylistId, pickPlaylistCover, randomBytes, sha256Base64Url } from "./spotify.js";
-    import { TAPE_FORMATS, analyzeTapeFitForTracks, duration, formatLongTime, formatTime, splitTracksForSide, splitTracksIntoTapes } from "./tape.js";
+    import { TAPE_FORMATS, analyzeTapeFitForTracks, duration, formatLongTime, formatTime, splitTracksForSide, splitTracksIntoTapes, splitTracksIntoTapesByFormats } from "./tape.js";
 
     const DEFAULT_SPOTIFY_CLIENT_ID = "";
     const APP_BASE_URL = getAppBaseUrl();
@@ -125,6 +125,7 @@
       el.printAllJCardsBtn.addEventListener("click", () => printJCards("all"));
       el.tapeSelect.addEventListener("change", () => setTapeLength(Number(el.tapeSelect.value)));
       el.tapePlanSelect.addEventListener("change", selectTapeLayout);
+      el.tapeFormatList.addEventListener("change", updatePerTapeFormat);
       el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
       el.deckChecklist.addEventListener("change", updateDeckChecklist);
       el.skipDeckChecklist.addEventListener("change", updateDeckChecklist);
@@ -454,13 +455,14 @@
         createdAt: now,
         updatedAt: now
       };
-      project.tapes = buildProjectTapes(project, tapeMinutes);
+      project.tapes = buildProjectTapes(project, tapeMinutes, [tapeMinutes]);
       project.selectedTapeIndex = clampTapeIndex(selectedTapeIndex, project.tapes.length);
       return project;
     }
 
-    function buildProjectTapes(project, tapeMinutes) {
-      return splitTracksIntoTapes(project.sourceTracks, tapeMinutes).map(layout => ({
+    function buildProjectTapes(project, fallbackTapeMinutes, tapeFormats = []) {
+      const formats = tapeFormats.length ? tapeFormats : [fallbackTapeMinutes];
+      return splitTracksIntoTapesByFormats(project.sourceTracks, formats, fallbackTapeMinutes).map(layout => ({
         ...layout,
         tapeNumber: layout.number,
         tapeTitle: project.sourceTracks.length > layout.sideA.length + layout.sideB.length || layout.number > 1
@@ -547,7 +549,8 @@
 
     function computeSplit() {
       if (state.project) {
-        state.project.tapes = buildProjectTapes(state.project, state.tapeMinutes);
+        const formats = state.project.tapes.map(tape => tape.tapeFormat || tape.tapeMinutes || state.tapeMinutes);
+        state.project.tapes = buildProjectTapes(state.project, state.tapeMinutes, formats);
         state.project.selectedTapeIndex = clampTapeIndex(state.selectedTapeIndex, state.project.tapes.length);
         syncStateFromProject();
       } else {
@@ -1248,6 +1251,9 @@
     function setTapeLength(minutes) {
       state.tapeMinutes = minutes;
       el.tapeLabel.textContent = `C${minutes}`;
+      if (state.project && state.project.tapes.length <= 1 && state.project.tapes[0]) {
+        state.project.tapes[0].tapeFormat = minutes;
+      }
       computeSplit();
       renderSplit();
     }
@@ -1304,8 +1310,26 @@
       const index = Number(el.tapePlanSelect.value);
       state.selectedTapeIndex = clampTapeIndex(index, state.tapeLayouts.length);
       if (state.project) state.project.selectedTapeIndex = state.selectedTapeIndex;
+      state.tapeMinutes = selectedTapeMinutes();
       resetRecordingProgress();
       renderSplit();
+    }
+
+    function updatePerTapeFormat(event) {
+      const select = event.target.closest("[data-tape-format-index]");
+      if (!select || !state.project) return;
+      const index = Number(select.dataset.tapeFormatIndex);
+      const minutes = Number(select.value);
+      if (!Number.isInteger(index) || !TAPE_FORMATS.includes(minutes) || !state.project.tapes[index]) return;
+
+      const beforeCount = state.project.tapes.length;
+      state.project.tapes[index].tapeFormat = minutes;
+      if (index === state.selectedTapeIndex) state.tapeMinutes = minutes;
+      computeSplit();
+      renderSplit();
+      const afterCount = state.project.tapes.length;
+      const countNote = beforeCount === afterCount ? "" : ` The project now uses ${afterCount} physical tapes.`;
+      log(`Tape ${index + 1} format set to C${minutes}.${countNote}`);
     }
 
     function renderSplit() {
@@ -1323,6 +1347,9 @@
       el.totalTime.textContent = formatLongTime(totalMs);
       el.trackCount.textContent = String(tracks.length);
       el.tapeLabel.textContent = `C${selectedTapeMinutes()}`;
+      if ([...el.tapeSelect.options].some(option => Number(option.value) === selectedTapeMinutes())) {
+        el.tapeSelect.value = String(selectedTapeMinutes());
+      }
       el.splitPoint.textContent = selectedLayout ? `T${selectedLayout.tapeNumber || selectedLayout.number} #${selectedLayout.sideBStartIndex}` : "-";
       el.sideATime.textContent = `${formatTime(aMs)} / ${formatTime(halfMs)}`;
       el.sideBTime.textContent = `${formatTime(bMs)} / ${formatTime(halfMs)}`;
@@ -1412,6 +1439,8 @@
       if (!projectTracks().length || !state.tapeLayouts.length) {
         el.tapePlanSelect.innerHTML = `<option value="0">Load a playlist first</option>`;
         el.tapePlanSelect.disabled = true;
+        el.tapeFormatList.hidden = true;
+        el.tapeFormatList.innerHTML = "";
         el.tapePlanSummary.textContent = "The selected tape controls the visible sides, recording controls, and J-Card preview.";
         return;
       }
@@ -1424,8 +1453,35 @@
         const selected = index === state.selectedTapeIndex ? " selected" : "";
         return `<option value="${index}"${selected}>${escapeHtml(label)}</option>`;
       }).join("");
+      renderPerTapeFormatControls();
       const tapeWord = state.tapeLayouts.length === 1 ? "tape" : "tapes";
-      el.tapePlanSummary.textContent = `${formatLongTime(totalMs)} is planned as ${state.tapeLayouts.length} ${tapeWord}. Recording controls and preview follow the selected tape; Print All outputs every J-Card.`;
+      const formatNote = state.tapeLayouts.length > 1 ? " Each physical tape can use its own format." : "";
+      el.tapePlanSummary.textContent = `${formatLongTime(totalMs)} is planned as ${state.tapeLayouts.length} ${tapeWord}. Recording controls and preview follow the selected tape; Print All outputs every J-Card.${formatNote}`;
+    }
+
+    function renderPerTapeFormatControls() {
+      if (!state.project || state.tapeLayouts.length <= 1) {
+        el.tapeFormatList.hidden = true;
+        el.tapeFormatList.innerHTML = "";
+        return;
+      }
+
+      el.tapeFormatList.hidden = false;
+      el.tapeFormatList.innerHTML = state.tapeLayouts.map((layout, index) => {
+        const selectedMinutes = layout.tapeFormat || layout.tapeMinutes || state.tapeMinutes;
+        const availableFormats = [...new Set([...getAvailableTapeFormats(), selectedMinutes])].sort((a, b) => a - b);
+        const sideLength = selectedMinutes * 30 * 1000;
+        const runtime = duration(layout.sideA) + duration(layout.sideB);
+        const options = availableFormats.map(minutes => {
+          const selected = minutes === selectedMinutes ? " selected" : "";
+          return `<option value="${minutes}"${selected}>C${minutes} - ${formatLongTime(minutes * 60 * 1000)} total / ${formatLongTime(minutes * 30 * 1000)} per side</option>`;
+        }).join("");
+        return `<label class="tape-format-row">
+          <span>Tape ${layout.tapeNumber || layout.number}</span>
+          <select data-tape-format-index="${index}">${options}</select>
+          <em>${formatLongTime(runtime)} planned / ${formatLongTime(sideLength * 2)} capacity</em>
+        </label>`;
+      }).join("");
     }
 
     function printJCards(mode) {
@@ -1553,6 +1609,15 @@
       }
       if (duration(sideB()) > halfMs) {
         messages.push(`Side B exceeds ${formatTime(halfMs)}. Extra tracks remain listed so original order is preserved.`);
+      }
+      for (const layout of state.tapeLayouts) {
+        const sideLength = layout.sideLengthMs || (layout.tapeFormat || layout.tapeMinutes) * 30 * 1000;
+        const sideAOverflow = duration(layout.sideA) > sideLength;
+        const sideBOverflow = duration(layout.sideB) > sideLength;
+        if (sideAOverflow || sideBOverflow) {
+          const sides = [sideAOverflow ? "A" : "", sideBOverflow ? "B" : ""].filter(Boolean).join("/");
+          messages.push(`Tape ${layout.tapeNumber || layout.number} C${layout.tapeFormat || layout.tapeMinutes} cannot fit Side ${sides} without exceeding ${formatTime(sideLength)}.`);
+        }
       }
       const safetyMs = state.calibration.safetyMarginSeconds * 1000;
       if (tracks.length && safetyMs) {

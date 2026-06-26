@@ -38,6 +38,7 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Conservative playback correction if Spotify jumps to an unexpected track.
 - Optional LAN status server so another device can open the same UI and monitor the current state in read-only mode.
 - Selectable physical tape plan for multi-tape projects.
+- Per-tape format selection for multi-tape projects, so different physical cassettes can use different lengths.
 - Printable J-card cassette inlays from playlist title, cover, side tracks, and runtime.
 - Multi-tape projects can print the selected J-card or all J-cards at once.
 
@@ -171,6 +172,12 @@ Windows / device settings:
 15. Spotify starts automatically after the cue and any configured delay calibration.
 16. Wait for auto-pause, flip the cassette, then use `Start Side B`.
 17. For multi-tape projects, choose the next physical cassette from the plan selector and repeat the Side A / Side B recording flow.
+
+## Tape Formats
+
+The global `Tape format` selector is the default format for simple one-tape planning and for newly added physical tapes. When a project spans multiple cassettes, the physical tape plan also shows one format selector per tape.
+
+Changing one physical tape format updates that tape object in the project and recalculates the later tape plan from the original playlist order. Other tape format choices are preserved by tape index where possible.
 
 ## Mixtape Project Model
 

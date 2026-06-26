@@ -64,6 +64,8 @@ refactor: introduce mixtape project model
 
 Multi-tape projects should not use one global tape format for every physical cassette. If a playlist spans multiple tapes, each tape needs its own tape format selector because users may have mixed cassette lengths available, for example Tape 1 as C90 and Tape 2 as C60.
 
+**Status: Implemented**
+
 **Goal**
 
 Replace or extend the global `Tape format` selector with per-tape format selection when the project contains more than one tape.

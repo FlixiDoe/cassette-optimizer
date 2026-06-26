@@ -263,6 +263,40 @@
       background: #11150f;
     }
 
+    .per-tape-formats {
+      display: grid;
+      gap: 8px;
+    }
+
+    .tape-format-row {
+      display: grid;
+      grid-template-columns: minmax(58px, auto) minmax(0, 1fr);
+      gap: 6px 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      background: rgba(0,0,0,.16);
+    }
+
+    .tape-format-row span {
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .tape-format-row select {
+      min-width: 0;
+    }
+
+    .tape-format-row em {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 11px;
+      font-style: normal;
+    }
+
     .warnings {
       min-height: 44px;
       border: 1px dashed #735d28;

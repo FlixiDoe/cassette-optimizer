@@ -101,6 +101,14 @@ The LAN server listens on `0.0.0.0:8787`, serves the same app, and exposes `/api
 - If total runtime fits but one side does not, the app warns that manual rebalancing would be needed.
 - If the playlist exceeds one selected tape, the app plans multiple physical cassettes while preserving order.
 
+## Tape Format Selection
+
+- The global `Tape format` selector is the default for simple one-tape projects and for new tapes added by replanning.
+- When a project spans multiple physical cassettes, the tape plan shows one format selector per tape.
+- Changing one tape format recalculates the plan from the source playlist while preserving original track order.
+- Existing per-tape format choices are preserved by tape index where possible, so changing Tape 2 does not silently change Tape 1.
+- J-card preview, print output, Record Mode side lengths, warnings, and the cassette label read the selected physical tape's own format.
+
 ## Mixtape Project Model
 
 After loading a playlist, the app creates a central project object. It stores playlist metadata, source tracks, selected physical tape index, split mode, calibration settings, timestamps, and a `tapes[]` array.
