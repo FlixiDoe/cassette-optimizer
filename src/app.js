@@ -202,54 +202,111 @@
       renderCalibration();
     }
 
+    /**
+     * Starts the Spotify OAuth PKCE authorization flow.
+     *
+     * It validates that the app is running from an HTTP(S) origin, generates a
+     * PKCE verifier/challenge pair, stores the one-time verifier and OAuth
+     * state for the callback, persists the client ID for later sessions, and
+     * redirects the browser to Spotify Accounts for consent.
+     *
+     * @returns {Promise<void>} Resolves only when validation stops the flow; otherwise navigation leaves the page.
+     * @throws {Error} May reject if the PKCE SHA-256 challenge cannot be generated.
+     *
+     * Side effects: Writes `pkce_verifier` and `oauth_state` to `sessionStorage`, writes `spotify_client_id` to `localStorage`, logs validation failures, and changes `location.href`.
+     */
     async function login() {
+      // Read the client ID from the input first so the authorization URL uses the latest user-entered Spotify app ID.
       const clientId = getClientId();
+      // Spotify OAuth cannot complete from `file://` because registered redirect URIs must be HTTP(S).
       if (location.protocol === "file:") {
         log("Open http://127.0.0.1:8787 instead. Spotify OAuth cannot complete from a file:// page.");
         return;
       }
+      // Without a client ID Spotify cannot identify this app at `/authorize`.
       if (!clientId) return log("Add your Spotify Client ID first.");
+      // The verifier is a high-entropy one-time secret that proves this browser initiated the login.
       const verifier = base64Url(randomBytes(64));
+      // Spotify requires the S256 code challenge, which is SHA-256(verifier) encoded as base64url.
       const challenge = await sha256Base64Url(verifier);
+      // OAuth state is a separate CSRF token that must round-trip unchanged through Spotify's redirect.
       const oauthState = base64Url(randomBytes(18));
+      // `pkce_verifier` is session-only because it is valid for just this pending authorization-code exchange.
       sessionStorage.setItem("pkce_verifier", verifier);
+      // `oauth_state` is session-only so a later callback must match the login attempt from this tab.
       sessionStorage.setItem("oauth_state", oauthState);
+      // `spotify_client_id` is durable convenience storage so reloads keep the same configured Spotify app.
       localStorage.setItem("spotify_client_id", clientId);
 
+      // Build the Spotify Accounts authorize URL with playlist scopes and player-control scopes used by recording.
       const params = new URLSearchParams({
+        // Authorization-code flow returns `code`, which `handleCallback` exchanges for tokens.
         response_type: "code",
         client_id: clientId,
+        // Playlist scopes load/reorder playlists; playback scopes read state and issue play/pause commands.
         scope: REQUIRED_SCOPES.join(" "),
+        // This redirect URI must exactly match the URI registered in the Spotify developer dashboard.
         redirect_uri: REDIRECT_URI,
+        // Spotify returns this value unchanged so the callback can reject forged or stale responses.
         state: oauthState,
+        // `S256` tells Spotify the challenge is SHA-256 based rather than a plain verifier.
         code_challenge_method: "S256",
+        // The challenge binds the later token exchange to the verifier stored above.
         code_challenge: challenge
       });
+      // Redirecting shows Spotify login/consent and ends the current app execution context.
       location.href = `https://accounts.spotify.com/authorize?${params}`;
     }
 
+    /**
+     * Handles Spotify's OAuth callback and stores the initial token state.
+     *
+     * It detects callback loads, extracts the authorization code, validates the
+     * returned state against the session-stored CSRF value, exchanges the code
+     * and PKCE verifier at Spotify Accounts, saves the returned tokens with a
+     * fresh `authorizedAt` timestamp, and removes one-time query parameters.
+     *
+     * @returns {Promise<void>} Resolves after the callback is ignored, rejected, stored, or logged as failed.
+     * @throws {Error} Does not intentionally throw; token exchange errors are caught and logged.
+     *
+     * Side effects: Reads `pkce_verifier` and `oauth_state`, fetches `POST https://accounts.spotify.com/api/token`, writes `spotify_token`, mutates history, and logs status.
+     */
     async function handleCallback() {
+      // Ignore normal app loads; only `/callback` or a callback query should attempt token exchange.
       if (!location.pathname.replace(/\/$/, "").endsWith("/callback") && !new URLSearchParams(location.search).has("callback")) return;
+      // Spotify returns OAuth response fields in the query string.
       const params = new URLSearchParams(location.search);
+      // `code` is the short-lived authorization code exchanged at `/api/token`.
       const code = params.get("code");
+      // `state` must match the value generated before redirect.
       const callbackState = params.get("state");
+      // `oauth_state` is the CSRF token written by `login`.
       const expectedState = sessionStorage.getItem("oauth_state");
+      // `pkce_verifier` proves this browser initiated the authorization request.
       const verifier = sessionStorage.getItem("pkce_verifier");
+      // Spotify can redirect without a code on cancellation or error; leave the app disconnected.
       if (!code) return;
+      // A missing verifier or mismatched state means this callback cannot be trusted or completed.
       if (!verifier || callbackState !== expectedState) {
         log("OAuth callback rejected: state or verifier was missing.");
         return;
       }
       try {
+        // Build the x-www-form-urlencoded body required by `POST https://accounts.spotify.com/api/token`.
         const body = new URLSearchParams({
+          // `authorization_code` exchanges the callback code for access and refresh tokens.
           grant_type: "authorization_code",
           code,
           redirect_uri: REDIRECT_URI,
           client_id: getClientId(),
+          // Spotify validates this against the S256 challenge sent to `/authorize`.
           code_verifier: verifier
         });
+        // `fetchAccounts` calls Spotify Accounts and throws `SpotifyAccountsError` on non-2xx responses.
         const data = await fetchAccounts(body);
+        // Initial authorization writes a fresh `authorizedAt`; refreshes preserve that timestamp.
         saveToken(data, { initialAuthorization: true });
+        // Remove the one-time OAuth query parameters from the address bar after the token has been stored.
         history.replaceState({}, "", new URL(APP_BASE_URL).pathname);
         log("Spotify connected.");
       } catch (error) {
@@ -257,11 +314,28 @@
       }
     }
 
+    /**
+     * Clears the Spotify session and resets auth-dependent UI.
+     *
+     * It removes in-memory token fields, clears durable token/device storage
+     * plus transient PKCE storage, clears any saved localhost client secret,
+     * resets device state, rerenders auth controls, and logs the logout.
+     *
+     * @returns {void}
+     * @throws {DOMException} May throw if browser storage cleanup fails.
+     *
+     * Side effects: Mutates `state`, deletes Spotify auth keys from browser storage, updates DOM controls, and writes a log entry.
+     */
     function logout() {
+      // Clear the bearer token immediately so no further Spotify Web API calls can be authorized.
       state.token = null;
+      // Clear the refresh token so the app cannot silently mint a new access token after logout.
       state.refreshToken = null;
+      // Reset expiry so restored state cannot look valid.
       state.expiresAt = 0;
+      // Reset the original authorization timestamp because the user has explicitly ended the session.
       state.authorizedAt = null;
+      // Remove `spotify_token`, `spotify_device_id`, `pkce_verifier`, and `oauth_state`.
       clearSpotifyAuthStorage(localStorage, sessionStorage);
       clearSavedClientSecret();
       resetDevices();
@@ -269,54 +343,121 @@
       log("Token cleared.");
     }
 
+    /**
+     * Restores persisted Spotify token state from localStorage.
+     *
+     * It parses the `spotify_token` bundle saved by `persistToken`, merges valid
+     * token fields into app state, and deletes corrupt storage so future page
+     * loads start from a clean disconnected state.
+     *
+     * @returns {void}
+     * @throws {Error} Does not throw; JSON parse failures are caught.
+     *
+     * Side effects: Reads and may delete `spotify_token`; mutates token fields on `state`.
+     */
     function restoreToken() {
       try {
+        // `spotify_token` stores `{ token, refreshToken, expiresAt, authorizedAt }`.
         const saved = JSON.parse(localStorage.getItem("spotify_token") || "null");
+        // Merge only after parsing succeeds so partial storage writes cannot corrupt defaults.
         if (saved) Object.assign(state, saved);
       } catch {
+        // Remove corrupt token storage so startup can continue without repeated parse failures.
         localStorage.removeItem("spotify_token");
       }
     }
 
+    /**
+     * Persists the current Spotify token fields to localStorage.
+     *
+     * The stored object intentionally contains only auth state so playlist,
+     * tape, and recording fields are not restored as part of the Spotify
+     * session on a later page load.
+     *
+     * @returns {void}
+     * @throws {DOMException} May throw if localStorage writes are blocked.
+     *
+     * Side effects: Writes `spotify_token` in `localStorage`.
+     */
     function persistToken() {
+      // Do not create `spotify_token` while disconnected; logout and expiry remove it instead.
       if (!state.token) return;
+      // Store the token bundle under `spotify_token` so startup can resume an unexpired session.
       localStorage.setItem("spotify_token", JSON.stringify({
         token: state.token,
         refreshToken: state.refreshToken,
         expiresAt: state.expiresAt,
+        // `authorizedAt` records the original login time and is preserved across refreshes.
         authorizedAt: state.authorizedAt
       }));
     }
 
+    /**
+     * Applies a Spotify Accounts token response to app state.
+     *
+     * It delegates token derivation to `buildTokenState`, preserving refresh
+     * tokens and authorization time across refreshes, persists the token bundle,
+     * and rerenders controls that depend on connection status.
+     *
+     * @param {object} data - Spotify Accounts token response from authorization-code or refresh-token grants.
+     * @param {object} [options={}] - Token-state options passed through to `buildTokenState`.
+     * @returns {void}
+     * @throws {DOMException} May throw if token persistence fails.
+     *
+     * Side effects: Mutates `state`, writes `spotify_token`, and rerenders authentication UI.
+     */
     function saveToken(data, options = {}) {
+      // `buildTokenState` computes expiry, preserves refresh token when Spotify omits it, and manages `authorizedAt`.
       Object.assign(state, buildTokenState(data, state, options));
       persistToken();
       renderAuth();
     }
 
+    /**
+     * Refreshes the Spotify access token using the stored refresh token.
+     *
+     * It posts a refresh-token grant to Spotify Accounts, stores the returned
+     * access token while preserving `authorizedAt`, clears recovery text on
+     * success, and handles terminal `invalid_grant` by expiring local session
+     * state and starting PKCE re-login.
+     *
+     * @returns {Promise<void>} Resolves after a fresh token has been persisted.
+     * @throws {Error|SpotifyAccountsError} Throws when no refresh token exists, refresh fails, or the session is terminally expired.
+     *
+     * Side effects: Fetches `POST https://accounts.spotify.com/api/token`, mutates token state, writes/removes auth storage, may call `login`, updates recovery UI, and logs status.
+     */
     async function refreshAccessToken() {
+      // A missing refresh token means this session cannot be renewed without a full PKCE login.
       if (!state.refreshToken) {
         setPlaybackRecovery("Spotify login expired. Reconnect Spotify, then refresh devices before recording.");
         throw new Error("Token expired. Connect Spotify again.");
       }
+      // Build the x-www-form-urlencoded refresh-token grant required by Spotify Accounts.
       const body = new URLSearchParams({
         grant_type: "refresh_token",
+        // Spotify may return HTTP 400 `invalid_grant` if this token expired, was revoked, or is otherwise unusable.
         refresh_token: state.refreshToken,
         client_id: getClientId()
       });
       try {
+        // `fetchAccounts` wraps non-2xx token responses as `SpotifyAccountsError`.
         const data = await fetchAccounts(body);
+        // Refresh responses usually omit `refresh_token`; `saveToken` preserves the previous token and `authorizedAt`.
         saveToken(data);
         setPlaybackRecovery("");
         log("Spotify token refreshed.");
       } catch (error) {
+        // A 400 invalid_grant here is terminal; retrying the same refresh token cannot recover the session.
         if (isInvalidGrantError(error)) {
+          // Clear state plus `spotify_token`, `spotify_device_id`, `pkce_verifier`, and `oauth_state`.
           const message = expireSpotifySession({ state, localStorage, sessionStorage });
           resetDevices();
           renderAuth();
           setPlaybackRecovery(message);
           log(message);
+          // Re-login trigger: `login` creates a fresh PKCE verifier/challenge and redirects to Spotify consent.
           await login();
+          // Stop the caller's current Spotify operation after the re-login redirect has been started.
           throw new Error(message);
         }
         setPlaybackRecovery("Spotify login expired. Reconnect Spotify, then refresh devices before recording.");
@@ -324,56 +465,116 @@
       }
     }
 
+    /**
+     * Calls the Spotify Web API with the current bearer token.
+     *
+     * It refreshes expired tokens before sending a request, retries once after
+     * a 401 when a refresh token exists, returns `null` for successful 204
+     * responses, converts player/device failures into recording guidance, and
+     * throws `SpotifyApiError` for other non-2xx responses.
+     *
+     * @param {string} path - Spotify Web API path beginning with `/`.
+     * @param {RequestInit} [options={}] - Fetch options such as method, body, and extra headers.
+     * @returns {Promise<object|null>} Parsed JSON response, or `null` for HTTP 204 success.
+     * @throws {Error|SpotifyApiError|SpotifyAccountsError} Throws when disconnected, refresh fails, no active device exists, or Spotify returns a non-2xx response.
+     *
+     * Side effects: May refresh and persist tokens, fetches `https://api.spotify.com/v1`, updates playback recovery messages, and may start PKCE re-login through `refreshAccessToken`.
+     */
     async function spotifyFetch(path, options = {}) {
+      // All Spotify Web API calls require a bearer token obtained from Spotify Accounts.
       if (!state.token) throw new Error("Connect Spotify first.");
+      // Refresh before the request if the locally stored expiry timestamp has passed.
       if (Date.now() > state.expiresAt) await refreshAccessToken();
+      // Prefix app-relative API paths with the Spotify Web API origin.
       const response = await fetch(`https://api.spotify.com/v1${path}`, {
         ...options,
         headers: {
+          // `Authorization: Bearer` carries the access token for the scopes granted during PKCE login.
           "Authorization": `Bearer ${state.token}`,
+          // JSON is used for playlist reorder payloads and Spotify player command payloads.
           "Content-Type": "application/json",
           ...(options.headers || {})
         }
       });
+      // A 401 from the Web API can mean the access token expired earlier than expected; refresh once and retry.
       if (response.status === 401 && state.refreshToken) {
         await refreshAccessToken();
         return spotifyFetch(path, options);
       }
+      // Spotify playback-control endpoints commonly return 204 No Content on success.
       if (response.status === 204) return null;
+      // Parse JSON if available; some Spotify error responses can be empty.
       const data = await response.json().catch(() => null);
       if (!response.ok) {
+        // Spotify Web API errors usually put the actionable reason in `error.message`.
         const message = data?.error?.message || response.statusText;
+        // Player endpoints require an active Spotify Connect device and `user-modify-playback-state`.
         if (/NO_ACTIVE_DEVICE|Player command failed/i.test(message)) {
           setPlaybackRecovery("Device asleep. Open Spotify on your target device and play any song to wake it up, then retry.");
           throw new Error("No active Spotify device found. Open Spotify on desktop/mobile, click Device Refresh, select the device, then try again.");
         }
+        // A second 401 after refresh means the user must reconnect before recording can continue.
         if (response.status === 401) {
           setPlaybackRecovery("Spotify login expired. Reconnect Spotify, then retry recording.");
         }
+        // Spotify sends `Retry-After` seconds on 429 so polling can back off instead of hammering playback state.
         if (response.status === 429) {
           const retryAfter = Number(response.headers.get("Retry-After") || 5);
           setPlaybackRecovery(`Spotify is rate limiting playback checks. Waiting ${retryAfter}s before retrying automatically.`);
         }
+        // Preserve response metadata for callers and tests that need status-specific handling.
         throw new SpotifyApiError(message, response, data);
       }
       return data;
     }
 
+    /**
+     * Starts or resumes Spotify playback on the selected device.
+     *
+     * It optionally targets the selected Spotify Connect device, delegates the
+     * actual `PUT /me/player/play` call through `spotifyFetch`, and records the
+     * command timestamp so polling does not over-correct while Spotify catches
+     * up.
+     *
+     * @param {RequestInit} [options={ method: "PUT" }] - Fetch options for `PUT /me/player/play`, including optional JSON body.
+     * @returns {Promise<object|null>} Spotify response body, or `null` for normal 204 success.
+     * @throws {Error|SpotifyApiError|SpotifyAccountsError} Throws when auth refresh fails or Spotify rejects playback.
+     *
+     * Side effects: Calls `PUT https://api.spotify.com/v1/me/player/play`, mutates `state.lastPlaybackCommandAt`, and may update recovery UI.
+     */
     async function playSpotify(options = { method: "PUT" }) {
+      // `device_id` routes playback to the selected Spotify Connect device when one is configured.
       const deviceQuery = state.selectedDeviceId ? `?device_id=${encodeURIComponent(state.selectedDeviceId)}` : "";
+      // `PUT /me/player/play` requires `user-modify-playback-state`; body fields can include `uris`, `offset`, and `position_ms`.
       const result = await spotifyFetch(`/me/player/play${deviceQuery}`, options);
+      // Polling uses this timestamp to avoid treating delayed Spotify state updates as immediate drift.
       state.lastPlaybackCommandAt = Date.now();
       return result;
     }
 
+    /**
+     * Normalizes Spotify playback order before recording.
+     *
+     * It disables shuffle and repeat so direct playback follows the cassette
+     * plan exactly. Failures are logged but not fatal because some restricted
+     * devices may reject one setting while still accepting direct URI playback.
+     *
+     * @returns {Promise<void>} Resolves after both playback-order attempts complete.
+     * @throws {Error} Does not rethrow endpoint failures; individual failures are logged.
+     *
+     * Side effects: Calls Spotify player shuffle and repeat endpoints and writes log messages on failure.
+     */
     async function preparePlaybackOrder() {
+      // Spotify uses `&device_id=` here because `state=false` or `state=off` already starts the query string.
       const deviceQuery = state.selectedDeviceId ? `&device_id=${encodeURIComponent(state.selectedDeviceId)}` : "";
       try {
+        // `PUT /me/player/shuffle` requires `user-modify-playback-state` and prevents random track order during recording.
         await spotifyFetch(`/me/player/shuffle?state=false${deviceQuery}`, { method: "PUT" });
       } catch (error) {
         log(`Could not disable shuffle: ${error.message}`);
       }
       try {
+        // `PUT /me/player/repeat` requires `user-modify-playback-state` and prevents a side from looping after completion.
         await spotifyFetch(`/me/player/repeat?state=off${deviceQuery}`, { method: "PUT" });
       } catch (error) {
         log(`Could not disable repeat: ${error.message}`);
@@ -418,19 +619,40 @@
       el.clientSecret.value = "";
     }
 
+    /**
+     * Posts a token grant request to Spotify Accounts.
+     *
+     * It sends an `application/x-www-form-urlencoded` body to
+     * `https://accounts.spotify.com/api/token`, optionally adds HTTP Basic
+     * auth for localhost client-secret testing, parses the JSON response, and
+     * throws `SpotifyAccountsError` for non-2xx responses so refresh callers
+     * can detect `invalid_grant`.
+     *
+     * @param {URLSearchParams} body - Token endpoint form body for authorization-code or refresh-token grants.
+     * @returns {Promise<object>} Parsed Spotify Accounts token response.
+     * @throws {SpotifyAccountsError} Throws when Spotify Accounts returns a non-2xx token response.
+     *
+     * Side effects: Fetches `POST https://accounts.spotify.com/api/token`; reads the local client-secret input when localhost mode is enabled.
+     */
     async function fetchAccounts(body) {
+      // Spotify Accounts requires form-encoded grant bodies for `/api/token`.
       const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+      // The client secret is only read on localhost to avoid exposing confidential credentials on LAN or public hosts.
       const secret = getClientSecret();
       if (secret) {
+        // Confidential-client testing uses HTTP Basic auth with `base64(client_id:client_secret)`.
         const clientId = getClientId();
         headers["Authorization"] = `Basic ${btoa(`${clientId}:${secret}`)}`;
       }
+      // `POST /api/token` returns access/refresh token fields or a Spotify Accounts error object.
       const response = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers,
         body
       });
+      // Parse JSON if possible; malformed or empty error bodies still become a typed accounts error below.
       const data = await response.json().catch(() => null);
+      // Throw the typed wrapper so `refreshAccessToken` can detect HTTP 400 `invalid_grant` as terminal.
       if (!response.ok) throw new SpotifyAccountsError(data?.error_description || data?.error || "Spotify auth error", response, data);
       return data;
     }
@@ -644,21 +866,38 @@
       return tracks;
     }
 
+    /**
+     * Recomputes the cassette tape and side split plan.
+     *
+     * When a project exists, it rebuilds the tape layouts from the current
+     * source tracks and tape formats, then reapplies saved manual split choices
+     * plus J-card metadata. Without a project, it computes a single-layout
+     * fallback from the loaded tracks and current tape length.
+     *
+     * @returns {void}
+     * @throws {Error} May throw if the underlying tape-planning helpers receive invalid track or format data.
+     *
+     * Side effects: Mutates project tapes, split mode, selected tape index, timing progress fields, and timer state.
+     */
     function computeSplit() {
       if (state.project) {
+        // Preserve per-tape formats so rebuilding the plan does not collapse a mixed C60/C90 project.
         const existingTapes = state.project.tapes || [];
         const formats = existingTapes.map(tape => tape.tapeFormat || tape.tapeMinutes || state.tapeMinutes);
+        // Manual split and J-card data are user edits; save them before rebuilding automatic layouts.
         const manualSplits = existingTapes.map(tape => ({
           splitMode: tape.splitMode,
           manualSplitIndex: tape.manualSplitIndex,
           jCard: tape.jCard,
           tapeTitle: tape.tapeTitle
         }));
+        // The split helper preserves original playlist order and never cuts a track across tape sides.
         state.project.tapes = buildProjectTapes(state.project, state.tapeMinutes, formats);
         state.project.tapes.forEach((tape, index) => {
           if (manualSplits[index]?.jCard) tape.jCard = manualSplits[index].jCard;
           if (manualSplits[index]?.tapeTitle) tape.tapeTitle = manualSplits[index].tapeTitle;
           if (manualSplits[index]?.splitMode === "manual") {
+            // Reapply the manual split after rebuilding so the user's chosen side boundary remains locked.
             applyManualSplitToLayout(tape, manualSplits[index].manualSplitIndex);
           }
         });
@@ -666,11 +905,15 @@
         state.project.selectedTapeIndex = clampTapeIndex(state.selectedTapeIndex, state.project.tapes.length);
         syncStateFromProject();
       } else {
+        // Side capacity is half the cassette length plus any user-accepted unofficial slack.
         const halfMs = state.tapeMinutes * 60 * 1000 / 2 + getSlackMarginMs();
+        // The fallback layout uses the selected format only and preserves track order across sides.
         state.tapeLayouts = splitTracksIntoTapesByFormats(state.tracks, [state.tapeMinutes], state.tapeMinutes, getSlackMarginMs());
         state.selectedTapeIndex = clampTapeIndex(state.selectedTapeIndex, state.tapeLayouts.length);
+        // `splitTracksForSide` returns the first track index for Side B; tracks are moved whole, never split.
         state.splitIndex = selectedTapeLayout()?.sideBStartIndex || splitTracksForSide(state.tracks, halfMs).split;
       }
+      // Reset recording progress because a changed split invalidates any previous side timing.
       state.sideAElapsedBeforePause = 0;
       state.spotifySideElapsedMs = 0;
       state.lastSideProgressMs = 0;
@@ -780,21 +1023,37 @@
       if (state.project) state.projectDirty = true;
     }
 
+    /**
+     * Starts or resumes the Side A recording flow.
+     *
+     * It validates the selected side, runs preflight checks, performs the
+     * record cue countdown, optionally disables shuffle/repeat, starts Spotify
+     * playback from Side A track 1, and begins timer and playback polling.
+     *
+     * @returns {Promise<void>} Resolves after recording has started or the failure path has restored idle/paused state.
+     * @throws {Error} Does not intentionally throw; start errors are caught, logged, and reflected in UI state.
+     *
+     * Side effects: Mutates recording state, updates cue/current-track DOM, calls Spotify player endpoints, starts timers, and logs status.
+     */
     async function startSideA() {
       let resuming = false;
       try {
+        // A physical tape side cannot start without at least one whole track assigned to that side.
         if (!sideA().length) throw new Error("Side A has no tracks.");
         resuming = state.recordMode === "paused" && state.activeRecordSide === "A";
+        // Preflight blocks missing auth/device data, unplayable URIs, unchecked deck setup, and side overflows.
         runRecordingPreflight("A", sideA());
         el.flipBanner.classList.remove("show");
         state.recordMode = "cue_a";
         state.activeRecordSide = "A";
         if (!resuming) {
+          // Fresh starts reset elapsed tracking; resumes keep elapsed time accumulated before pause.
           state.sideAElapsedBeforePause = 0;
           state.spotifySideElapsedMs = 0;
           state.lastSideProgressMs = 0;
         }
         state.autoPauseDone = false;
+        // The cue gives the operator time to release record/pause before Spotify starts.
         await runRecordCue("A");
         state.recordMode = "recording_a";
         state.lastProgressUpdatedAt = Date.now();
@@ -803,7 +1062,9 @@
         ? (resuming ? "Dry Run: resuming Side A timer." : "Dry Run: Side A timer started.")
         : (resuming ? "Resuming Side A..." : "Starting Side A from track 1...");
       if (!state.dryRun) {
+        // Shuffle/repeat are disabled only for a fresh side start; resume should not disturb current playback order.
         if (!resuming) await preparePlaybackOrder();
+        // Fresh Side A starts from the first URI; resume simply sends play to continue the paused device.
         await playSpotify(resuming ? { method: "PUT" } : buildSidePlaybackPayload(sideA(), 0, 0));
       }
       startTimer();
@@ -820,16 +1081,31 @@
       }
     }
 
+    /**
+     * Starts or resumes the Side B recording flow.
+     *
+     * It mirrors Side A startup using the current Side B track list and side-B
+     * playlist offset, then starts Spotify playback/timing after the cue
+     * countdown so the user can flip and arm the cassette deck.
+     *
+     * @returns {Promise<void>} Resolves after recording has started or the failure path has restored flip/paused state.
+     * @throws {Error} Does not intentionally throw; start errors are caught, logged, and reflected in UI state.
+     *
+     * Side effects: Mutates recording state, updates cue/current-track DOM, calls Spotify player endpoints, starts timers, and logs status.
+     */
     async function startSideB() {
       let resuming = false;
       try {
+        // Side B may be empty when the selected tape uses only Side A.
         if (!sideB().length) throw new Error("Side B has no tracks.");
         resuming = state.recordMode === "paused" && state.activeRecordSide === "B";
+        // Preflight enforces playable URI data and side capacity before the physical tape starts rolling.
         runRecordingPreflight("B", sideB());
         el.flipBanner.classList.remove("show");
         state.recordMode = "cue_b";
         state.activeRecordSide = "B";
         if (!resuming) {
+          // Side B gets its own elapsed baseline because the flip physically starts a new cassette side.
           state.spotifySideElapsedMs = 0;
           state.sideAElapsedBeforePause = 0;
           state.lastSideProgressMs = 0;
@@ -843,6 +1119,7 @@
         ? (resuming ? "Dry Run: resuming Side B timer." : "Dry Run: Side B timer started.")
         : (resuming ? "Resuming Side B..." : `Starting Side B from track ${sideBStartNumber()}...`);
       if (!state.dryRun) {
+        // Fresh Side B starts playback from the first Side B URI in the side-local payload.
         if (!resuming) await preparePlaybackOrder();
         await playSpotify(resuming ? { method: "PUT" } : buildSidePlaybackPayload(sideB(), 0, 0));
       }
@@ -860,8 +1137,22 @@
       }
     }
 
+    /**
+     * Runs the pre-record countdown for a cassette side.
+     *
+     * It clears any previous cue, displays the current side and remaining
+     * seconds, logs the operator prompt, and resolves when the interval reaches
+     * zero so Spotify playback or the dry-run timer can start.
+     *
+     * @param {"A"|"B"} side - Cassette side being cued.
+     * @returns {Promise<void>} Resolves when the countdown reaches zero.
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: Starts and clears `state.cueTimerId`, mutates cue DOM, updates finish-time/record-mode UI, and logs status.
+     */
     function runRecordCue(side) {
       clearRecordCue();
+      // The cue duration includes configured lead-in and motor latency so the deck can reach stable recording speed.
       let remaining = getRecordCueSeconds();
       showRecordCue(side, remaining);
       log(`Cue Side ${side}: press record now. ${state.dryRun ? "Dry Run timer" : "Spotify"} starts in ${remaining}s.`);
@@ -869,6 +1160,7 @@
         state.cueTimerId = setInterval(() => {
           remaining -= 1;
           if (remaining <= 0) {
+            // Clearing the cue removes the banner before playback begins.
             clearRecordCue();
             resolve();
             return;
@@ -946,12 +1238,31 @@
       el.recordCue.classList.remove("show");
     }
 
+    /**
+     * Builds a Spotify playback payload for one cassette side.
+     *
+     * Spotify `PUT /me/player/play` accepts a side-local `uris` array, an
+     * `offset.position` within that array, and `position_ms` within the
+     * selected track. This keeps correction and start commands scoped to the
+     * current tape side rather than the full original playlist.
+     *
+     * @param {Array<{uri: string}>} tracks - Side-local tracks to send to Spotify.
+     * @param {number} position - Zero-based index in `tracks` where playback should begin.
+     * @param {number} [positionMs=0] - Millisecond offset within the selected track.
+     * @returns {{method: "PUT", body: string}} Fetch options for `playSpotify`.
+     * @throws {TypeError} May throw if the payload cannot be serialized.
+     *
+     * Side effects: None; callers send the returned payload to Spotify.
+     */
     function buildSidePlaybackPayload(tracks, position, positionMs = 0) {
       return {
         method: "PUT",
         body: JSON.stringify({
+          // `uris` requires playable Spotify track URIs; imported configs without URIs are blocked by preflight.
           uris: tracks.map(track => track.uri),
+          // `offset.position` is side-local so track 0 means the first track on the cassette side.
           offset: { position },
+          // `position_ms` lets drift correction resume inside the expected track instead of restarting it.
           position_ms: positionMs
         })
       };
@@ -1267,16 +1578,34 @@
       renderSpotifyStatusPanel();
     }
 
+    /**
+     * Synchronizes the recording timer from Spotify playback state.
+     *
+     * It picks the active side, verifies that Spotify is playing a track from
+     * that side, corrects unexpected tracks when needed, computes side-local
+     * elapsed time, records drift against the local deck timer, auto-completes
+     * the side near its end, and schedules the next playback poll.
+     *
+     * @param {object} playback - Response from `GET /me/player`.
+     * @returns {Promise<void>} Resolves after progress state and polling schedule are updated.
+     * @throws {Error|SpotifyApiError|SpotifyAccountsError} May throw if a correction playback command fails.
+     *
+     * Side effects: Mutates playback status/progress fields, may call Spotify playback correction, updates timers, and schedules polling.
+     */
     async function syncRecordProgressFromSpotify(playback) {
+      // The active side defines the only valid track list during recording; tracks cannot span both sides.
       const tracks = state.activeRecordSide === "B" ? sideB() : sideA();
       if (!tracks.length || !playback.item?.uri) {
         renderRecordMode("Waiting");
         schedulePlaybackPoll(10000);
         return;
       }
+      // If Spotify wandered to another track, correct before using its progress as the source of truth.
       await correctUnexpectedPlaybackTrack(tracks, playback);
+      // Convert Spotify's current track URI and progress into elapsed time within the current cassette side.
       const elapsed = getSpotifySideElapsed(tracks, playback.item.uri, playback.progress_ms || 0);
       if (elapsed === null) {
+        // The current Spotify track is outside the side plan, so local timing continues without trusting playback progress.
         state.playbackStatus.expectedTrackPlaying = false;
         state.playbackStatus.playbackInSync = false;
         state.playbackStatus.driftMs = null;
@@ -1285,19 +1614,24 @@
         return;
       }
       const localElapsed = getLocalRecordElapsed();
+      // Positive drift means Spotify is ahead of the local deck timer; negative drift means it is behind.
       const driftMs = elapsed - localElapsed;
       const expected = getExpectedTrackAtElapsed(tracks, localElapsed);
       state.playbackStatus.expectedTrackPlaying = Boolean(expected && playback.item.uri === expected.track.uri);
+      // Five seconds is the tolerance window before the UI reports Spotify and cassette timing as out of sync.
       state.playbackStatus.playbackInSync = Math.abs(driftMs) <= 5000;
       state.playbackStatus.driftMs = driftMs;
       if (driftMs > -2000 && driftMs < 10000) {
+        // Trust Spotify progress only when it is close enough to avoid jumping the local countdown.
         state.spotifySideElapsedMs = elapsed;
       }
       if (elapsed > state.lastSideProgressMs && driftMs > -2000 && driftMs < 10000) {
+        // Keep a monotonic floor so repeated tracks with the same URI do not move the side timer backwards.
         state.lastSideProgressMs = elapsed;
         state.lastProgressUpdatedAt = Date.now();
       }
       const effectiveElapsed = getProjectedRecordElapsed();
+      // Complete slightly before exact duration to account for polling delay and avoid recording into the next side state.
       if (state.recordMode === "recording_a" && effectiveElapsed >= duration(sideA()) - 750 && !state.autoPauseDone) {
         completeSideA();
         return;
@@ -1323,17 +1657,36 @@
       await playSpotify(buildSidePlaybackPayload(tracks, expected.index, positionMs));
     }
 
+    /**
+     * Calculates side-local elapsed time from Spotify playback progress.
+     *
+     * A URI can appear more than once in a side, so the function builds all
+     * candidate elapsed positions for that URI, rejects candidates behind the
+     * monotonic progress floor when possible, and picks the candidate nearest
+     * the local timer anchor.
+     *
+     * @param {Array<{uri: string, duration_ms: number}>} tracks - Current side track list.
+     * @param {string} uri - Spotify URI from the current playback item.
+     * @param {number} progressMs - Spotify-reported progress within the current track.
+     * @returns {number|null} Side-local elapsed milliseconds, or `null` when the URI is not on this side.
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: None.
+     */
     function getSpotifySideElapsed(tracks, uri, progressMs) {
       const candidates = [];
       let running = 0;
       for (const track of tracks) {
+        // Duplicate Spotify URIs are possible, so every matching occurrence is a candidate timeline position.
         if (track.uri === uri) candidates.push(running + progressMs);
         running += track.duration_ms;
       }
       if (!candidates.length) return null;
+      // Allow a small backward window for jitter, but avoid jumping behind already-confirmed side progress.
       const floor = Math.max(0, state.lastSideProgressMs - 5000);
       const anchor = Math.max(getLocalRecordElapsed(), floor);
       const forward = candidates.filter(value => value >= floor);
+      // Choose the occurrence closest to the local deck timer so repeated tracks map to the expected copy.
       const selected = (forward.length ? forward : candidates)
         .sort((a, b) => Math.abs(a - anchor) - Math.abs(b - anchor))[0];
       return Math.max(floor, selected);
@@ -2077,6 +2430,20 @@
       setManualSplit(Number(el.manualSplitTrack.value));
     }
 
+    /**
+     * Locks the selected tape layout to a manual side split.
+     *
+     * It validates the requested Side B start index, preserves the split only
+     * when Side A still fits within the side length, marks the project dirty,
+     * resets recording progress because the side boundary changed, and rerenders
+     * the split UI.
+     *
+     * @param {number} splitIndex - Absolute track index where Side B should start.
+     * @returns {void}
+     * @throws {Error} Does not throw directly; invalid split choices are logged and rendered.
+     *
+     * Side effects: Mutates project split state, recording progress, DOM controls, and log output.
+     */
     function setManualSplit(splitIndex) {
       const layout = selectedTapeLayout();
       if (!state.project || !layout) return;
@@ -2087,9 +2454,11 @@
         return;
       }
       markProjectDirty();
+      // Project-level manual mode tells export/import and explanations that user intent overrides automatic packing.
       state.project.splitMode = "manual";
       state.project.tapes[state.selectedTapeIndex] = layout;
       syncStateFromProject();
+      // A new side boundary invalidates any prior recording progress and Spotify drift anchor.
       resetRecordingProgress();
       renderSplit();
       log(result.ok ? `Manual split locked after track ${splitIndex}.` : result.message);
@@ -2113,12 +2482,29 @@
       return nextSplit <= layout.sideBEndIndex && duration(nextSideA) <= selectedSideLengthMs();
     }
 
+    /**
+     * Applies a validated manual split to one tape layout.
+     *
+     * The split is clamped to the tape's track range, then rejected if Side A
+     * would exceed the physical side length. Tracks are reassigned as whole
+     * items because cassette planning cannot split a song across sides.
+     *
+     * @param {object} layout - Tape layout being edited.
+     * @param {number} splitIndex - Requested absolute Side B start index.
+     * @returns {{ok: boolean, message: string}} Result object with an error message when the split is invalid.
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: Mutates `layout` when the split is valid.
+     */
     function applyManualSplitToLayout(layout, splitIndex) {
       const start = layout.sideAStartIndex;
       const end = layout.sideBEndIndex;
+      // Clamp the manual boundary so Side A keeps at least one track and the split remains inside this tape.
       const nextSplit = Math.max(start + 1, Math.min(Number(splitIndex) || layout.sideBStartIndex, end));
+      // Side A takes whole tracks up to the split; no track is cut to make it fit.
       const nextSideA = projectTracks().slice(start, nextSplit);
       if (duration(nextSideA) > layout.sideLengthMs) {
+        // Reject the split because a real cassette side cannot contain more audio than its capacity.
         return { ok: false, message: `Manual split exceeds Side A length ${formatTime(layout.sideLengthMs)}.` };
       }
       layout.splitMode = "manual";
@@ -2126,6 +2512,7 @@
       layout.sideBStartIndex = nextSplit;
       layout.sideAEndIndex = nextSplit;
       layout.sideA = nextSideA;
+      // Side B receives the remaining whole tracks through the tape's end boundary.
       layout.sideB = projectTracks().slice(nextSplit, end);
       return { ok: true, message: "" };
     }
@@ -2631,6 +3018,22 @@
       }).join("");
     }
 
+    /**
+     * Renders cassette, Spotify, and recording readiness warnings.
+     *
+     * It compares planned duration against selected tape capacity, checks
+     * per-side overflow and manual split constraints, reports missing Spotify
+     * URI data, validates inventory and deck checklist readiness, and includes
+     * calibration safety-margin warnings.
+     *
+     * @param {number} totalMs - Total selected tape-plan duration.
+     * @param {number} tapeMs - Total capacity for the selected tape.
+     * @param {number} halfMs - Side capacity for the selected tape including configured slack.
+     * @returns {void}
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: Mutates the warnings DOM text.
+     */
     function renderWarnings(totalMs, tapeMs, halfMs) {
       const messages = [];
       const selectedTotalMs = duration(sideA()) + duration(sideB());
@@ -2638,6 +3041,7 @@
       const selectedLayout = selectedTapeLayout();
       const missingUris = countMissingTrackUris(state.project || { sourceTracks: tracks, tapes: state.tapeLayouts });
       const checklistReady = isAudioChecklistConfirmed();
+      // Official side length excludes user slack so the UI can warn when the plan depends on unofficial extra tape.
       const officialSideLengthMs = selectedTapeMinutes() * 30 * 1000;
       const usesSlack = state.slackMarginSeconds > 0 && (duration(sideA()) > officialSideLengthMs || duration(sideB()) > officialSideLengthMs);
       if (usesSlack) {
@@ -2645,6 +3049,7 @@
       }
       for (const track of tracks) {
         if (track.duration_ms > halfMs) {
+          // A single overlong track cannot be split across sides, so it must be reported even when order is preserved.
           messages.push(`Track "${track.name}" is longer than one side (${formatTime(track.duration_ms)} > ${formatTime(halfMs)}).`);
           break;
         }
@@ -2688,9 +3093,11 @@
         messages.push(`Selected tape ${selectedTapeLayout()?.tapeNumber || selectedTapeLayout()?.number || 1} has ${formatTime(tapeMs - selectedTotalMs)} blank tape.`);
       }
       if (duration(sideB()) > halfMs) {
+        // Overflowing Side B remains visible so the user can see which whole tracks no longer fit.
         messages.push(`Side B exceeds ${formatTime(halfMs)}. Extra tracks remain listed so original order is preserved.`);
       }
       for (const layout of state.tapeLayouts) {
+        // Each tape can have its own format, so overflow must be checked per layout rather than only selected tape.
         const sideLength = layout.sideLengthMs || (layout.tapeFormat || layout.tapeMinutes) * 30 * 1000;
         const sideAOverflow = duration(layout.sideA) > sideLength;
         const sideBOverflow = duration(layout.sideB) > sideLength;
