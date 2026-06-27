@@ -4,6 +4,7 @@
     import { validateRecordingSide, summarizePreflightIssues } from "./recording-preflight.js";
     import { RECORD_CUE_SECONDS, getExpectedTrackAtElapsed } from "./recording.js";
     import { SpotifyApiError, base64Url, parsePlaylistId, pickPlaylistCover, randomBytes, sha256Base64Url } from "./spotify.js";
+    import { SpotifyAccountsError, buildTokenState, clearSpotifyAuthStorage, expireSpotifySession, isInvalidGrantError } from "./spotify-auth.js";
     import { TAPE_FORMATS, analyzeTapeFitForTracks, duration, formatLongTime, formatTime, splitTracksForSide, splitTracksIntoTapes, splitTracksIntoTapesByFormats } from "./tape.js";
 
     const DEFAULT_SPOTIFY_CLIENT_ID = "";
@@ -34,6 +35,7 @@
       token: null,
       refreshToken: null,
       expiresAt: 0,
+      authorizedAt: null,
       playlistId: "",
       playlistName: "",
       playlistCoverUrl: "",
@@ -247,7 +249,7 @@
           code_verifier: verifier
         });
         const data = await fetchAccounts(body);
-        saveToken(data);
+        saveToken(data, { initialAuthorization: true });
         history.replaceState({}, "", new URL(APP_BASE_URL).pathname);
         log("Spotify connected.");
       } catch (error) {
@@ -259,7 +261,8 @@
       state.token = null;
       state.refreshToken = null;
       state.expiresAt = 0;
-      localStorage.removeItem("spotify_token");
+      state.authorizedAt = null;
+      clearSpotifyAuthStorage(localStorage, sessionStorage);
       clearSavedClientSecret();
       resetDevices();
       renderAuth();
@@ -280,14 +283,13 @@
       localStorage.setItem("spotify_token", JSON.stringify({
         token: state.token,
         refreshToken: state.refreshToken,
-        expiresAt: state.expiresAt
+        expiresAt: state.expiresAt,
+        authorizedAt: state.authorizedAt
       }));
     }
 
-    function saveToken(data) {
-      state.token = data.access_token;
-      state.refreshToken = data.refresh_token || state.refreshToken;
-      state.expiresAt = Date.now() + (data.expires_in - 60) * 1000;
+    function saveToken(data, options = {}) {
+      Object.assign(state, buildTokenState(data, state, options));
       persistToken();
       renderAuth();
     }
@@ -308,6 +310,15 @@
         setPlaybackRecovery("");
         log("Spotify token refreshed.");
       } catch (error) {
+        if (isInvalidGrantError(error)) {
+          const message = expireSpotifySession({ state, localStorage, sessionStorage });
+          resetDevices();
+          renderAuth();
+          setPlaybackRecovery(message);
+          log(message);
+          await login();
+          throw new Error(message);
+        }
         setPlaybackRecovery("Spotify login expired. Reconnect Spotify, then refresh devices before recording.");
         throw error;
       }
@@ -419,8 +430,8 @@
         headers,
         body
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error_description || data.error || "Spotify auth error");
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new SpotifyAccountsError(data?.error_description || data?.error || "Spotify auth error", response, data);
       return data;
     }
 
