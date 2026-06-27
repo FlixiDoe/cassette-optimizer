@@ -65,7 +65,7 @@ for (const file of moduleFiles) {
   assert.ok(fs.existsSync(path.join(root, file)), `Missing module file: ${file}`);
 }
 containsHtml("Advanced Client Secret disclosure", 'id="clientSecretAdvanced"');
-containsHtml("Client Secret local-only warning", "Advanced local-only option. Do not use a Client Secret on GitHub Pages, LAN devices, or public hosting.");
+containsHtml("Client Secret local-only warning", "Advanced local-only option. Do not use a Client Secret on LAN devices or public hosting.");
 containsHtml("Explicit Client Secret save control", 'id="saveClientSecret"');
 contains("Client Secret disabled off localhost", 'if (!isLocalhost()) return "";');
 contains("Client Secret preference restore", "function restoreClientSecretPreference");

@@ -1,13 +1,12 @@
 # Publishing Checklist
 
-The repository is currently private and GitHub Pages is disabled.
+The repository is currently private and hosted deployment is disabled.
 
 Do not make the repository public until this checklist is reviewed.
 
 ## Current State
 
 - Repository visibility: private
-- GitHub Pages: disabled
 - Public app/docs URLs: offline
 - Local app URL: `http://127.0.0.1:8787/`
 - Spotify redirect URI: `http://127.0.0.1:8787/callback`
@@ -24,9 +23,8 @@ rg -n "secret|token|ghp_|github_pat_|sk-|client_secret|refresh_token|access_toke
 3. Confirm `README.md` uses neutral cassette-workflow language and does not describe the project as a ripping tool.
 4. Confirm `README.md` includes the responsible-use notice.
 5. Confirm `LICENSE` is present.
-6. Decide whether the app should remain local-only or support a hosted callback URL.
-7. If hosting publicly, add the final public callback URL to the Spotify Developer Dashboard.
-8. If enabling GitHub Pages, document the Pages URL and update OAuth setup instructions.
+6. Keep the app local-only unless a separate hosting plan is reviewed.
+7. If hosting publicly in the future, add the final public callback URL to the Spotify Developer Dashboard.
 
 ## Manual Recording Setup Test
 
