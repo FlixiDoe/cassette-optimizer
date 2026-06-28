@@ -49,6 +49,7 @@
     button.primary { background: var(--green); color: #10130f; border-color: var(--green); font-weight: 700; }
     button.warn { background: #342513; border-color: #75551e; color: var(--amber); }
     button.danger { background: #321919; border-color: #743030; color: #ffd2d2; }
+    button.blocked { border-color: #735d28; box-shadow: inset 0 0 0 1px rgba(255,191,73,.28); }
     button:disabled { cursor: not-allowed; opacity: .5; }
 
     input,

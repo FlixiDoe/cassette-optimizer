@@ -1773,11 +1773,18 @@
       const recording = state.recordMode === "recording_a" || state.recordMode === "recording_b";
       const cueing = state.recordMode === "cue_a" || state.recordMode === "cue_b";
       const abortable = cueing || recording || state.recordMode === "paused" || state.recordMode === "flip";
+      const checklistComplete = isChecklistComplete();
       el.startA.textContent = pausedA ? "Resume Side A" : "Start Side A";
       el.startB.textContent = pausedB ? "Resume Side B" : "Start Side B";
       const needsToken = !state.dryRun;
-      el.startA.disabled = cueing || !a.length || (needsToken && !state.token) || !(state.recordMode === "idle" || pausedA);
-      el.startB.disabled = cueing || !b.length || (needsToken && !state.token) || !(state.recordMode === "flip" || pausedB);
+      // All 12 deck checklist items must be checked before arming Side A; the skip toggle bypasses only this gate while token, side, and mode gates remain active.
+      el.startA.disabled = cueing || !a.length || (needsToken && !state.token) || !checklistComplete || !(state.recordMode === "idle" || pausedA);
+      // All 12 deck checklist items must be checked before arming Side B; the skip toggle bypasses only this gate while token, side, and mode gates remain active.
+      el.startB.disabled = cueing || !b.length || (needsToken && !state.token) || !checklistComplete || !(state.recordMode === "flip" || pausedB);
+      // The blocked class makes an incomplete checklist visually distinct without changing any other start-button guard.
+      el.startA.classList.toggle("blocked", !checklistComplete);
+      // The blocked class makes an incomplete checklist visually distinct without changing any other start-button guard.
+      el.startB.classList.toggle("blocked", !checklistComplete);
       el.pauseBtn.disabled = cueing || (needsToken && !state.token) || !recording;
       el.abortBtn.disabled = !abortable;
       renderRecordingLockState();
@@ -1877,6 +1884,8 @@
         done: state.deckChecklistDone,
         skip: state.skipDeckChecklist
       }));
+      // Changing any checklist item or the skip toggle immediately re-evaluates whether Start Side A/B may be armed.
+      renderRecordMode();
       updateDeckChecklistState();
     }
 
@@ -1950,11 +1959,28 @@
       el.spotifyStatusWarning.textContent = warnings.join(" ");
     }
 
-    function isAudioChecklistConfirmed() {
+    /**
+     * Determines whether the deck checklist permits recording starts.
+     *
+     * It first honors the explicit skip toggle because the operator may need
+     * to bypass checklist enforcement for a known-safe setup. When skip is not
+     * active, it counts the persisted deck checklist booleans and requires
+     * every configured checklist item to be checked before returning true.
+     *
+     * @returns {boolean} `true` when skip is active or every deck checklist item is checked; otherwise `false`.
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: None; callers use the result to update DOM disabled states and recording preflight checks.
+     */
+    function isChecklistComplete() {
       if (state.skipDeckChecklist) return true;
       const total = DECK_CHECKLIST_ITEMS.length;
       const done = state.deckChecklistDone.filter(Boolean).length;
       return done >= total;
+    }
+
+    function isAudioChecklistConfirmed() {
+      return isChecklistComplete();
     }
 
     function formatDrift(driftMs) {

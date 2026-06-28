@@ -186,6 +186,7 @@ renderRecordingLockState()
 confirmPlaylistReorder()
 confirmReplaceDirtyProject()
 markProjectDirty()
+isChecklistComplete()
 isRecordingLockActive()
 blockIfRecordingLocked(action)
 renderRecordingLockState()
@@ -193,6 +194,8 @@ getRecordingLockedControls()
 ```
 
 Use these shared helpers instead of adding ad hoc `confirm(...)` calls or disabling controls in only one place. `Export Backup` paths intentionally stop after downloading JSON.
+
+`isChecklistComplete()` is the deck checklist gate for Start Side A/B and recording preflight. It returns true only when every deck checklist item is checked or the explicit skip checklist toggle is active.
 
 ### J-card functions in src/app.js
 
