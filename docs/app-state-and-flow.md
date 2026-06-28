@@ -156,6 +156,32 @@ This is why per-tape format choices can survive replanning by tape index.
 
 `Tape Slack Margin (seconds)` is applied during this rebuild by extending each side's planning limit. Warnings still call out unofficial extra tape length when the plan uses space beyond the official side length.
 
+## Tape inventory readiness flow
+
+`Tapes you have` is part of Recording Readiness, not just a planning hint.
+
+```text
+updateAvailableTapeFormats()
+  read C-length quantities from tapeInventory inputs
+  normalize quantities, preserving 0 when the user has no tapes
+  recompute available tape formats
+  rebuild split plan
+  renderSplit()
+  renderRecordMode()
+```
+
+`getTapeReadinessStatus(...)` blocks recording when:
+
+```text
+no playlist is loaded
+no selected tape layout exists
+all inventory quantities are 0
+the current plan needs more tapes of a format than inventory provides
+any planned side exceeds its cassette format capacity
+```
+
+The Tape row in Recording Readiness shows the specific inventory shortage or side overflow, and Start Side A/B remains blocked until the Tape row is green.
+
 ## Selected tape flow
 
 The physical cassette selector changes `state.selectedTapeIndex` through `selectTapeLayout()`.
@@ -252,6 +278,7 @@ Side starts share the same pattern:
 ```text
 startSideA/startSideB
   validate side has tracks
+  assertRecordingReadinessReady(side)
   runRecordingPreflight(side, tracks)
   detect resume vs fresh start
   set cue recordMode
@@ -266,6 +293,8 @@ renderRecordMode()
 ```
 
 `runRecordCue()` shows the red cue first. Spotify playback starts only after the cue and configured delay have elapsed.
+
+`assertRecordingReadinessReady(...)` is the hard click guard behind the disabled Start buttons. It uses the same `getRecordingReadinessStatus()` rows shown in the panel, so recording cannot start unless Spotify, Device, Playlist, Tape, Checklist, and API are all green.
 
 `runRecordingPreflight(...)` calls the pure `validateRecordingSide(...)` helper. Real recording blocks missing Spotify URI, local-only tracks, missing duration, empty sides, missing token, tracks longer than the selected side, and unsafe device/checklist state. Dry Run may continue with imported/offline URI data, but still blocks empty sides and invalid durations.
 
@@ -423,4 +452,5 @@ Does it preserve imported projects without Spotify token?
 Does it preserve projectDirty correctly?
 Does it respect recording lock guards?
 Does it avoid storing secrets?
+Did relevant docs change in the same commit?
 ```

@@ -36,11 +36,15 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Plans tracks across one or more cassette tapes without cutting tracks.
 - Keeps multi-tape state in a central project model.
 - Supports per-tape formats and tape inventory quantities.
+- Blocks recording when `Tapes you have` cannot satisfy the current plan or any planned side is too long for its cassette format.
 - Exports/imports cassette projects as JSON.
 - Migrates older cassette project JSON during import.
 - Controls Spotify playback for Side A / Side B recording with preflight safety checks.
 - Locks planning controls while cueing, recording, pausing, or waiting for a flip.
-- Provides Dry Run mode, recording countdowns, deck readiness guidance, and optional LAN monitoring.
+- Provides a seven-row Recording Readiness panel and blocks Start Side A/B until all rows are green.
+- Provides a six-step First Tape Wizard for playlist, cassette, checklist, level check, dry run, and recording start.
+- Provides Dry Run mode with visible simulation logging, recording countdowns, deck readiness guidance, and optional LAN monitoring.
+- Handles Spotify 429 rate limits with a Retry-After countdown and recording-safe playback command replay.
 - Adds calibration helpers for leader tape delay, motor latency, safety margin, and browser-based level-check tones.
 - Prints J-cards with title cleanup, manual print-only title overrides, and cover-derived theme colors.
 - Supports explicit tape slack margin tolerance with warnings when unofficial tape length is used.
@@ -160,13 +164,31 @@ user-modify-playback-state
 6. Choose a tape format.
 7. Click `Load playlist`.
 8. Review the physical tape plan, Side A, Side B, remaining blank tape, warnings, and J-card preview.
-9. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
-10. Refresh Spotify devices and choose the target device if needed.
-11. Complete the recording checklist.
-12. Use `Level Check` only after turning the deck input gain down, then stop the tone before recording.
-13. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
-14. After Side A auto-pauses, flip the cassette and use `Start Side B`.
-15. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+9. Confirm the Tape row in Recording Readiness is green; it turns red if `Tapes you have` is empty, too small, or short of the formats the plan needs.
+10. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
+11. Refresh Spotify devices and choose the target device if needed.
+12. Complete the recording checklist, or explicitly use `Skip checklist`.
+13. Use the seven Level Check checkpoints and `Level Check` tone only after turning the deck input gain down, then stop the tone before recording.
+14. Wait until all Recording Readiness rows are green.
+15. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
+16. After Side A auto-pauses, flip the cassette and use `Start Side B`.
+17. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+
+`Start First Tape Wizard` provides a guided version of the same flow. It reuses the existing playlist, tape, deck checklist, level-check, Dry Run, and Start Side A controls; it does not create a separate recording path.
+
+Recording Readiness has seven rows:
+
+```text
+Spotify   Token valid
+Device    Spotify device selected or Dry Run active
+Playlist  At least one track loaded
+Tape      Inventory and plan are valid
+Checklist All deck checklist items complete or skipped
+API       No active rate limit or non-retryable API error
+Ready     All rows above are green
+```
+
+Start Side A/B is disabled, and the click handler also blocks, unless every Recording Readiness row is green.
 
 `Apply to Spotify` always asks for confirmation before changing the remote playlist order. `Export Backup` downloads the project JSON and does not continue with the Spotify reorder.
 
@@ -193,8 +215,16 @@ Before a real recording run:
 - Adjust final recording level on the cassette deck input, not with OS mixer volume.
 - Disable notification sounds before recording.
 - Watch the deck meters and avoid clipping or distortion.
+- The deck checklist gates Start Side A/B unless all items are checked or `Skip checklist` is active. The Spotify device row can be checked automatically when the app detects a selected or active Spotify device.
 - If using `Leader Tape Delay`, the cue phase shows `Advancing past leader tape...` while the shared cue delay pipeline runs.
+- The Level Check section has seven informational checkpoints: Spotify Lossless/highest quality, Crossfade 0 s, Normalize off, EQ off, system volume 100 %, deck in record-pause, and peaks clean/no clipping.
 - The browser `Level Check` source can play 400 Hz, 1 kHz, or pink noise at `-12 dBFS`, `-6 dBFS`, or `0 dBFS`; it never auto-starts and must be stopped manually.
+
+## Dry Run and Rate Limits
+
+Dry Run simulates the recording flow without Spotify playback API calls. The cue countdown, leader/motor delays, side timers, flip prompt, and completion state still run at real speed. A visible DRY RUN banner and log show the playback commands that would have been sent.
+
+Spotify Web API 429 responses are handled centrally. Outside recording, the app waits for `Retry-After` and retries once. During active recording, playback commands are buffered and replayed only if the same side is still active after the wait; the tape countdown is not interrupted.
 
 ## Regression Tests
 
@@ -227,6 +257,7 @@ For manual checklists:
 - `OAuth callback rejected`: start from `http://127.0.0.1:8787/` and connect again.
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
 - Wrong target device: click `Refresh` under `Spotify device`, select the intended Spotify Connect device, then retry.
+- Recording Readiness Tape row is red: add the missing cassette quantity under `Tapes you have`, choose a larger format, or adjust the plan so every side fits.
 - Playback command sent but Spotify stays idle: wake the target Spotify device by playing any song, then retry or pause/resume the side.
 - Rate limited: wait for the app's retry countdown in the Recording Readiness panel.
 - Expired token: reconnect Spotify and refresh devices.

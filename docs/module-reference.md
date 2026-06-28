@@ -140,6 +140,9 @@ restoreTapeInventory()
 renderTapeInventory()
 getTapeInventory()
 getAvailableTapeFormats()
+getTapeReadinessStatus(playlistReady)
+getTapeInventoryShortages()
+getTapePlanOverflow()
 selectTapeLayout()
 updatePerTapeFormat(event)
 renderTapePlanSelector(totalMs)
@@ -148,6 +151,8 @@ countTapeFormats(exceptIndex)
 ```
 
 Per-tape format changes should go through `updatePerTapeFormat()` so inventory limits and replanning stay consistent.
+
+`getTapeReadinessStatus(...)` feeds the Recording Readiness Tape row. It blocks recording if inventory is empty, if a plan needs more cassettes than the user entered under `Tapes you have`, or if any planned side exceeds its cassette format.
 
 Slack margin changes should go through `updateSlackMargin()` so the value is clamped to 0-120 seconds, persisted in the project, marked dirty, and included in replanning.
 
@@ -177,6 +182,8 @@ renderWarnings(totalMs, tapeMs, halfMs)
 renderEmptyStates()
 renderRecordMode(monitorText)
 renderReadiness()
+getRecordingReadinessStatus()
+assertRecordingReadinessReady(side)
 renderRecordingLockState()
 startWizard()
 advanceWizard()
@@ -246,6 +253,7 @@ The level-check source uses the Web Audio API. It must only start from explicit 
 ```text
 startSideA()
 startSideB()
+assertRecordingReadinessReady(side)
 runRecordingPreflight(side, tracks)
 runRecordCue(side)
 showRecordCue(side, remaining)

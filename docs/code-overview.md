@@ -94,6 +94,10 @@ Recording:
   sideAElapsedBeforePause, spotifySideElapsedMs,
   timerId, cueTimerId, pollingId
 
+Rate limit:
+  rateLimit.active, secondsRemaining, retryAfterSeconds,
+  timerId, bufferedCall, error
+
 Playback monitoring:
   playbackStatus, pollingDelayMs, lastPlaybackCorrectionAt,
   playbackRecoveryMessage
@@ -101,6 +105,9 @@ Playback monitoring:
 Manual setup:
   deckChecklistDone, dryRun, calibration,
   audioContext, levelToneNode, levelToneGain
+
+First Tape Wizard:
+  wizardActive, wizardStep, wizardDryRunComplete
 
 LAN monitor:
   statusApiAvailable, statusPollId, remoteStatusSeen
@@ -192,7 +199,9 @@ seven-row Recording Readiness traffic-light panel
 LAN status payload
 ```
 
-It also applies the recording lock. While cueing, recording, paused, or waiting at the flip prompt, dangerous planning controls are disabled and `body[data-recording-state="active"]` is set. Action handlers still call guard helpers, so direct events cannot bypass the lock.
+It also applies the recording lock and Start Side A/B readiness gate. Start buttons are disabled unless the current side can be started, no rate-limit countdown is active, and all Recording Readiness prerequisite rows are green. While cueing, recording, paused, or waiting at the flip prompt, dangerous planning controls are disabled and `body[data-recording-state="active"]` is set. Action handlers still call guard helpers, so direct events cannot bypass the lock.
+
+`getRecordingReadinessStatus()` is the shared source for the panel and Start Side A/B gates. The Tape row checks the loaded plan, `Tapes you have`, cassette count by format, and side overflow. The Checklist row uses the deck checklist or skip toggle. The API row reflects active and non-retryable Spotify rate-limit state.
 
 Do not update many DOM nodes manually in new code if an existing render function already owns them. Mutate state first, then call the relevant render function.
 
@@ -212,6 +221,8 @@ Spotify API calls are made from `src/app.js` through `spotifyFetch(...)`. That w
 Playback starts through `playSpotify(...)`, and side playback payloads are built from the currently selected side only. This is why Record Mode can treat Side A and Side B as explicit queues.
 
 The Recording Readiness panel uses `playbackRecoveryMessage` for actionable device/token/API guidance such as sleeping devices, target-device mismatch, idle playback after a command, rate limiting, and expired OAuth tokens.
+
+Dry Run intentionally avoids Spotify playback API calls in recording flow. Simulated actions are written to the visible Dry Run log while cue timers, side countdowns, flip state, and completion state continue at real speed. Dry Run also exercises the same rate-limit banner/readiness path with a simulated 429.
 
 ## Local storage
 
@@ -252,3 +263,5 @@ New status panel behavior  -> src/app.js renderReadiness()
 New LAN status field       -> src/app.js getSharedStatusPayload() and server/server.js sanitizeStatus()
 New import/export field    -> src/app.js serialize/normalize functions, src/config-migration.js, and src/export.js version if format changes
 ```
+
+Documentation updates are part of the change, not a follow-up. When behavior, setup, architecture, state flow, safety, or maintenance expectations change, update the relevant docs before committing and pushing.
