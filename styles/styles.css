@@ -90,6 +90,39 @@
       margin-bottom: 18px;
     }
 
+    .wizard-launch {
+      margin-bottom: 16px;
+    }
+
+    .wizard-panel {
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #11150f;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .wizard-header,
+    .wizard-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .wizard-header b {
+      color: var(--green);
+      text-transform: uppercase;
+    }
+
+    .wizard-header span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     h1, h2, h3, p { margin: 0; }
     h1 { font-size: clamp(24px, 3vw, 42px); letter-spacing: 0; line-height: 1; }
     h2 { font-size: 16px; color: var(--green); text-transform: uppercase; }

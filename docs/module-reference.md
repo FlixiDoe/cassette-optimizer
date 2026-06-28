@@ -176,11 +176,17 @@ renderEmptyStates()
 renderRecordMode(monitorText)
 renderReadiness()
 renderRecordingLockState()
+startWizard()
+advanceWizard()
+retreatWizard()
+exitWizard()
 ```
 
 `renderSplit()` owns most planning UI. `renderRecordMode()` owns transport/recording UI.
 
 `renderReadiness()` writes the seven Recording Readiness traffic-light rows: Spotify, Device, Playlist, Tape, Checklist, API, and Ready. The API row is a green placeholder until the Spotify 429 handling path supplies live rate-limit state.
+
+The First Tape Wizard is a session-only controller in `src/app.js`. It does not duplicate playlist, tape, checklist, level-check, dry-run, or recording logic; each step scrolls to existing UI and the final Start recording action calls `startSideA()`.
 
 ### Safety and confirmation functions
 

@@ -48,9 +48,28 @@ dryRunToggle        -> updateDryRun()
 startLevelToneBtn   -> startLevelTone()
 stopLevelToneBtn    -> stopLevelTone()
 jCardOverrides      -> updateJCardOverride()
+startWizardBtn      -> startWizard()
+wizardNextBtn       -> advanceWizard()
+wizardBackBtn       -> retreatWizard()
+wizardExitBtn       -> exitWizard()
 ```
 
 New UI controls should follow the same pattern: keep the DOM element in `index.html`, add a handler in `bindEvents()`, mutate `state`, then call the render function that owns the affected UI.
+
+## First Tape Wizard flow
+
+The First Tape Wizard keeps `wizardActive`, `wizardStep`, and `wizardDryRunComplete` in memory only. It resets on page close and does not write to localStorage or the project model.
+
+```text
+Step 1 - Select playlist      -> existing playlist input/load UI
+Step 2 - Select cassette      -> existing tape format UI
+Step 3 - Deck checklist       -> existing deck checklist, gated by isChecklistComplete()
+Step 4 - Level check          -> existing level-check block, gated by all level checkpoints
+Step 5 - Dry run              -> existing Dry Run flow, gated by dry-run completion
+Step 6 - Start recording      -> calls startSideA()
+```
+
+The wizard shows one step title at a time and scrolls to the existing block for that step. It never creates a wizard-specific recording path.
 
 ## Playlist loading flow
 
