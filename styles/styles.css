@@ -576,6 +576,29 @@
       color: var(--amber);
     }
 
+    .dry-run-banner {
+      border: 1px solid var(--amber);
+      border-radius: 6px;
+      background: rgba(255,191,73,.14);
+      color: var(--amber);
+      padding: 10px;
+      font-weight: 900;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .dry-run-log {
+      max-height: 120px;
+      overflow: auto;
+      border: 1px dashed #735d28;
+      border-radius: 6px;
+      background: rgba(255,191,73,.06);
+      color: #ffd98a;
+      padding: 8px;
+      white-space: pre-wrap;
+      font-size: 12px;
+    }
+
     .spotify-status-panel {
       border: 1px solid var(--line);
       border-radius: 6px;

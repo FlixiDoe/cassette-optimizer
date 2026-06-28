@@ -250,6 +250,8 @@ renderRecordMode()
 
 `runRecordingPreflight(...)` calls the pure `validateRecordingSide(...)` helper. Real recording blocks missing Spotify URI, local-only tracks, missing duration, empty sides, missing token, tracks longer than the selected side, and unsafe device/checklist state. Dry Run may continue with imported/offline URI data, but still blocks empty sides and invalid durations.
 
+When Dry Run is active, recording-flow Spotify playback commands are routed through `simulateDryRunAction(...)` instead of `spotifyFetch(...)`. The visible DRY RUN banner and log make the simulation explicit, while cue delays, motor/leader timing, side countdowns, flip state, and return-to-idle behavior still run at real speed.
+
 While `recordMode` is `cue_a`, `cue_b`, `recording_a`, `recording_b`, `paused`, or `flip`, `renderRecordingLockState()` disables dangerous planning controls and sets `body[data-recording-state="active"]`. Each dangerous handler also calls `blockIfRecordingLocked(...)`.
 
 ## Timer flow

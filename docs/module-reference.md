@@ -235,6 +235,7 @@ runRecordCue(side)
 showRecordCue(side, remaining)
 clearRecordCue()
 buildSidePlaybackPayload(tracks, position, positionMs)
+simulateDryRunAction(action)
 pausePlayback()
 abortRecording()
 startTimer()
@@ -247,6 +248,8 @@ completeSideB()
 `startSideA()` and `startSideB()` should stay symmetrical. If a recording safety check is added, add it to both sides or a shared helper.
 
 `runRecordingPreflight(...)` bridges the pure `src/recording-preflight.js` validator to UI warnings/logging.
+
+`simulateDryRunAction(...)` is the recording-flow Dry Run boundary. It logs would-be playback commands to the console and visible Dry Run log without calling Spotify, while the cue countdown, timers, flip prompt, and completion transitions continue at real speed.
 
 ### Spotify monitoring functions
 

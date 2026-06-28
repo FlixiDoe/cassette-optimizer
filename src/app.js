@@ -87,6 +87,8 @@
       deckChecklistDone: [],
       skipDeckChecklist: false,
       dryRun: false,
+      dryRunLog: [],
+      dryRun429Simulated: false,
       audioContext: null,
       levelToneNode: null,
       levelToneGain: null,
@@ -1066,7 +1068,11 @@
         if (!resuming) await preparePlaybackOrder();
         // Fresh Side A starts from the first URI; resume simply sends play to continue the paused device.
         await playSpotify(resuming ? { method: "PUT" } : buildSidePlaybackPayload(sideA(), 0, 0));
+      } else {
+        // Dry Run skips `PUT /me/player/shuffle`, `PUT /me/player/repeat`, and `PUT /me/player/play`; the UI log records the simulated side start instead.
+        simulateDryRunAction(resuming ? "Would resume Spotify playback for Side A." : "Would disable shuffle/repeat and start Spotify playback for Side A.");
       }
+      // Dry Run intentionally keeps the physical recording timer at real speed so the operator can rehearse the full flow.
       startTimer();
       if (!state.dryRun) startPollingPlayback();
       renderRecordMode();
@@ -1122,7 +1128,11 @@
         // Fresh Side B starts playback from the first Side B URI in the side-local payload.
         if (!resuming) await preparePlaybackOrder();
         await playSpotify(resuming ? { method: "PUT" } : buildSidePlaybackPayload(sideB(), 0, 0));
+      } else {
+        // Dry Run skips `PUT /me/player/shuffle`, `PUT /me/player/repeat`, and `PUT /me/player/play`; the UI log records the simulated side start instead.
+        simulateDryRunAction(resuming ? "Would resume Spotify playback for Side B." : "Would disable shuffle/repeat and start Spotify playback for Side B.");
       }
+      // Dry Run intentionally keeps the physical recording timer at real speed so the operator can rehearse the full flow.
       startTimer();
       if (!state.dryRun) startPollingPlayback();
       renderRecordMode();
@@ -1164,6 +1174,12 @@
             clearRecordCue();
             resolve();
             return;
+          }
+          if (state.dryRun && side === "A" && !state.dryRun429Simulated && Math.random() < .22) {
+            state.dryRun429Simulated = true;
+            // This intentional simulated 429 exercises the future rate-limit UI path; TODO: wire to handleRateLimit() in Feature 6.
+            simulateDryRunAction("Simulated Spotify 429 during Side A countdown; no Spotify endpoint was called.");
+            setPlaybackRecovery("Dry Run simulated Spotify 429. Rate-limit handling will be wired in Feature 6.");
           }
           showRecordCue(side, remaining);
         }, 1000);
@@ -1270,7 +1286,12 @@
 
     async function pausePlayback() {
       try {
-        if (!state.dryRun) await spotifyFetch("/me/player/pause", { method: "PUT" });
+        if (!state.dryRun) {
+          await spotifyFetch("/me/player/pause", { method: "PUT" });
+        } else {
+          // Dry Run skips `PUT /me/player/pause`; the local timer pause is still applied exactly like a real pause.
+          simulateDryRunAction("Would pause Spotify playback.");
+        }
         if (state.sideAStartedAt) {
           state.sideAElapsedBeforePause += Date.now() - state.sideAStartedAt;
           state.sideAStartedAt = 0;
@@ -1298,6 +1319,9 @@
           } catch (error) {
             log(`Abort pause warning: ${error.message}`);
           }
+        } else if (state.dryRun) {
+          // Dry Run skips the abort-time `PUT /me/player/pause`; local recording state still returns to idle.
+          simulateDryRunAction("Would pause Spotify playback during abort.");
         }
         state.recordMode = "idle";
         state.activeRecordSide = null;
@@ -1709,7 +1733,12 @@
       state.autoPauseDone = true;
       stopTimer();
       try {
-        if (!state.dryRun) await spotifyFetch("/me/player/pause", { method: "PUT" });
+        if (!state.dryRun) {
+          await spotifyFetch("/me/player/pause", { method: "PUT" });
+        } else {
+          // Dry Run skips the Side A auto-pause endpoint while preserving the flip transition timing.
+          simulateDryRunAction("Would pause Spotify playback at the end of Side A.");
+        }
         log(state.dryRun ? "Dry Run: Side A complete." : "Record Mode: Side A complete. Spotify paused automatically.");
       } catch (error) {
         log(error.message);
@@ -1727,7 +1756,12 @@
       state.autoPauseDone = true;
       stopTimer();
       try {
-        if (!state.dryRun) await spotifyFetch("/me/player/pause", { method: "PUT" });
+        if (!state.dryRun) {
+          await spotifyFetch("/me/player/pause", { method: "PUT" });
+        } else {
+          // Dry Run skips the Side B auto-pause endpoint while preserving the final idle transition.
+          simulateDryRunAction("Would pause Spotify playback at the end of Side B.");
+        }
         log(state.dryRun ? "Dry Run: Side B complete." : "Record Mode: Side B complete. Spotify paused automatically.");
       } catch (error) {
         log(error.message);
@@ -1996,6 +2030,7 @@
 
     function renderDryRun() {
       el.dryRunToggle.checked = state.dryRun;
+      renderDryRunState();
       renderRecordMode();
     }
 
@@ -2007,8 +2042,40 @@
       state.dryRun = el.dryRunToggle.checked;
       localStorage.setItem("dry_run_mode", String(state.dryRun));
       if (state.dryRun) stopPollingPlayback();
+      // The DRY RUN banner appears immediately when active and disappears as soon as live Spotify commands are re-enabled.
+      renderDryRunState();
       renderRecordMode();
       log(state.dryRun ? "Dry Run enabled. Spotify playback commands will be skipped." : "Dry Run disabled. Spotify playback commands are active.");
+    }
+
+    /**
+     * Logs a simulated recording-flow action for Dry Run mode.
+     *
+     * It prints the would-be Spotify playback command to the console, prepends
+     * the same action to the visible Dry Run log, and keeps only recent entries
+     * so the transport panel remains compact. It never calls Spotify, never
+     * mutates remote playback state, and never changes playlist order.
+     *
+     * @param {string} action - Human-readable description of the Spotify action that would have run.
+     * @returns {void}
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: Writes to `console.info`, mutates `state.dryRunLog`, updates the Dry Run log DOM, and writes the shared app log.
+     */
+    function simulateDryRunAction(action) {
+      const message = `DRY RUN - ${action}`;
+      console.info(message);
+      state.dryRunLog = [`${new Date().toLocaleTimeString()} ${message}`, ...state.dryRunLog].slice(0, 8);
+      renderDryRunState();
+      log(message);
+    }
+
+    function renderDryRunState() {
+      if (!el.dryRunBanner || !el.dryRunLog) return;
+      // The banner is visible only while Dry Run is active so live sessions cannot be mistaken for simulations.
+      el.dryRunBanner.hidden = !state.dryRun;
+      el.dryRunLog.hidden = !state.dryRun || !state.dryRunLog.length;
+      el.dryRunLog.textContent = state.dryRunLog.join("\n");
     }
 
     async function startLevelTone() {
