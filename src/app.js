@@ -1646,20 +1646,28 @@
     }
 
     function getRecordCueSeconds() {
-      return RECORD_CUE_SECONDS + state.calibration.leadInSeconds + state.calibration.motorLatencySeconds;
+      const timing = getEffectiveTimingSettings();
+      // Previously read directly from #leadInDelay and #motorLatency; now computed from active deck + cassette profiles via getEffectiveTimingSettings().
+      return RECORD_CUE_SECONDS + timing.leaderTapeDelay + timing.motorLatency;
     }
 
     function getCuePhaseText(remaining, target) {
-      const leadIn = state.calibration.leadInSeconds;
-      const motor = state.calibration.motorLatencySeconds;
+      const timing = getEffectiveTimingSettings();
+      // Previously read directly from #leadInDelay; now computed from active deck + cassette profiles via getEffectiveTimingSettings().
+      const leadIn = timing.leaderTapeDelay;
+      // Previously read directly from #motorLatency; now computed from active deck + cassette profiles via getEffectiveTimingSettings().
+      const motor = timing.motorLatency;
       if (leadIn && remaining > RECORD_CUE_SECONDS + motor) return `ADVANCING PAST LEADER TAPE - ${remaining}s`;
       if (motor && remaining > RECORD_CUE_SECONDS) return `WAITING FOR MOTOR - ${remaining}s`;
       return `${target} STARTS IN ${remaining}`;
     }
 
     function getCueMonitorText(remaining) {
-      const leadIn = state.calibration.leadInSeconds;
-      const motor = state.calibration.motorLatencySeconds;
+      const timing = getEffectiveTimingSettings();
+      // Previously read directly from #leadInDelay; now computed from active deck + cassette profiles via getEffectiveTimingSettings().
+      const leadIn = timing.leaderTapeDelay;
+      // Previously read directly from #motorLatency; now computed from active deck + cassette profiles via getEffectiveTimingSettings().
+      const motor = timing.motorLatency;
       if (leadIn && remaining > RECORD_CUE_SECONDS + motor) return "Advancing past leader tape";
       if (motor && remaining > RECORD_CUE_SECONDS) return "Waiting for motor";
       return `${state.dryRun ? "Timer" : "Spotify"} starts in ${remaining}s`;
@@ -2929,6 +2937,52 @@
       };
     }
 
+    /**
+     * Gets the effective recording timing settings.
+     *
+     * Steps:
+     * 1. Load the active deck profile and active cassette profile.
+     * 2. Fall back to the legacy HTML inputs when no active deck exists.
+     * 3. Add cassette `leaderLength` as an offset to the deck's base leader tape delay.
+     * 4. Use deck motor latency and safety margin directly.
+     * 5. Use cassette slack when measured, otherwise use the deck default slack margin.
+     *
+     * @returns {{leaderTapeDelay: number, motorLatency: number, safetyMargin: number, slackMargin: number}} Effective timing settings in seconds.
+     * @throws {Error} Does not throw; missing profile state falls back to current HTML input values.
+     *
+     * Side effects: Reads profile localStorage through active profile helpers and may read calibration input values as a legacy fallback.
+     */
+    function getEffectiveTimingSettings() {
+      const deck = getActiveDeck();
+      // A missing deck means profile storage is unavailable or empty, so preserve the original behavior by reading the manual inputs.
+      if (!deck) {
+        return {
+          // Fallback reads the current #leadInDelay input so legacy manual calibration still works when no profile is active.
+          leaderTapeDelay: clampSeconds(el.leadInDelay.value, 0, 120),
+          // Fallback reads the current #motorLatency input so legacy manual calibration still works when no profile is active.
+          motorLatency: clampSeconds(el.motorLatency.value, 0, 30),
+          // Fallback reads the current #safetyMargin input so legacy safety warnings still work when no profile is active.
+          safetyMargin: clampSeconds(el.safetyMargin.value, 0, 300),
+          // Fallback reads the current #slackMargin input so legacy planning still works when no profile is active.
+          slackMargin: clampSeconds(el.slackMargin.value, 0, 120)
+        };
+      }
+      const cassette = getActiveCassette();
+      const cassetteLeaderLength = cassette?.leaderLength ?? 0;
+      // cassette.leaderLength is an additive offset on top of the deck's base leaderTapeDelay.
+      // It accounts for cassette batches with slightly longer physical leader tape, but the deck's
+      // mechanical delay is the dominant factor and must never be fully overridden by cassette data.
+      const leaderTapeDelay = Number(deck.leaderTapeDelay) + Number(cassetteLeaderLength || 0);
+      // Missing cassette slack falls back from cassette to deck because most cassettes are not measured individually.
+      const slackMargin = cassette?.slackMargin ?? deck.defaultSlackMargin;
+      return {
+        leaderTapeDelay: clampSeconds(leaderTapeDelay, 0, 120),
+        motorLatency: clampSeconds(deck.motorLatency, 0, 30),
+        safetyMargin: clampSeconds(deck.safetyMargin, 0, 300),
+        slackMargin: clampSeconds(slackMargin, 0, 120)
+      };
+    }
+
     function clampSeconds(value, min, max) {
       const number = Number(value);
       if (!Number.isFinite(number)) return min;
@@ -3885,7 +3939,9 @@
       const checklistReady = isAudioChecklistConfirmed();
       // Official side length excludes user slack so the UI can warn when the plan depends on unofficial extra tape.
       const officialSideLengthMs = selectedTapeMinutes() * 30 * 1000;
-      const usesSlack = state.slackMarginSeconds > 0 && (duration(sideA()) > officialSideLengthMs || duration(sideB()) > officialSideLengthMs);
+      const timing = getEffectiveTimingSettings();
+      // Previously read directly from #slackMargin; now computed from active deck + cassette profiles via getEffectiveTimingSettings().
+      const usesSlack = timing.slackMargin > 0 && (duration(sideA()) > officialSideLengthMs || duration(sideB()) > officialSideLengthMs);
       if (usesSlack) {
         messages.push("Uses unofficial extra tape length. Real cassette may still run out.");
       }
@@ -3951,10 +4007,11 @@
           }
         }
       }
-      const safetyMs = state.calibration.safetyMarginSeconds * 1000;
+      // Previously read directly from #safetyMargin; now computed from active deck + cassette profiles via getEffectiveTimingSettings().
+      const safetyMs = timing.safetyMargin * 1000;
       if (tracks.length && safetyMs) {
-        if (halfMs - duration(sideA()) < safetyMs) messages.push(`Side A has less than the configured ${state.calibration.safetyMarginSeconds}s safety margin remaining.`);
-        if (duration(sideB()) && halfMs - duration(sideB()) < safetyMs) messages.push(`Side B has less than the configured ${state.calibration.safetyMarginSeconds}s safety margin remaining.`);
+        if (halfMs - duration(sideA()) < safetyMs) messages.push(`Side A has less than the configured ${timing.safetyMargin}s safety margin remaining.`);
+        if (duration(sideB()) && halfMs - duration(sideB()) < safetyMs) messages.push(`Side B has less than the configured ${timing.safetyMargin}s safety margin remaining.`);
       }
       el.warnings.textContent = messages.join("\n");
     }
@@ -4059,7 +4116,8 @@
     }
 
     function getSlackMarginMs() {
-      return clampSeconds(state.slackMarginSeconds, 0, 120) * 1000;
+      // Previously read directly from #slackMargin; now computed from active deck + cassette profiles via getEffectiveTimingSettings().
+      return getEffectiveTimingSettings().slackMargin * 1000;
     }
 
     function plannedRecordingTracks() {
