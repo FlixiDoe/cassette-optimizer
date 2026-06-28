@@ -29,7 +29,8 @@
 
     button,
     input,
-    select {
+    select,
+    textarea {
       font: inherit;
     }
 
@@ -53,7 +54,8 @@
     button:disabled { cursor: not-allowed; opacity: .5; }
 
     input,
-    select {
+    select,
+    textarea {
       width: 100%;
       min-height: 42px;
       border: 1px solid var(--line);
@@ -62,6 +64,12 @@
       border-radius: 6px;
       padding: 0 12px;
       outline: none;
+    }
+
+    textarea {
+      min-height: 74px;
+      padding: 10px 12px;
+      resize: vertical;
     }
 
     select {
@@ -74,7 +82,8 @@
     }
 
     input:focus,
-    select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(156,255,106,.12); }
+    select:focus,
+    textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(156,255,106,.12); }
 
     .app {
       width: min(1440px, calc(100% - 32px));

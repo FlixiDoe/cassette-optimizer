@@ -270,9 +270,9 @@ Documentation updates are part of the change, not a follow-up. When behavior, se
 
 Recording timing is now modeled as two local-first profile layers.
 
-The deck profile is the primary timing source. It stores the deck name, leader tape delay, motor latency, safety margin, default slack margin, automatic recording level placeholder, Dolby NR support, and Type II support. Deck data lives in `localStorage.deckProfiles`, while `localStorage.activeDeckId` stores the selected id.
+The deck profile is the primary timing source. It stores the deck name, manufacturer, model, leader tape delay, motor latency, safety margin, default slack margin, optional automatic recording level, Dolby NR support, Type II support, Type IV support, and notes. Deck data lives in `localStorage.deckProfiles`, while `localStorage.activeDeckId` stores the selected id.
 
-The cassette profile is the secondary timing source. It stores the cassette name, type (`I` or `II`), length in minutes, optional tape-specific slack, and optional leader-length offset. Cassette data lives in `localStorage.cassetteProfiles`, while `localStorage.activeCassetteId` stores the selected id.
+The cassette profile is the secondary timing source. It stores the cassette name, manufacturer, model, type (`I` or `II`), length in minutes, optional year, condition flags (`new`, `used`, `testTape`), optional tape-specific slack, and optional leader-length offset. Cassette data lives in `localStorage.cassetteProfiles`, while `localStorage.activeCassetteId` stores the selected id.
 
 `getEffectiveTimingSettings()` combines the layers:
 

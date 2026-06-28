@@ -44,20 +44,32 @@
     const DEFAULT_DECK_PROFILE = {
       id: "deck_philips_az1025",
       name: "Philips AZ1025/00",
+      manufacturer: "Philips",
+      model: "AZ1025/00",
       leaderTapeDelay: 5.8,
       motorLatency: 0.8,
       safetyMargin: 5,
       defaultSlackMargin: 5,
       autoRecordingLevel: null,
       dolbyNR: false,
-      typeIISupport: false
+      typeIISupport: false,
+      typeIVSupport: false,
+      notes: ""
     };
     const DEFAULT_CASSETTE_PROFILES = [
       {
         id: "tape_maxell_ur90",
         name: "Maxell UR-90",
+        manufacturer: "Maxell",
+        model: "UR-90",
         type: "I",
         lengthMinutes: 90,
+        year: null,
+        condition: {
+          new: false,
+          used: false,
+          testTape: false
+        },
         // slackMargin: null means this cassette has no measured tape-specific slack — the deck's defaultSlackMargin will be used. This is expected for most cassettes until the user measures them.
         slackMargin: 5,
         // leaderLength: null means the leader tape length has not been measured for this cassette — no offset is applied to the deck's base leaderTapeDelay.
@@ -66,8 +78,16 @@
       {
         id: "tape_sony_hf90",
         name: "Sony HF90",
+        manufacturer: "Sony",
+        model: "HF90",
         type: "I",
         lengthMinutes: 90,
+        year: null,
+        condition: {
+          new: false,
+          used: false,
+          testTape: false
+        },
         // slackMargin: null means this cassette has no measured tape-specific slack — the deck's defaultSlackMargin will be used. This is expected for most cassettes until the user measures them.
         slackMargin: null,
         // leaderLength: null means the leader tape length has not been measured for this cassette — no offset is applied to the deck's base leaderTapeDelay.
@@ -376,8 +396,13 @@
       el.deckProfileSelect.innerHTML = profiles.map(profile => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.id)}</option>`).join("");
       el.deckProfileSelect.value = active?.id || "";
       el.deckProfileName.value = active?.name || "";
+      el.deckManufacturer.value = active?.manufacturer || "";
+      el.deckModel.value = active?.model || "";
+      el.deckAutoRecordingLevel.value = active?.autoRecordingLevel ?? "";
       el.deckDolbyNR.checked = Boolean(active?.dolbyNR);
       el.deckTypeIISupport.checked = Boolean(active?.typeIISupport);
+      el.deckTypeIVSupport.checked = Boolean(active?.typeIVSupport);
+      el.deckNotes.value = active?.notes || "";
     }
 
     function renderCassetteProfileControls() {
@@ -386,8 +411,15 @@
       el.cassetteProfileSelect.innerHTML = profiles.map(profile => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.id)}</option>`).join("");
       el.cassetteProfileSelect.value = active?.id || "";
       el.cassetteProfileName.value = active?.name || "";
+      el.cassetteManufacturer.value = active?.manufacturer || "";
+      el.cassetteModel.value = active?.model || "";
       el.cassetteProfileType.value = active?.type === "II" ? "II" : "I";
       el.cassetteProfileLength.value = active?.lengthMinutes || 90;
+      el.cassetteYear.value = active?.year ?? "";
+      const condition = active?.condition || {};
+      el.cassetteConditionNew.checked = Boolean(condition.new);
+      el.cassetteConditionUsed.checked = Boolean(condition.used);
+      el.cassetteConditionTestTape.checked = Boolean(condition.testTape);
       el.cassetteLeaderLength.value = active?.leaderLength ?? "";
       el.cassetteSlackMargin.value = active?.slackMargin ?? "";
     }
@@ -441,12 +473,17 @@
       const updated = {
         ...active,
         name: el.deckProfileName.value.trim() || active.name,
+        manufacturer: el.deckManufacturer.value.trim(),
+        model: el.deckModel.value.trim(),
         leaderTapeDelay: clampNumber(el.leadInDelay.value, 0, 120),
         motorLatency: clampNumber(el.motorLatency.value, 0, 30),
         safetyMargin: clampSeconds(el.safetyMargin.value, 0, 300),
         defaultSlackMargin: clampSeconds(el.slackMargin.value, 0, 120),
+        autoRecordingLevel: optionalNumber(el.deckAutoRecordingLevel.value, 0, 100),
         dolbyNR: el.deckDolbyNR.checked,
-        typeIISupport: el.deckTypeIISupport.checked
+        typeIISupport: el.deckTypeIISupport.checked,
+        typeIVSupport: el.deckTypeIVSupport.checked,
+        notes: el.deckNotes.value.trim()
       };
       // Write the edited deck profile immediately so the existing timing inputs behave as a live deck editor.
       saveDeckProfiles(profiles.map(profile => profile.id === updated.id ? updated : profile));
@@ -461,8 +498,16 @@
       const updated = {
         ...active,
         name: el.cassetteProfileName.value.trim() || active.name,
+        manufacturer: el.cassetteManufacturer.value.trim(),
+        model: el.cassetteModel.value.trim(),
         type: el.cassetteProfileType.value === "II" ? "II" : "I",
         lengthMinutes: Math.max(1, Math.min(180, Math.round(Number(el.cassetteProfileLength.value) || active.lengthMinutes || 90))),
+        year: optionalYear(el.cassetteYear.value),
+        condition: {
+          new: el.cassetteConditionNew.checked,
+          used: el.cassetteConditionUsed.checked,
+          testTape: el.cassetteConditionTestTape.checked
+        },
         leaderLength: optionalNumber(el.cassetteLeaderLength.value, 0, 120),
         slackMargin: optionalSeconds(el.cassetteSlackMargin.value, 0, 120)
       };
@@ -511,6 +556,12 @@
     function optionalNumber(value, min, max) {
       if (String(value).trim() === "") return null;
       return clampNumber(value, min, max);
+    }
+
+    function optionalYear(value) {
+      if (String(value).trim() === "") return null;
+      const year = Math.round(Number(value));
+      return Number.isFinite(year) ? Math.max(1900, Math.min(2100, year)) : null;
     }
 
     function addTapeCollectionItem(cassetteProfileId) {
@@ -615,6 +666,10 @@
       el.importConfigFile.addEventListener("change", importTapeConfig);
       el.deckProfileSelect.addEventListener("change", selectDeckProfile);
       el.deckProfileName.addEventListener("change", updateDeckProfile);
+      el.deckManufacturer.addEventListener("change", updateDeckProfile);
+      el.deckModel.addEventListener("change", updateDeckProfile);
+      el.deckAutoRecordingLevel.addEventListener("change", updateDeckProfile);
+      el.deckAutoRecordingLevel.addEventListener("input", updateDeckProfile);
       el.leadInDelay.addEventListener("change", updateCalibration);
       el.leadInDelay.addEventListener("input", updateCalibration);
       el.motorLatency.addEventListener("change", updateCalibration);
@@ -623,11 +678,20 @@
       el.safetyMargin.addEventListener("input", updateCalibration);
       el.deckDolbyNR.addEventListener("change", updateDeckProfile);
       el.deckTypeIISupport.addEventListener("change", updateDeckProfile);
+      el.deckTypeIVSupport.addEventListener("change", updateDeckProfile);
+      el.deckNotes.addEventListener("change", updateDeckProfile);
       el.addDeckProfileBtn.addEventListener("click", addDeckProfile);
       el.cassetteProfileSelect.addEventListener("change", selectCassetteProfile);
       el.cassetteProfileName.addEventListener("change", updateCassetteProfile);
+      el.cassetteManufacturer.addEventListener("change", updateCassetteProfile);
+      el.cassetteModel.addEventListener("change", updateCassetteProfile);
       el.cassetteProfileType.addEventListener("change", updateCassetteProfile);
       el.cassetteProfileLength.addEventListener("change", updateCassetteProfile);
+      el.cassetteYear.addEventListener("change", updateCassetteProfile);
+      el.cassetteYear.addEventListener("input", updateCassetteProfile);
+      el.cassetteConditionNew.addEventListener("change", updateCassetteProfile);
+      el.cassetteConditionUsed.addEventListener("change", updateCassetteProfile);
+      el.cassetteConditionTestTape.addEventListener("change", updateCassetteProfile);
       el.cassetteLeaderLength.addEventListener("change", updateCassetteProfile);
       el.cassetteLeaderLength.addEventListener("input", updateCassetteProfile);
       el.cassetteSlackMargin.addEventListener("change", updateCassetteProfile);
@@ -4066,18 +4130,27 @@
       return profile && typeof profile === "object"
         && typeof profile.id === "string"
         && typeof profile.name === "string"
+        && (profile.manufacturer === undefined || typeof profile.manufacturer === "string")
+        && (profile.model === undefined || typeof profile.model === "string")
         && typeof profile.leaderTapeDelay === "number"
         && typeof profile.motorLatency === "number"
         && typeof profile.safetyMargin === "number"
-        && typeof profile.defaultSlackMargin === "number";
+        && typeof profile.defaultSlackMargin === "number"
+        && (profile.autoRecordingLevel === undefined || profile.autoRecordingLevel === null || typeof profile.autoRecordingLevel === "number")
+        && (profile.typeIVSupport === undefined || typeof profile.typeIVSupport === "boolean")
+        && (profile.notes === undefined || typeof profile.notes === "string");
     }
 
     function isValidCassetteProfile(profile) {
       return profile && typeof profile === "object"
         && typeof profile.id === "string"
         && typeof profile.name === "string"
+        && (profile.manufacturer === undefined || typeof profile.manufacturer === "string")
+        && (profile.model === undefined || typeof profile.model === "string")
         && (profile.type === "I" || profile.type === "II")
-        && typeof profile.lengthMinutes === "number";
+        && typeof profile.lengthMinutes === "number"
+        && (profile.year === undefined || profile.year === null || typeof profile.year === "number")
+        && (profile.condition === undefined || profile.condition === null || typeof profile.condition === "object");
     }
 
     function mergeProfilesById(existingProfiles, importedProfiles) {

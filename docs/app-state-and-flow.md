@@ -481,18 +481,29 @@ The active profile data remains in the profile arrays. This keeps selection stab
 The existing timing inputs are profile editors:
 
 ```text
+deckManufacturer -> active deck manufacturer
+deckModel        -> active deck model
+deckAutoRecordingLevel -> active deck autoRecordingLevel
 leadInDelay     -> active deck leaderTapeDelay
 motorLatency    -> active deck motorLatency
 safetyMargin    -> active deck safetyMargin
 slackMargin     -> active deck defaultSlackMargin, unless the active cassette has a slack override
+deckTypeIVSupport -> active deck typeIVSupport
+deckNotes       -> active deck notes
 ```
 
 Cassette-specific fields edit the active cassette profile:
 
 ```text
 cassetteProfileName
+cassetteManufacturer
+cassetteModel
 cassetteProfileType
 cassetteProfileLength
+cassetteYear
+cassetteConditionNew
+cassetteConditionUsed
+cassetteConditionTestTape
 cassetteLeaderLength
 cassetteSlackMargin
 ```

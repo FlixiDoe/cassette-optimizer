@@ -75,6 +75,20 @@
           </div>
           <label class="label" for="deckProfileName">Deck name</label>
           <input id="deckProfileName" autocomplete="off">
+          <div class="row">
+            <label>
+              <span class="label" for="deckManufacturer">Manufacturer</span>
+              <input id="deckManufacturer" autocomplete="off">
+            </label>
+            <label>
+              <span class="label" for="deckModel">Model</span>
+              <input id="deckModel" autocomplete="off">
+            </label>
+          </div>
+          <label>
+            <span class="label" for="deckAutoRecordingLevel">Auto Recording Level</span>
+            <input id="deckAutoRecordingLevel" type="number" min="0" max="100" step="1" placeholder="Not measured">
+          </label>
           <div class="check-grid">
             <label class="check-row">
               <input id="deckDolbyNR" type="checkbox">
@@ -84,7 +98,15 @@
               <input id="deckTypeIISupport" type="checkbox">
               <span>Type II support</span>
             </label>
+            <label class="check-row">
+              <input id="deckTypeIVSupport" type="checkbox">
+              <span>Type IV support</span>
+            </label>
           </div>
+          <label>
+            <span class="label" for="deckNotes">Notes</span>
+            <textarea id="deckNotes" rows="2"></textarea>
+          </label>
         </div>
         <div id="playlistPickerPanel">
           <label class="label" for="playlistSelect">Your Spotify playlists</label>
@@ -109,6 +131,16 @@
           <input id="cassetteProfileName" autocomplete="off">
           <div class="row">
             <label>
+              <span class="label" for="cassetteManufacturer">Manufacturer</span>
+              <input id="cassetteManufacturer" autocomplete="off">
+            </label>
+            <label>
+              <span class="label" for="cassetteModel">Model</span>
+              <input id="cassetteModel" autocomplete="off">
+            </label>
+          </div>
+          <div class="row">
+            <label>
               <span class="label" for="cassetteProfileType">Type</span>
               <select id="cassetteProfileType">
                 <option value="I">Type I</option>
@@ -118,6 +150,24 @@
             <label>
               <span class="label" for="cassetteProfileLength">Length</span>
               <input id="cassetteProfileLength" type="number" min="1" max="180" step="1" value="90">
+            </label>
+          </div>
+          <label>
+            <span class="label" for="cassetteYear">Year</span>
+            <input id="cassetteYear" type="number" min="1900" max="2100" step="1" placeholder="Optional">
+          </label>
+          <div class="check-grid">
+            <label class="check-row">
+              <input id="cassetteConditionNew" type="checkbox">
+              <span>New</span>
+            </label>
+            <label class="check-row">
+              <input id="cassetteConditionUsed" type="checkbox">
+              <span>Used</span>
+            </label>
+            <label class="check-row">
+              <input id="cassetteConditionTestTape" type="checkbox">
+              <span>Test Tape</span>
             </label>
           </div>
           <div class="row">
