@@ -520,6 +520,8 @@ loadDeckProfiles()
 saveDeckProfiles(profiles)
 getActiveDeck()
 setActiveDeck(id)
+addDeckProfile()
+updateDeckProfile()
 deleteActiveDeckProfile()
 deleteAllDeckProfiles()
 ```
@@ -533,11 +535,15 @@ loadCassetteProfiles()
 saveCassetteProfiles(profiles)
 getActiveCassette()
 setActiveCassette(id)
+addCassetteProfile()
+updateCassetteProfile()
 deleteActiveCassetteProfile()
 deleteAllCassetteProfiles()
 ```
 
 Cassette profiles are stored in `localStorage.cassetteProfiles`; the selected cassette id is stored separately in `localStorage.activeCassetteId`. Defaults include `Maxell UR-90` and `Sony HF90`, with manufacturer, model, optional year, condition flags, type, length, leader offset, and slack override fields.
+
+The Deck and Cassette profile editor controls expose explicit Save buttons (`saveDeckProfileBtn`, `saveCassetteProfileBtn`) that call the same update functions used by field change handlers. Delete and Delete all remain confirmation-gated cleanup actions.
 
 Deleting one or all cassette profiles also removes matching owned cassette copies from `tapeCollection` and clears exact-model selections from planned tapes.
 

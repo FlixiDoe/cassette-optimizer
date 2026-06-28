@@ -36,9 +36,10 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Loads Spotify playlists through OAuth PKCE.
 - Plans tracks across one or more cassette tapes without cutting tracks.
 - Keeps multi-tape state in a central project model.
-- Supports per-tape formats and tape inventory quantities.
+- Supports deck profiles, cassette model profiles, exact per-tape cassette model selection, and owned tape inventory quantities.
 - Blocks recording when `Tapes you have` cannot satisfy the current plan or any planned side is too long for its cassette format.
 - Exports/imports cassette projects as JSON.
+- Exports/imports profile folders with deck profiles, cassette profiles, playlist profiles, and tape collection JSON separated into subfolders.
 - Migrates older cassette project JSON during import.
 - Controls Spotify playback for Side A / Side B recording with preflight safety checks.
 - Locks planning controls while cueing, recording, pausing, or waiting for a flip.
@@ -161,21 +162,34 @@ user-modify-playback-state
 2. Click `Connect Spotify`.
 3. Click `Refresh` under `Your Spotify playlists`.
 4. Choose a playlist from the dropdown or paste a playlist URL/ID.
-5. Select the cassette formats you have under `Tapes you have`.
-6. Choose a tape format.
-7. Click `Load playlist`.
-8. Review the physical tape plan, Side A, Side B, remaining blank tape, warnings, and J-card preview.
-9. Confirm the Tape row in Recording Readiness is green; it turns red if `Tapes you have` is empty, too small, or short of the formats the plan needs.
-10. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
-11. Refresh Spotify devices and choose the target device if needed.
-12. Complete the recording checklist, or explicitly use `Skip checklist`.
-13. Use the seven Level Check checkpoints and `Level Check` tone only after turning the deck input gain down, then stop the tone before recording.
-14. Wait until all Recording Readiness rows are green.
-15. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
-16. After Side A auto-pauses, flip the cassette and use `Start Side B`.
-17. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+5. Click `Load playlist` in the playlist block.
+6. Review or create a `Deck profile`; use `Save deck profile` after edits, or `Delete` / `Delete all` when cleaning up profiles.
+7. Review or create cassette model profiles; use `Save cassette profile` after edits, or `Delete` / `Delete all` when cleaning up cassette models.
+8. Add owned physical cassettes with the plus controls under `Tapes you have`. First-run inventory starts empty, and creating a cassette profile does not automatically add a physical tape.
+9. Choose a tape format.
+10. For multi-tape plans, choose the exact owned cassette model for each physical tape when needed.
+11. Review the physical tape plan, Side A, Side B, remaining blank tape, warnings, and J-card preview.
+12. Confirm the Tape row in Recording Readiness is green; it turns red if `Tapes you have` is empty, too small, or short of the formats the plan needs.
+13. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
+14. Refresh Spotify devices and choose the target device if needed.
+15. Complete the recording checklist, or explicitly use `Skip checklist`.
+16. Use the seven Level Check checkpoints and `Level Check` tone only after turning the deck input gain down, then stop the tone before recording.
+17. Wait until all Recording Readiness rows are green.
+18. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
+19. After Side A auto-pauses, flip the cassette and use `Start Side B`.
+20. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
 
 `Start First Tape Wizard` provides a guided version of the same flow. It reuses the existing playlist, tape, deck checklist, level-check, Dry Run, and Start Side A controls; it does not create a separate recording path.
+
+## Profiles and Tape Collection
+
+Deck profiles store recorder-specific timing and capability fields: name, manufacturer, model, leader delay, motor latency, safety margin, default slack margin, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes.
+
+Cassette profiles store reusable cassette model fields: name, manufacturer, model, type, length, optional year, condition flags, leader offset, and slack override. Cassette profiles are model definitions only. Use the plus/minus controls under `Tapes you have` to add or remove the physical cassette copies you actually own.
+
+When a plan uses multiple physical tapes, each tape can select an exact owned cassette model from the dropdown. The dropdown only offers models that match the selected tape length and available owned copies.
+
+Use `Export profiles` / `Import profiles` for a single JSON profile bundle. Use `Export profile folder` / `Import profile folder` to keep all local config surfaces split into JSON files under `profiles/deck-profiles`, `profiles/cassette-profiles`, `profiles/playlist-profiles`, and `profiles/tape-collection`.
 
 Recording Readiness has seven rows:
 

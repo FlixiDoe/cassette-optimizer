@@ -274,6 +274,8 @@ The deck profile is the primary timing source. It stores the deck name, manufact
 
 The cassette profile is the secondary timing source. It stores the cassette name, manufacturer, model, type (`I` or `II`), length in minutes, optional year, condition flags (`new`, `used`, `testTape`), optional tape-specific slack, and optional leader-length offset. Cassette data lives in `localStorage.cassetteProfiles`, while `localStorage.activeCassetteId` stores the selected id.
 
+The profile editor UI groups each selector, New button, Delete controls, and explicit Save button in the same toolbar area. Field change handlers still persist immediately, and the Save buttons call the same update functions so users have a clear manual save affordance without creating a separate write path.
+
 `getEffectiveTimingSettings()` combines the layers:
 
 ```text
@@ -286,6 +288,8 @@ slackMargin     = cassette.slackMargin ?? deck.defaultSlackMargin
 The existing Leader Tape Delay, Motor Latency, Safety Margin, and Tape Slack Margin inputs remain in the UI and now act as live editors for the active profile values. Planning, cue timing, and warning calculations use `getEffectiveTimingSettings()` rather than reading those inputs directly, with an HTML-input fallback when profile storage is empty.
 
 Profiles can be exported and imported independently of project config. The profile export format is a versioned JSON object with `deckProfiles` and `cassetteProfiles` arrays. Imports merge by `id`: matching ids are overwritten, new ids are added, and local profiles absent from the import remain untouched.
+
+The playlist input UI is grouped separately from profile editing. `playlistInput`, `loadBtn`, `playlistSelect`, and `loadPlaylistsBtn` live in one playlist panel so loading by pasted URL/ID and loading from the user's Spotify playlist list use the same visual area.
 
 ## Tape Collection and Profile Folder Storage
 
