@@ -323,7 +323,9 @@ confirmReplaceDirtyProject()
 
 ## Level-check tone flow
 
-The level-check helper uses the Web Audio API and only starts after a user click plus confirmation dialog.
+The level-check helper shows seven compact, informational setup checkpoints before the tone controls. Those checkboxes help the operator verify Spotify quality, crossfade, normalization, EQ, system volume, deck record-pause, and clipping, but they do not gate Start Side A or Start Side B.
+
+The level-check tone uses the Web Audio API and only starts after a user click plus confirmation dialog.
 
 ```text
 startLevelTone()

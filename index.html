@@ -213,7 +213,22 @@
         </div>
         <details class="level-helper" id="levelCheckHelper">
           <summary>Level check</summary>
-          <p>Before recording, set Spotify to Lossless, turn Auto-adjust quality off, set Crossfade to 0 seconds, turn Normalize volume and EQ off, use the same output device in Spotify and your operating system mixer, enable exclusive, fixed-volume, or direct hardware output where available, and set system output volume to 100%. Then play a loud part of the playlist, put the deck into record-pause, and adjust the cassette deck input level so peaks stay below clipping or distortion. The app does not measure audio level automatically.</p>
+          <div class="level-checkpoints" id="levelCheckItems">
+            <!-- Informational only; unchecked items here do not block Start Side A or Side B. -->
+            <label class="deck-check"><input type="checkbox"><span>Spotify Lossless (or highest available quality)</span></label>
+            <!-- Informational only; unchecked items here do not block Start Side A or Side B. -->
+            <label class="deck-check"><input type="checkbox"><span>Crossfade 0 s</span></label>
+            <!-- Informational only; unchecked items here do not block Start Side A or Side B. -->
+            <label class="deck-check"><input type="checkbox"><span>Normalize volume off</span></label>
+            <!-- Informational only; unchecked items here do not block Start Side A or Side B. -->
+            <label class="deck-check"><input type="checkbox"><span>EQ off</span></label>
+            <!-- Informational only; unchecked items here do not block Start Side A or Side B. -->
+            <label class="deck-check"><input type="checkbox"><span>System volume 100 %</span></label>
+            <!-- Informational only; unchecked items here do not block Start Side A or Side B. -->
+            <label class="deck-check"><input type="checkbox"><span>Deck in record-pause</span></label>
+            <!-- Informational only; unchecked items here do not block Start Side A or Side B. -->
+            <label class="deck-check"><input type="checkbox"><span>Peaks clean, no clipping</span></label>
+          </div>
           <div class="level-check-controls">
             <label>
               <span class="label" for="levelToneType">Tone</span>
