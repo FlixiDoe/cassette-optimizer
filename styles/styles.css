@@ -618,7 +618,8 @@
       gap: 6px;
     }
 
-    .status-chip {
+    .status-chip,
+    .readiness-row {
       display: flex;
       justify-content: space-between;
       gap: 8px;
@@ -630,14 +631,34 @@
       text-transform: uppercase;
     }
 
-    .status-chip b {
+    .status-chip b,
+    .readiness-row b {
       color: #ffd98a;
       text-align: right;
+    }
+
+    .readiness-row span {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .readiness-row i {
+      font-style: normal;
+    }
+
+    .readiness-row.final {
+      font-weight: 900;
+      border-color: #45633c;
+      background: rgba(156,255,106,.06);
     }
 
     .status-chip.ok b { color: var(--green); }
     .status-chip.warn b { color: var(--amber); }
     .status-chip.bad b { color: var(--red); }
+    .readiness-row.ok b { color: var(--green); }
+    .readiness-row.warn b { color: var(--amber); }
+    .readiness-row.bad b { color: var(--red); }
 
     .calibration-panel {
       border: 1px solid var(--line);

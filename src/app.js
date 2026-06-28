@@ -1599,7 +1599,8 @@
 
     function setPlaybackRecovery(message) {
       state.playbackRecoveryMessage = message || "";
-      renderSpotifyStatusPanel();
+      // Playback recovery text changes the API/device status copy shown in Recording Readiness.
+      renderReadiness();
     }
 
     /**
@@ -1823,7 +1824,8 @@
       el.abortBtn.disabled = !abortable;
       renderRecordingLockState();
       updateDeckChecklistState();
-      renderSpotifyStatusPanel();
+      // Recording mode and button gates changed, so Recording Readiness must reflect the latest active state.
+      renderReadiness();
       pushSharedStatus();
     }
 
@@ -1931,59 +1933,88 @@
       el.deckChecklist.classList.toggle("incomplete", !skipped && done < total);
       el.deckChecklist.classList.toggle("skipped", skipped);
       el.deckChecklistStatus.textContent = skipped ? "Skipped" : `${done}/${total} ready`;
-      renderSpotifyStatusPanel();
+      // Checklist progress changed, so Recording Readiness must re-evaluate the checklist and ready rows.
+      renderReadiness();
     }
 
-    function renderSpotifyStatusPanel() {
+    /**
+     * Renders the seven-row Recording Readiness traffic-light panel.
+     *
+     * It evaluates Spotify token validity, selected/active device state,
+     * loaded playlist contents, cassette tape plan validity, deck checklist
+     * completion, current API/rate-limit status, and a final Ready summary row.
+     * Green rows show satisfied prerequisites, warning rows show recoverable
+     * setup gaps, red rows show blocking failures, and the Ready row is styled
+     * as the final aggregate of the first six rows.
+     *
+     * Call sites: `setPlaybackRecovery()` refreshes API/device copy,
+     * `renderRecordMode()` refreshes recording-button and mode-dependent state,
+     * and `updateDeckChecklistState()` refreshes checklist-dependent state.
+     *
+     * @returns {void}
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: Replaces the Recording Readiness DOM rows and warning text.
+     */
+    function renderReadiness() {
       if (!el.spotifyStatusItems) return;
       const checklistReady = isAudioChecklistConfirmed();
       const selectedDevice = state.devices.find(device => device.id === state.selectedDeviceId);
       const activeSelectedDevice = selectedDevice ? selectedDevice.is_active : state.playbackStatus.deviceActive;
+      const tokenValid = Boolean(state.token && Date.now() <= state.expiresAt);
+      const playlistReady = projectTracks().length >= 1;
+      const selectedLayout = selectedTapeLayout();
+      const sideLengthMs = selectedSideLengthMs();
+      const tapeReady = Boolean(selectedLayout && selectedTapeMinutes() && (!playlistReady || (duration(sideA()) <= sideLengthMs && duration(sideB()) <= sideLengthMs)));
+      // TODO: Feature 6 wires this placeholder API row to live Spotify 429 and non-retryable error state.
+      const apiReady = true;
       const statuses = [
         {
-          label: "Spotify connected",
-          ok: Boolean(state.token),
-          value: state.token ? "Ready" : "Reconnect"
+          label: "Spotify",
+          state: tokenValid ? "ok" : "bad",
+          icon: tokenValid ? "✅" : "❌",
+          value: tokenValid ? "Token valid" : "Not connected / token missing"
         },
         {
-          label: "Device selected",
-          ok: Boolean(state.selectedDeviceId || state.playbackStatus.deviceName || state.dryRun),
-          warn: state.dryRun,
-          value: state.dryRun ? "Dry Run" : selectedDevice?.name || state.playbackStatus.deviceName || "Missing"
+          label: "Device",
+          state: activeSelectedDevice || state.dryRun ? "ok" : "bad",
+          icon: activeSelectedDevice || state.dryRun ? "✅" : "❌",
+          value: state.dryRun ? "Dry Run device skipped" : activeSelectedDevice ? selectedDevice?.name || state.playbackStatus.deviceName || "Active" : "No device / device offline"
         },
         {
-          label: "Device active",
-          ok: Boolean(activeSelectedDevice || state.dryRun),
-          warn: state.dryRun,
-          value: state.dryRun ? "Skipped" : activeSelectedDevice ? "Active" : "Open Spotify"
+          label: "Playlist",
+          state: playlistReady ? "ok" : "bad",
+          icon: playlistReady ? "✅" : "❌",
+          value: playlistReady ? `${projectTracks().length} track${projectTracks().length === 1 ? "" : "s"} loaded` : "No playlist loaded"
         },
         {
-          label: "Expected track playing",
-          ok: Boolean(state.playbackStatus.expectedTrackPlaying || state.dryRun || state.recordMode === "idle"),
-          warn: state.recordMode === "idle",
-          value: state.dryRun ? "Dry Run" : state.recordMode === "idle" ? "Idle" : state.playbackStatus.expectedTrackPlaying ? "Yes" : "No"
+          label: "Tape",
+          state: tapeReady ? "ok" : "bad",
+          icon: tapeReady ? "✅" : "❌",
+          value: tapeReady ? `C${selectedTapeMinutes()} plan valid` : "No tape / plan has errors"
         },
         {
-          label: "Playback in sync",
-          ok: Boolean(state.playbackStatus.playbackInSync || state.dryRun || state.recordMode === "idle"),
-          warn: state.recordMode === "idle",
-          value: state.dryRun ? "Dry Run" : state.recordMode === "idle" ? "Idle" : state.playbackStatus.playbackInSync ? formatDrift(state.playbackStatus.driftMs) : "Check"
+          label: "Checklist",
+          state: checklistReady ? "ok" : "bad",
+          icon: checklistReady ? "✅" : "❌",
+          value: checklistReady ? (state.skipDeckChecklist ? "Skipped" : "Complete") : "Incomplete"
         },
         {
-          label: "Dry Run",
-          ok: state.dryRun,
-          warn: !state.dryRun,
-          value: state.dryRun ? "Enabled" : "Disabled"
-        },
-        {
-          label: "Audio checklist",
-          ok: checklistReady,
-          value: checklistReady ? "Confirmed" : "Review"
+          label: "API",
+          state: apiReady ? "ok" : "warn",
+          icon: apiReady ? "✅" : "⚠️",
+          value: apiReady ? "No active rate limit" : "429 in progress"
         }
       ];
+      const ready = statuses.every(item => item.state === "ok");
+      statuses.push({
+        label: "Ready",
+        state: ready ? "ok" : "bad",
+        icon: ready ? "✅" : "❌",
+        value: ready ? "All systems ready" : "Resolve readiness rows"
+      });
       el.spotifyStatusItems.innerHTML = statuses.map(item => {
-        const className = item.ok ? "ok" : item.warn ? "warn" : "bad";
-        return `<div class="status-chip ${className}"><span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`;
+        return `<div class="readiness-row ${item.state}${item.label === "Ready" ? " final" : ""}"><span><i>${item.icon}</i>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`;
       }).join("");
       const warnings = [];
       if (!state.dryRun && !state.token) warnings.push("Connect Spotify before recording.");
@@ -3071,6 +3102,8 @@
         el.deviceSelect.disabled = true;
         el.loadDevicesBtn.disabled = true;
         renderEmptyStates();
+        // Token/device availability changed, so Recording Readiness must show the disconnected device state.
+        renderReadiness();
         return;
       }
       el.loadDevicesBtn.disabled = false;
@@ -3078,6 +3111,8 @@
         el.deviceSelect.innerHTML = `<option value="">Default active device</option>`;
         el.deviceSelect.disabled = true;
         renderEmptyStates();
+        // Device refresh found no active devices, so Recording Readiness must show the device row as blocked.
+        renderReadiness();
         return;
       }
       el.deviceSelect.innerHTML = `<option value="">Default active device</option>` + state.devices.map(device => {
@@ -3092,6 +3127,8 @@
       el.deviceSelect.value = state.devices.some(device => device.id === state.selectedDeviceId) ? state.selectedDeviceId : "";
       el.deviceSelect.disabled = false;
       renderEmptyStates();
+      // Device options changed, so Recording Readiness must re-evaluate the selected/active device row.
+      renderReadiness();
     }
 
     function renderTracks(container, tracks, offset) {

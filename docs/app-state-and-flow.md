@@ -290,7 +290,7 @@ schedule next poll with adaptive delay
 
 Rate limits are handled through `SpotifyApiError.retryAfter`. Avoid adding new polling loops; reuse the existing scheduler.
 
-Playback/device recovery text is surfaced through `setPlaybackRecovery(...)` and rendered by `renderSpotifyStatusPanel()`. Use that path for user-actionable Spotify failures instead of logging only to the console.
+Playback/device recovery text is surfaced through `setPlaybackRecovery(...)` and rendered by `renderReadiness()`. Use that path for user-actionable Spotify failures instead of logging only to the console.
 
 ## Remote playlist reorder flow
 
@@ -371,7 +371,7 @@ Track lists          -> renderTracks()
 J-card preview       -> renderJCard()
 J-card title editor  -> renderJCardOverrides()
 Recording panel      -> renderRecordMode()
-Readiness chips      -> renderSpotifyStatusPanel()
+Readiness panel      -> renderReadiness()
 LAN status payload   -> getSharedStatusPayload()
 ```
 

@@ -174,11 +174,13 @@ renderTracks(container, tracks, offset)
 renderWarnings(totalMs, tapeMs, halfMs)
 renderEmptyStates()
 renderRecordMode(monitorText)
-renderSpotifyStatusPanel()
+renderReadiness()
 renderRecordingLockState()
 ```
 
 `renderSplit()` owns most planning UI. `renderRecordMode()` owns transport/recording UI.
+
+`renderReadiness()` writes the seven Recording Readiness traffic-light rows: Spotify, Device, Playlist, Tape, Checklist, API, and Ready. The API row is a green placeholder until the Spotify 429 handling path supplies live rate-limit state.
 
 ### Safety and confirmation functions
 

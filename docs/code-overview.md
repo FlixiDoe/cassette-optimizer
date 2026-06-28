@@ -188,7 +188,7 @@ active side
 monitor text
 button disabled states
 cassette recording CSS class
-readiness/status chips
+seven-row Recording Readiness traffic-light panel
 LAN status payload
 ```
 
@@ -245,7 +245,7 @@ New recording timing rule  -> src/recording.js if pure, src/app.js for timers/DO
 New J-card layout content  -> src/jcard.js and styles/ print rules
 New J-card project field    -> src/app.js export/import + src/config-migration.js defaults
 New Spotify helper         -> src/spotify.js if generic, src/app.js if tied to app state
-New status panel behavior  -> src/app.js renderSpotifyStatusPanel()
+New status panel behavior  -> src/app.js renderReadiness()
 New LAN status field       -> src/app.js getSharedStatusPayload() and server/server.js sanitizeStatus()
 New import/export field    -> src/app.js serialize/normalize functions, src/config-migration.js, and src/export.js version if format changes
 ```
