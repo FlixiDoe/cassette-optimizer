@@ -1526,13 +1526,15 @@
           splitMode: tape.splitMode,
           manualSplitIndex: tape.manualSplitIndex,
           jCard: tape.jCard,
-          tapeTitle: tape.tapeTitle
+          tapeTitle: tape.tapeTitle,
+          cassetteProfileId: tape.cassetteProfileId || ""
         }));
         // The split helper preserves original playlist order and never cuts a track across tape sides.
         state.project.tapes = buildProjectTapes(state.project, state.tapeMinutes, formats);
         state.project.tapes.forEach((tape, index) => {
           if (manualSplits[index]?.jCard) tape.jCard = manualSplits[index].jCard;
           if (manualSplits[index]?.tapeTitle) tape.tapeTitle = manualSplits[index].tapeTitle;
+          if (manualSplits[index]?.cassetteProfileId) tape.cassetteProfileId = manualSplits[index].cassetteProfileId;
           if (manualSplits[index]?.splitMode === "manual") {
             // Reapply the manual split after rebuilding so the user's chosen side boundary remains locked.
             applyManualSplitToLayout(tape, manualSplits[index].manualSplitIndex);
@@ -3356,6 +3358,11 @@
         return;
       }
       const select = event.target.closest("[data-tape-format-index]");
+      const cassetteSelect = event.target.closest("[data-tape-cassette-index]");
+      if (cassetteSelect) {
+        updatePerTapeCassette(cassetteSelect);
+        return;
+      }
       if (!select || !state.project) return;
       const index = Number(select.dataset.tapeFormatIndex);
       const minutes = Number(select.value);
@@ -3370,6 +3377,28 @@
       const afterCount = state.project.tapes.length;
       const countNote = beforeCount === afterCount ? "" : ` The project now uses ${afterCount} physical tapes.`;
       log(`Tape ${index + 1} format set to C${minutes}.${countNote}`);
+    }
+
+    function updatePerTapeCassette(select) {
+      if (blockIfRecordingLocked("Physical cassette")) {
+        renderSplit();
+        return;
+      }
+      if (!state.project) return;
+      const index = Number(select.dataset.tapeCassetteIndex);
+      const layout = state.project.tapes[index];
+      if (!layout) return;
+      const profile = getCassetteProfileById(select.value);
+      layout.cassetteProfileId = profile?.id || "";
+      if (profile?.lengthMinutes && TAPE_FORMATS.includes(Number(profile.lengthMinutes))) {
+        layout.tapeFormat = Number(profile.lengthMinutes);
+        layout.tapeMinutes = Number(profile.lengthMinutes);
+        if (index === state.selectedTapeIndex) state.tapeMinutes = Number(profile.lengthMinutes);
+      }
+      markProjectDirty();
+      computeSplit();
+      renderSplit();
+      log(profile ? `Tape ${index + 1} physical cassette set to ${profile.name}.` : `Tape ${index + 1} physical cassette model cleared.`);
     }
 
     function renderSplit() {
@@ -3902,6 +3931,7 @@
         tapeTitle: String(tape.tapeTitle || ""),
         tapeMinutes: tapeFormat,
         tapeFormat,
+        cassetteProfileId: String(tape.cassetteProfileId || ""),
         sideLengthMs: tapeFormat * 30 * 1000 + slackMarginSeconds * 1000,
         sideAStartIndex,
         sideAEndIndex: Number.isInteger(tape.sideAEndIndex) ? tape.sideAEndIndex : sideAStartIndex + sideA.length,
@@ -3940,6 +3970,7 @@
         tapeTitle: tape.tapeTitle || "",
         tapeMinutes: tape.tapeMinutes,
         tapeFormat: tape.tapeFormat || tape.tapeMinutes,
+        cassetteProfileId: tape.cassetteProfileId || "",
         sideLengthMs: tape.sideLengthMs,
         sideAStartIndex: tape.sideAStartIndex,
         sideAEndIndex: tape.sideAEndIndex,
@@ -4044,7 +4075,7 @@
     }
 
     function renderPerTapeFormatControls() {
-      if (!state.project || state.tapeLayouts.length <= 1) {
+      if (!state.project || !state.tapeLayouts.length) {
         el.tapeFormatList.hidden = true;
         el.tapeFormatList.innerHTML = "";
         return;
@@ -4065,12 +4096,33 @@
           const selected = minutes === selectedMinutes ? " selected" : "";
           return `<option value="${minutes}"${selected}>C${minutes} - ${formatLongTime(minutes * 60 * 1000)} total / ${formatLongTime(minutes * 30 * 1000)} per side</option>`;
         }).join("");
+        const cassetteOptions = renderCassetteModelOptions(layout, index, selectedMinutes);
         return `<label class="tape-format-row">
           <span>Tape ${layout.tapeNumber || layout.number}</span>
           <select data-tape-format-index="${index}">${options}</select>
+          <select data-tape-cassette-index="${index}" aria-label="Tape ${layout.tapeNumber || layout.number} cassette model">${cassetteOptions}</select>
           <em>${formatLongTime(runtime)} planned / ${formatLongTime(sideLength * 2)} capacity</em>
         </label>`;
       }).join("");
+    }
+
+    function renderCassetteModelOptions(layout, index, selectedMinutes) {
+      const selectedProfileId = layout.cassetteProfileId || "";
+      const usedByOtherTapes = countTapeProfiles(index);
+      const collectionCounts = countCollectionProfiles();
+      const profiles = loadCassetteProfiles().filter(profile => {
+        const profileMinutes = Number(profile.lengthMinutes);
+        const remaining = (collectionCounts[profile.id] || 0) - (usedByOtherTapes[profile.id] || 0);
+        return profile.id === selectedProfileId || (profileMinutes === selectedMinutes && remaining > 0);
+      });
+      const emptySelected = selectedProfileId ? "" : " selected";
+      const options = [`<option value=""${emptySelected}>No exact model</option>`];
+      for (const profile of profiles) {
+        const selected = profile.id === selectedProfileId ? " selected" : "";
+        const owned = collectionCounts[profile.id] || 0;
+        options.push(`<option value="${escapeHtml(profile.id)}"${selected}>${escapeHtml(profile.name)} - C${profile.lengthMinutes} (${owned} owned)</option>`);
+      }
+      return options.join("");
     }
 
     function countTapeFormats(exceptIndex = -1) {
@@ -4079,6 +4131,23 @@
         if (index === exceptIndex) continue;
         const minutes = layout.tapeFormat || layout.tapeMinutes || state.tapeMinutes;
         counts[minutes] = (counts[minutes] || 0) + 1;
+      }
+      return counts;
+    }
+
+    function countTapeProfiles(exceptIndex = -1) {
+      const counts = {};
+      for (const [index, layout] of state.tapeLayouts.entries()) {
+        if (index === exceptIndex || !layout.cassetteProfileId) continue;
+        counts[layout.cassetteProfileId] = (counts[layout.cassetteProfileId] || 0) + 1;
+      }
+      return counts;
+    }
+
+    function countCollectionProfiles() {
+      const counts = {};
+      for (const item of state.tapeCollection) {
+        counts[item.cassetteProfileId] = (counts[item.cassetteProfileId] || 0) + 1;
       }
       return counts;
     }
