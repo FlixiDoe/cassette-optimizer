@@ -32,6 +32,21 @@
       "Deck is in record/pause"
     ];
     const DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX = DECK_CHECKLIST_ITEMS.indexOf("Spotify device selected");
+    // `deckProfiles` stores the user's saved deck timing presets, while `activeDeckId` stores only the selected deck id so profile edits can replace the array without losing selection intent.
+    const DECK_PROFILES_KEY = "deckProfiles";
+    const ACTIVE_DECK_ID_KEY = "activeDeckId";
+    // These Philips AZ1025/00 values preserve the maintainer's known deck baseline: measured leader delay, small motor spin-up, and conservative five-second safety/default slack margins.
+    const DEFAULT_DECK_PROFILE = {
+      id: "deck_philips_az1025",
+      name: "Philips AZ1025/00",
+      leaderTapeDelay: 5.8,
+      motorLatency: 0.8,
+      safetyMargin: 5,
+      defaultSlackMargin: 5,
+      autoRecordingLevel: null,
+      dolbyNR: false,
+      typeIISupport: false
+    };
     const state = {
       token: null,
       refreshToken: null,
@@ -119,6 +134,7 @@
     init();
 
     function init() {
+      initializeDeckProfiles();
       el.clientId.value = localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
       restoreClientSecretPreference();
       applyHostMode();
@@ -129,6 +145,99 @@
       renderSplit();
       renderRecordMode();
       warnIfFileProtocol();
+    }
+
+    /**
+     * Loads saved deck profiles from localStorage.
+     *
+     * Steps:
+     * 1. Read the `deckProfiles` JSON array from durable browser storage.
+     * 2. Return an empty list when the key is missing so first-run setup can seed defaults.
+     * 3. Parse the saved JSON and return it only when it is an array.
+     * 4. Return an empty list if parsing fails or storage contains a non-array value.
+     *
+     * @returns {Array<object>} Saved deck profiles, or an empty array when storage is missing or invalid.
+     * @throws {Error} Does not throw; malformed localStorage data is handled as an empty profile list.
+     *
+     * Side effects: Reads `deckProfiles` from `localStorage`.
+     */
+    function loadDeckProfiles() {
+      // Reading the profiles array separately from the active id keeps selection stable when the profiles list is edited.
+      const saved = localStorage.getItem(DECK_PROFILES_KEY);
+      if (saved === null) return [];
+      try {
+        const profiles = JSON.parse(saved);
+        return Array.isArray(profiles) ? profiles : [];
+      } catch {
+        // If localStorage contains malformed JSON (e.g. from a failed write), return [] rather than throwing — the UI treats this as first run and re-populates defaults.
+        return [];
+      }
+    }
+
+    /**
+     * Saves deck profiles to localStorage.
+     *
+     * Steps:
+     * 1. Accept the caller-provided profile array.
+     * 2. Serialize the array as JSON.
+     * 3. Write it to the `deckProfiles` durable storage key.
+     *
+     * @param {Array<object>} profiles - Deck profile objects to persist.
+     * @returns {void}
+     * @throws {DOMException} May throw if localStorage writes are blocked or quota is exceeded.
+     *
+     * Side effects: Writes `deckProfiles` in `localStorage`.
+     */
+    function saveDeckProfiles(profiles) {
+      // Persist the complete profile list as one JSON array so imports and edits can replace profiles atomically.
+      localStorage.setItem(DECK_PROFILES_KEY, JSON.stringify(Array.isArray(profiles) ? profiles : []));
+    }
+
+    /**
+     * Gets the active deck profile.
+     *
+     * Steps:
+     * 1. Load the saved deck profiles.
+     * 2. Read `activeDeckId` from durable browser storage.
+     * 3. Return the matching profile when the selected id exists.
+     * 4. Fall back to the first saved profile when the active id is missing or stale.
+     *
+     * @returns {object|null} Active deck profile, first available profile, or null when no profiles exist.
+     * @throws {Error} Does not throw; missing profile state returns null.
+     *
+     * Side effects: Reads `deckProfiles` and `activeDeckId` from `localStorage`.
+     */
+    function getActiveDeck() {
+      const profiles = loadDeckProfiles();
+      if (!profiles.length) return null;
+      // The selected id is separate from the profile list so selecting a deck does not rewrite the saved profiles.
+      const activeId = localStorage.getItem(ACTIVE_DECK_ID_KEY);
+      return profiles.find(profile => profile.id === activeId) || profiles[0] || null;
+    }
+
+    /**
+     * Sets the active deck profile id.
+     *
+     * Steps:
+     * 1. Receive the id selected by the caller.
+     * 2. Store the id separately from the profile array.
+     * 3. Leave profile data unchanged.
+     *
+     * @param {string} id - Deck profile id to mark as active.
+     * @returns {void}
+     * @throws {DOMException} May throw if localStorage writes are blocked.
+     *
+     * Side effects: Writes `activeDeckId` in `localStorage`.
+     */
+    function setActiveDeck(id) {
+      // Store only the active id here because the full deck profile object already lives in `deckProfiles`.
+      localStorage.setItem(ACTIVE_DECK_ID_KEY, String(id || ""));
+    }
+
+    function initializeDeckProfiles() {
+      if (localStorage.getItem(DECK_PROFILES_KEY) !== null) return;
+      saveDeckProfiles([{ ...DEFAULT_DECK_PROFILE }]);
+      setActiveDeck(DEFAULT_DECK_PROFILE.id);
     }
 
     function isLocalhost() {
