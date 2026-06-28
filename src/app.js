@@ -31,6 +31,7 @@
       "Notifications muted",
       "Deck is in record/pause"
     ];
+    const DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX = DECK_CHECKLIST_ITEMS.indexOf("Spotify device selected");
     const state = {
       token: null,
       refreshToken: null,
@@ -891,7 +892,9 @@
           state.selectedDeviceId = active?.id || "";
         }
         persistSelectedDevice();
+        const checklistChanged = syncAutomaticDeckChecklistItems();
         renderDeviceOptions();
+        if (checklistChanged) renderRecordMode();
         log(state.devices.length ? `Loaded ${state.devices.length} Spotify devices.` : "No Spotify devices found. Open Spotify on desktop/mobile, then refresh devices.");
       } catch (error) {
         log(error.message);
@@ -1011,6 +1014,8 @@
       persistSelectedDevice();
       const selected = state.devices.find(device => device.id === state.selectedDeviceId);
       setPlaybackRecovery("");
+      const checklistChanged = syncAutomaticDeckChecklistItems();
+      if (checklistChanged) renderRecordMode();
       log(selected ? `Selected Spotify device: ${selected.name}.` : "Using Spotify default active device.");
     }
 
@@ -1728,6 +1733,7 @@
             driftMs: null,
             isPlaying: false
           };
+          if (syncAutomaticDeckChecklistItems()) renderRecordMode();
           el.currentTrack.textContent = "No active playback. Open Spotify first if playback commands fail.";
           renderRecordMode("No device");
           schedulePlaybackPoll(10000);
@@ -1740,6 +1746,7 @@
           deviceId: data.device?.id || "",
           isPlaying: Boolean(data.is_playing)
         };
+        if (syncAutomaticDeckChecklistItems()) renderRecordMode();
         if (state.selectedDeviceId && data.device?.id && data.device.id !== state.selectedDeviceId) {
           const selected = state.devices.find(device => device.id === state.selectedDeviceId);
           setPlaybackRecovery(`Spotify is playing on ${data.device.name || "another device"} instead of ${selected?.name || "the selected target"}. Select the active device or switch Spotify output before recording.`);
@@ -2097,6 +2104,7 @@
     }
 
     function renderDeckChecklist() {
+      syncAutomaticDeckChecklistItems({ persist: false });
       el.skipDeckChecklist.checked = Boolean(state.skipDeckChecklist);
       el.deckChecklistItems.innerHTML = DECK_CHECKLIST_ITEMS.map((item, index) => {
         const checked = state.deckChecklistDone?.[index] ? " checked" : "";
@@ -2105,13 +2113,46 @@
       updateDeckChecklistState();
     }
 
-    function updateDeckChecklist() {
-      state.skipDeckChecklist = el.skipDeckChecklist.checked;
-      state.deckChecklistDone = [...el.deckChecklistItems.querySelectorAll("input")].map(input => input.checked);
+    /**
+     * Applies checklist items that the app can verify from its own state.
+     *
+     * It currently checks the Spotify device checklist item when a selected or
+     * active Spotify device is known. It only turns automatic items on, never
+     * clears manually checked items, because physical setup confirmations still
+     * belong to the operator.
+     *
+     * @param {object} [options={}] - Sync options.
+     * @param {boolean} [options.persist=true] - Whether to save the updated checklist to localStorage.
+     * @returns {boolean} `true` when an automatic checklist item changed.
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: May mutate `state.deckChecklistDone`, update the matching checkbox DOM node, and persist `deck_checklist`.
+     */
+    function syncAutomaticDeckChecklistItems({ persist = true } = {}) {
+      let changed = false;
+      const spotifyDeviceKnown = Boolean(state.selectedDeviceId || state.playbackStatus.deviceName || state.devices.some(device => device.is_active));
+      if (spotifyDeviceKnown && DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX >= 0 && !state.deckChecklistDone[DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX]) {
+        // The Spotify device row can be checked automatically because selecting or detecting an active Spotify device is observable app state.
+        state.deckChecklistDone[DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX] = true;
+        const input = el.deckChecklistItems?.querySelector(`input[value="${DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX}"]`);
+        if (input) input.checked = true;
+        changed = true;
+      }
+      if (changed && persist) persistDeckChecklist();
+      return changed;
+    }
+
+    function persistDeckChecklist() {
       localStorage.setItem("deck_checklist", JSON.stringify({
         done: state.deckChecklistDone,
         skip: state.skipDeckChecklist
       }));
+    }
+
+    function updateDeckChecklist() {
+      state.skipDeckChecklist = el.skipDeckChecklist.checked;
+      state.deckChecklistDone = [...el.deckChecklistItems.querySelectorAll("input")].map(input => input.checked);
+      persistDeckChecklist();
       // Changing any checklist item or the skip toggle immediately re-evaluates whether Start Side A/B may be armed.
       renderRecordMode();
       updateDeckChecklistState();

@@ -207,6 +207,8 @@ Use these shared helpers instead of adding ad hoc `confirm(...)` calls or disabl
 
 `isChecklistComplete()` is the deck checklist gate for Start Side A/B and recording preflight. It returns true only when every deck checklist item is checked or the explicit skip checklist toggle is active.
 
+`syncAutomaticDeckChecklistItems()` turns checklist items on when the app can verify them itself. Currently the Spotify device checklist row is checked automatically after a selected or active Spotify device is detected; physical deck setup rows remain manual.
+
 ### J-card functions in src/app.js
 
 ```text
