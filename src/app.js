@@ -403,6 +403,7 @@
       el.deckTypeIISupport.checked = Boolean(active?.typeIISupport);
       el.deckTypeIVSupport.checked = Boolean(active?.typeIVSupport);
       el.deckNotes.value = active?.notes || "";
+      el.saveDeckProfileBtn.disabled = !active;
       el.deleteDeckProfileBtn.disabled = !active;
       el.deleteAllDeckProfilesBtn.disabled = !profiles.length;
     }
@@ -424,6 +425,7 @@
       el.cassetteConditionTestTape.checked = Boolean(condition.testTape);
       el.cassetteLeaderLength.value = active?.leaderLength ?? "";
       el.cassetteSlackMargin.value = active?.slackMargin ?? "";
+      el.saveCassetteProfileBtn.disabled = !active;
       el.deleteCassetteProfileBtn.disabled = !active;
       el.deleteAllCassetteProfilesBtn.disabled = !profiles.length;
     }
@@ -749,6 +751,7 @@
       el.deckTypeIVSupport.addEventListener("change", updateDeckProfile);
       el.deckNotes.addEventListener("change", updateDeckProfile);
       el.addDeckProfileBtn.addEventListener("click", addDeckProfile);
+      el.saveDeckProfileBtn.addEventListener("click", updateDeckProfile);
       el.deleteDeckProfileBtn.addEventListener("click", deleteActiveDeckProfile);
       el.deleteAllDeckProfilesBtn.addEventListener("click", deleteAllDeckProfiles);
       el.cassetteProfileSelect.addEventListener("change", selectCassetteProfile);
@@ -767,6 +770,7 @@
       el.cassetteSlackMargin.addEventListener("change", updateCassetteProfile);
       el.cassetteSlackMargin.addEventListener("input", updateCassetteProfile);
       el.addCassetteProfileBtn.addEventListener("click", addCassetteProfile);
+      el.saveCassetteProfileBtn.addEventListener("click", updateCassetteProfile);
       el.deleteCassetteProfileBtn.addEventListener("click", deleteActiveCassetteProfile);
       el.deleteAllCassetteProfilesBtn.addEventListener("click", deleteAllCassetteProfiles);
       el.exportProfilesBtn.addEventListener("click", exportProfiles);

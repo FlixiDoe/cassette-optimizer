@@ -513,8 +513,10 @@ After a profile selection or edit, `recomputeTimingDependentViews(...)` recomput
 Profile deletion is explicit and confirmation-gated:
 
 ```text
+saveDeckProfileBtn            -> updateDeckProfile()
 deleteDeckProfileBtn          -> deleteActiveDeckProfile()
 deleteAllDeckProfilesBtn      -> deleteAllDeckProfiles()
+saveCassetteProfileBtn        -> updateCassetteProfile()
 deleteCassetteProfileBtn      -> deleteActiveCassetteProfile()
 deleteAllCassetteProfilesBtn  -> deleteAllCassetteProfiles()
 ```
