@@ -546,3 +546,32 @@ importProfiles(file)
 `getEffectiveTimingSettings()` returns `{ leaderTapeDelay, motorLatency, safetyMargin, slackMargin }`. It uses deck values as the base, adds `cassette.leaderLength` as an optional leader offset, uses cassette slack when measured, and otherwise falls back to the deck default slack margin. If no active deck exists, it reads the legacy HTML inputs directly.
 
 `exportProfiles()` downloads `cassette-profiles-YYYY-MM-DD.json` with `version: 1`, all deck profiles, and all cassette profiles. `importProfiles(file)` validates the JSON structure, skips malformed individual profiles with `console.warn`, merges imported profiles by id, writes localStorage, and re-renders the selectors and timing-dependent planning UI.
+
+Tape collection and folder profile functions:
+
+```text
+addTapeCollectionItem(cassetteProfileId)
+getProfiledTapeInventory()
+saveTapeCollection()
+restoreTapeCollection()
+exportProfileFolder()
+importProfileFolder()
+```
+
+`tapeCollection` is stored in localStorage as owned physical cassette entries linked to cassette profile ids. Legacy `tape_inventory` now represents unprofiled C-length quantities only; `getTapeInventory()` adds those unprofiled counts to the owned cassette collection grouped by cassette profile length.
+
+Creating a cassette profile also creates one owned cassette entry for that profile, so adding a Maxell UR-90 immediately increments the C90 inventory total. Per-tape planning can store `cassetteProfileId`, letting each planned physical cassette select an exact model from owned cassette profiles.
+
+`exportProfileFolder()` writes a local folder tree through the File System Access API:
+
+```text
+profiles/
+  deck-profiles/*.json
+  cassette-profiles/*.json
+  playlist-profiles/*.json
+  tape-collection/owned-cassettes.json
+  tape-collection/unprofiled-inventory.json
+  manifest.json
+```
+
+`importProfileFolder()` reads the same tree, merges deck/cassette profile files by id, restores owned cassette collection and unprofiled inventory JSON, and imports the first playlist profile as the active project when present.

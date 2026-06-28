@@ -520,3 +520,57 @@ Import profiles button
 ```
 
 The merge strategy is intentionally non-destructive. Imported profiles overwrite local profiles with the same id, imported new ids are added, and local profiles not included in the export are kept.
+
+## Tape Collection Flow
+
+Cassette profiles describe reusable cassette models. `tapeCollection` describes owned physical copies.
+
+```text
+Add cassette profile
+  -> saveCassetteProfiles(...)
+  -> addTapeCollectionItem(profile.id)
+  -> saveTapeCollection()
+  -> getTapeInventory() includes the new cassette length
+```
+
+`Tape inventory` inputs show total inventory by C-length. When the user edits those totals, the app subtracts profile-linked cassette copies and stores the remainder in legacy `tape_inventory` as unprofiled stock. This keeps existing C60/C90 workflows working while exact cassette models become available.
+
+Per-tape exact cassette selection is handled inside `renderPerTapeFormatControls()`:
+
+```text
+state.tapeLayouts[index].cassetteProfileId
+  -> exact model dropdown
+  -> updatePerTapeCassette(...)
+  -> optional tapeFormat sync from cassetteProfile.lengthMinutes
+  -> computeSplit()
+  -> renderSplit()
+```
+
+The dropdown offers owned cassette models matching the selected tape length and hides models whose owned copy count is already consumed by other planned tapes.
+
+## Profile Folder Flow
+
+Profile folder export/import is separate from single-file profile JSON import/export.
+
+```text
+Export profile folder
+  -> showDirectoryPicker({ mode: "readwrite" })
+  -> profiles/deck-profiles/*.json
+  -> profiles/cassette-profiles/*.json
+  -> profiles/playlist-profiles/*.json
+  -> profiles/tape-collection/owned-cassettes.json
+  -> profiles/tape-collection/unprofiled-inventory.json
+  -> profiles/manifest.json
+```
+
+```text
+Import profile folder
+  -> showDirectoryPicker({ mode: "read" })
+  -> locate profiles/ or use selected folder directly
+  -> merge deck/cassette profile files by id
+  -> restore owned cassette collection and unprofiled inventory
+  -> import the first playlist profile when present
+  -> render profile, inventory, planning, and recording UI
+```
+
+Folder import may replace the active project when a playlist profile is present. If the current project is dirty, the existing replacement confirmation flow is used before the playlist profile is loaded.

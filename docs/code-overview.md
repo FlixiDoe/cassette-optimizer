@@ -286,3 +286,28 @@ slackMargin     = cassette.slackMargin ?? deck.defaultSlackMargin
 The existing Leader Tape Delay, Motor Latency, Safety Margin, and Tape Slack Margin inputs remain in the UI and now act as live editors for the active profile values. Planning, cue timing, and warning calculations use `getEffectiveTimingSettings()` rather than reading those inputs directly, with an HTML-input fallback when profile storage is empty.
 
 Profiles can be exported and imported independently of project config. The profile export format is a versioned JSON object with `deckProfiles` and `cassetteProfiles` arrays. Imports merge by `id`: matching ids are overwritten, new ids are added, and local profiles absent from the import remain untouched.
+
+## Tape Collection and Profile Folder Storage
+
+The app now separates cassette models from owned physical cassette copies.
+
+```text
+cassetteProfiles  -> reusable model definitions such as Maxell UR-90
+tapeCollection    -> owned physical copies linked to cassetteProfileId
+tape_inventory    -> unprofiled fallback C-length counts
+```
+
+Adding a cassette profile creates one `tapeCollection` item for that model. `getTapeInventory()` combines profile-owned copies with unprofiled C-length counts, so a new C90 cassette model immediately increases the C90 inventory total while still preserving manually entered generic inventory.
+
+Each planned tape layout can store `cassetteProfileId`. The per-tape planning controls show exact owned cassette models that match the selected length and avoid offering more copies than exist in `tapeCollection`.
+
+Profile folder export/import uses the browser File System Access API when available. Folder export writes all local config surfaces into JSON files under a `profiles/` root:
+
+```text
+profiles/deck-profiles/
+profiles/cassette-profiles/
+profiles/playlist-profiles/
+profiles/tape-collection/
+```
+
+Deck and cassette profile files are one JSON document per profile. `playlist-profiles` stores the active project as playlist-oriented JSON. `tape-collection` stores owned physical cassette copies and unprofiled inventory separately so model definitions and ownership counts can evolve independently.
