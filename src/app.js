@@ -38,6 +38,8 @@
     // `cassetteProfiles` stores measured cassette presets, while `activeCassetteId` stores only the selected cassette id so tape selection can change without rewriting profile data.
     const CASSETTE_PROFILES_KEY = "cassetteProfiles";
     const ACTIVE_CASSETTE_ID_KEY = "activeCassetteId";
+    // `tapeCollection` stores owned physical cassette entries linked to cassette profiles, while legacy `tape_inventory` keeps unprofiled C-length quantities.
+    const TAPE_COLLECTION_KEY = "tapeCollection";
     // These Philips AZ1025/00 values preserve the maintainer's known deck baseline: measured leader delay, small motor spin-up, and conservative five-second safety/default slack margins.
     const DEFAULT_DECK_PROFILE = {
       id: "deck_philips_az1025",
@@ -87,6 +89,7 @@
       tapeMinutes: 90,
       availableTapeFormats: [60, 90],
       tapeInventory: { 60: 1, 90: 1 },
+      tapeCollection: [],
       project: null,
       projectDirty: false,
       tapeLayouts: [],
@@ -427,6 +430,7 @@
       };
       saveCassetteProfiles([...profiles, profile]);
       setActiveCassette(profile.id);
+      addTapeCollectionItem(profile.id);
       renderProfileControls();
       recomputeTimingDependentViews("Cassette profile created.");
     }
@@ -508,6 +512,50 @@
     function optionalNumber(value, min, max) {
       if (String(value).trim() === "") return null;
       return clampNumber(value, min, max);
+    }
+
+    function addTapeCollectionItem(cassetteProfileId) {
+      const profile = loadCassetteProfiles().find(candidate => candidate.id === cassetteProfileId);
+      if (!profile) return;
+      const item = {
+        id: uniqueProfileId("owned_tape", state.tapeCollection),
+        cassetteProfileId: profile.id,
+        label: profile.name,
+        addedAt: new Date().toISOString()
+      };
+      state.tapeCollection = [...state.tapeCollection, item];
+      saveTapeCollection();
+    }
+
+    function getCassetteProfileById(id) {
+      return loadCassetteProfiles().find(profile => profile.id === id) || null;
+    }
+
+    function getProfiledTapeInventory() {
+      const counts = {};
+      for (const item of state.tapeCollection) {
+        const profile = getCassetteProfileById(item.cassetteProfileId);
+        if (!profile) continue;
+        const minutes = Number(profile.lengthMinutes);
+        if (!Number.isFinite(minutes)) continue;
+        counts[minutes] = (counts[minutes] || 0) + 1;
+      }
+      return counts;
+    }
+
+    function saveTapeCollection() {
+      // Persist physical cassette ownership separately from profile definitions so the same cassette model can have many owned copies.
+      localStorage.setItem(TAPE_COLLECTION_KEY, JSON.stringify(state.tapeCollection));
+    }
+
+    function restoreTapeCollection() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(TAPE_COLLECTION_KEY) || "[]");
+        state.tapeCollection = Array.isArray(saved) ? saved.filter(item => item && typeof item === "object" && typeof item.cassetteProfileId === "string") : [];
+      } catch {
+        localStorage.removeItem(TAPE_COLLECTION_KEY);
+        state.tapeCollection = [];
+      }
     }
 
     function isLocalhost() {
@@ -3231,9 +3279,13 @@
     }
 
     function renderTapeInventory() {
+      const totalInventory = getTapeInventory();
+      const profiledInventory = getProfiledTapeInventory();
       el.tapeInventory.innerHTML = TAPE_FORMATS.map(minutes => {
-        const quantity = state.tapeInventory[minutes] || 0;
-        return `<label class="tape-check tape-quantity"><span>C${minutes}</span><input type="number" min="0" max="99" step="1" value="${quantity}" data-tape-inventory-minutes="${minutes}" aria-label="C${minutes} quantity"></label>`;
+        const quantity = totalInventory[minutes] || 0;
+        const profiled = profiledInventory[minutes] || 0;
+        const note = profiled ? ` (${profiled} from profiles)` : "";
+        return `<label class="tape-check tape-quantity"><span>C${minutes}${escapeHtml(note)}</span><input type="number" min="0" max="99" step="1" value="${quantity}" data-tape-inventory-minutes="${minutes}" aria-label="C${minutes} quantity"></label>`;
       }).join("");
     }
 
@@ -3242,8 +3294,13 @@
         renderTapeInventory();
         return;
       }
+      const profiledInventory = getProfiledTapeInventory();
       state.tapeInventory = normalizeTapeInventory(Object.fromEntries(
-        [...el.tapeInventory.querySelectorAll("[data-tape-inventory-minutes]")].map(input => [input.dataset.tapeInventoryMinutes, input.value])
+        [...el.tapeInventory.querySelectorAll("[data-tape-inventory-minutes]")].map(input => {
+          const total = Math.max(0, Math.round(Number(input.value) || 0));
+          const profiled = profiledInventory[input.dataset.tapeInventoryMinutes] || 0;
+          return [input.dataset.tapeInventoryMinutes, Math.max(0, total - profiled)];
+        })
       ), [state.tapeMinutes]);
       state.availableTapeFormats = getAvailableTapeFormats();
       markProjectDirty();
@@ -3256,6 +3313,7 @@
 
     function restoreTapeInventory() {
       try {
+        restoreTapeCollection();
         const savedInventory = JSON.parse(localStorage.getItem("tape_inventory") || "null");
         const savedFormats = JSON.parse(localStorage.getItem("available_tape_formats") || "null");
         state.tapeInventory = normalizeTapeInventory(savedInventory, savedFormats || state.availableTapeFormats);
@@ -3263,6 +3321,7 @@
       } catch {
         localStorage.removeItem("tape_inventory");
         localStorage.removeItem("available_tape_formats");
+        restoreTapeCollection();
       }
     }
 
@@ -3274,7 +3333,11 @@
     }
 
     function getTapeInventory() {
-      return normalizeTapeInventory(state.tapeInventory, state.availableTapeFormats);
+      const inventory = normalizeTapeInventory(state.tapeInventory, state.availableTapeFormats);
+      for (const [minutes, quantity] of Object.entries(getProfiledTapeInventory())) {
+        inventory[minutes] = (inventory[minutes] || 0) + quantity;
+      }
+      return inventory;
     }
 
     function selectTapeLayout() {
