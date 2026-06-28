@@ -620,6 +620,7 @@
       el.exportProfilesBtn.addEventListener("click", exportProfiles);
       el.importProfilesBtn.addEventListener("click", () => el.importProfilesFile.click());
       el.exportProfileFolderBtn.addEventListener("click", exportProfileFolder);
+      el.importProfileFolderBtn.addEventListener("click", importProfileFolder);
       el.importProfilesFile.addEventListener("change", event => {
         // The hidden file input is read only after the user chooses an export JSON file.
         const file = event.target.files?.[0];
@@ -3813,6 +3814,80 @@
       }
     }
 
+    /**
+     * Imports all local profile/config data from a folder tree.
+     *
+     * Steps:
+     * 1. Ask the user to choose a readable directory with the File System Access API.
+     * 2. Locate a `profiles` folder, or treat the selected folder itself as the profile root.
+     * 3. Read deck, cassette, playlist, and tape collection JSON files from their subfolders.
+     * 4. Merge deck and cassette profiles by id, restore collection/inventory data, and optionally import the first playlist project.
+     * 5. Re-render profile, inventory, planning, and recording UI from the imported state.
+     *
+     * @returns {Promise<void>} Resolves after folder import succeeds or a user-visible unsupported-browser message is shown.
+     * @throws {DOMException} May throw if the user denies directory access or the browser blocks file reads.
+     *
+     * Side effects: Prompts for a local folder, reads JSON files, writes profile and inventory localStorage, may replace the current project, and re-renders UI.
+     */
+    async function importProfileFolder() {
+      if (!window.showDirectoryPicker) {
+        el.profileStatus.textContent = "Profile folder import needs a browser with folder read access.";
+        log("Profile folder import is not supported in this browser.");
+        return;
+      }
+      try {
+        if (blockIfRecordingLocked("Import profile folder")) return;
+        const root = await window.showDirectoryPicker({ mode: "read" });
+        const profilesDir = await getDirectoryIfExists(root, "profiles") || root;
+        const deckDir = await getDirectoryIfExists(profilesDir, "deck-profiles");
+        const cassetteDir = await getDirectoryIfExists(profilesDir, "cassette-profiles");
+        const playlistDir = await getDirectoryIfExists(profilesDir, "playlist-profiles");
+        const collectionDir = await getDirectoryIfExists(profilesDir, "tape-collection");
+        const deckProfiles = (await readJsonFilesFromDirectory(deckDir)).map(payload => payload.profile || payload).filter(isValidDeckProfile);
+        const cassetteProfiles = (await readJsonFilesFromDirectory(cassetteDir)).map(payload => payload.profile || payload).filter(isValidCassetteProfile);
+        saveDeckProfiles(mergeProfilesById(loadDeckProfiles(), deckProfiles));
+        saveCassetteProfiles(mergeProfilesById(loadCassetteProfiles(), cassetteProfiles));
+        if (collectionDir) {
+          const owned = await readJsonFileIfExists(collectionDir, "owned-cassettes.json");
+          const unprofiled = await readJsonFileIfExists(collectionDir, "unprofiled-inventory.json");
+          if (Array.isArray(owned?.tapeCollection)) {
+            state.tapeCollection = owned.tapeCollection.filter(item => item && typeof item === "object" && typeof item.cassetteProfileId === "string");
+            saveTapeCollection();
+          }
+          if (unprofiled?.tapeInventory) {
+            state.tapeInventory = normalizeTapeInventory(unprofiled.tapeInventory, state.availableTapeFormats);
+            localStorage.setItem("tape_inventory", JSON.stringify(state.tapeInventory));
+          }
+        }
+        const playlistPayloads = await readJsonFilesFromDirectory(playlistDir);
+        if (playlistPayloads.length && (!state.projectDirty || await confirmReplaceDirtyProject())) {
+          const payload = migrateImportedConfig(playlistPayloads[0]);
+          const project = normalizeImportedConfig(payload);
+          state.importError = "";
+          state.lastImportMissingUriCount = countMissingTrackUris(project);
+          if (Array.isArray(payload.tapeCollection)) {
+            state.tapeCollection = payload.tapeCollection;
+            saveTapeCollection();
+          }
+          state.tapeMinutes = project.tapes[project.selectedTapeIndex]?.tapeFormat || state.availableTapeFormats[0] || 90;
+          setProject(project);
+        }
+        state.availableTapeFormats = getAvailableTapeFormats();
+        renderProfileControls();
+        renderTapeOptions();
+        renderTapeInventory();
+        renderSlackMargin();
+        renderCalibration();
+        renderSplit();
+        el.profileStatus.textContent = `Imported ${deckProfiles.length} deck profile(s), ${cassetteProfiles.length} cassette profile(s), and ${state.tapeCollection.length} owned cassette(s).`;
+        log(el.profileStatus.textContent);
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        el.profileStatus.textContent = `Profile folder import failed: ${error.message}`;
+        log(`Profile folder import failed: ${error.message}`);
+      }
+    }
+
     function buildPlaylistProfilePayload(exportedAt) {
       syncStateFromProject();
       return {
@@ -3844,6 +3919,36 @@
 
     async function getOrCreateDirectory(parent, name) {
       return parent.getDirectoryHandle(name, { create: true });
+    }
+
+    async function getDirectoryIfExists(parent, name) {
+      if (!parent) return null;
+      try {
+        return await parent.getDirectoryHandle(name);
+      } catch {
+        return null;
+      }
+    }
+
+    async function readJsonFilesFromDirectory(directory) {
+      if (!directory) return [];
+      const payloads = [];
+      for await (const entry of directory.values()) {
+        if (entry.kind !== "file" || !entry.name.endsWith(".json")) continue;
+        const file = await entry.getFile();
+        payloads.push(JSON.parse(await file.text()));
+      }
+      return payloads;
+    }
+
+    async function readJsonFileIfExists(directory, filename) {
+      try {
+        const handle = await directory.getFileHandle(filename);
+        const file = await handle.getFile();
+        return JSON.parse(await file.text());
+      } catch {
+        return null;
+      }
     }
 
     async function writeJsonFile(directory, filename, payload) {
