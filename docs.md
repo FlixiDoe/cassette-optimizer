@@ -36,3 +36,5 @@ Manual regression checklists -> docs/*.md checklist files
 ```
 
 If a section starts repeating another file, replace it with a link instead of copying the same explanation again.
+
+Every code or behavior change must update the relevant documentation in the same work item when the change affects user behavior, architecture, state flow, setup, safety, or maintenance expectations. Each completed change must be committed and pushed.

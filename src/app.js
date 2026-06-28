@@ -2195,9 +2195,7 @@
       const selectedDeviceLabel = selectedDevice?.name || state.playbackStatus.deviceName || (state.selectedDeviceId ? "Selected" : "");
       const tokenValid = Boolean(state.token && Date.now() <= state.expiresAt);
       const playlistReady = projectTracks().length >= 1;
-      const selectedLayout = selectedTapeLayout();
-      const sideLengthMs = selectedSideLengthMs();
-      const tapeReady = Boolean(selectedLayout && selectedTapeMinutes() && (!playlistReady || (duration(sideA()) <= sideLengthMs && duration(sideB()) <= sideLengthMs)));
+      const tapeStatus = getTapeReadinessStatus(playlistReady);
       // The API row is warning during Retry-After countdowns, red after non-retryable errors, and green otherwise.
       const apiState = state.rateLimit.error ? "bad" : state.rateLimit.active ? "warn" : "ok";
       const statuses = [
@@ -2221,9 +2219,9 @@
         },
         {
           label: "Tape",
-          state: tapeReady ? "ok" : "bad",
-          icon: tapeReady ? "✅" : "❌",
-          value: tapeReady ? `C${selectedTapeMinutes()} plan valid` : "No tape / plan has errors"
+          state: tapeStatus.ready ? "ok" : "bad",
+          icon: tapeStatus.ready ? "✅" : "❌",
+          value: tapeStatus.message
         },
         {
           label: "Checklist",
@@ -2242,9 +2240,90 @@
       const warnings = [];
       if (!state.dryRun && !state.token) warnings.push("Connect Spotify before recording.");
       if (!selectedDeviceReady) warnings.push("Select a Spotify device.");
+      if (!tapeStatus.ready && tapeStatus.warning) warnings.push(tapeStatus.warning);
       if (!checklistReady) warnings.push("Confirm the audio quality checklist before recording.");
       if (state.playbackRecoveryMessage) warnings.push(state.playbackRecoveryMessage);
       return { statuses, ready, warnings };
+    }
+
+    /**
+     * Computes whether the current cassette plan can be recorded with available tapes.
+     *
+     * It requires a loaded playlist, a selected tape layout, at least one tape
+     * in the user's inventory, enough physical cassettes for every planned
+     * format, and no side overflow across the full tape plan. The returned
+     * message is shown in the Recording Readiness Tape row.
+     *
+     * @param {boolean} playlistReady - Whether at least one playlist track is loaded.
+     * @returns {{ready: boolean, message: string, warning: string}} Tape readiness state and user-facing detail.
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: None.
+     */
+    function getTapeReadinessStatus(playlistReady) {
+      const selectedLayout = selectedTapeLayout();
+      if (!playlistReady) return { ready: false, message: "No playlist loaded", warning: "" };
+      if (!selectedLayout || !selectedTapeMinutes()) return { ready: false, message: "No tape selected", warning: "Select a tape format before recording." };
+      const inventory = getTapeInventory();
+      if (!Object.values(inventory).some(quantity => quantity > 0)) {
+        return { ready: false, message: "No tapes in inventory", warning: "Add at least one cassette under Tapes you have." };
+      }
+      const shortages = getTapeInventoryShortages();
+      if (shortages.length) {
+        const message = shortages.map(({ minutes, used, available }) => `C${minutes}: ${available}/${used}`).join(", ");
+        return { ready: false, message: `Inventory short: ${message}`, warning: "Increase Tapes you have or choose formats you actually have." };
+      }
+      const overflow = getTapePlanOverflow();
+      if (overflow) {
+        return { ready: false, message: `${overflow.label} too small`, warning: `${overflow.label} exceeds C${overflow.minutes}; choose a larger cassette or adjust the plan.` };
+      }
+      return { ready: true, message: `C${selectedTapeMinutes()} plan valid`, warning: "" };
+    }
+
+    /**
+     * Lists cassette formats where the current plan exceeds user inventory.
+     *
+     * It compares the planned tape format counts against the quantities from
+     * `Tapes you have` and returns only formats that need more physical
+     * cassettes than the user has entered.
+     *
+     * @returns {Array<{minutes: number, used: number, available: number}>} Inventory shortages by cassette length.
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: None.
+     */
+    function getTapeInventoryShortages() {
+      const inventory = getTapeInventory();
+      const usedFormats = countTapeFormats();
+      return Object.entries(usedFormats)
+        .map(([minutes, used]) => ({
+          minutes: Number(minutes),
+          used,
+          available: inventory[minutes] || 0
+        }))
+        .filter(item => item.used > item.available);
+    }
+
+    /**
+     * Finds the first tape side that exceeds its cassette format capacity.
+     *
+     * It scans every planned physical tape, checks Side A and Side B against
+     * that layout's side length, and returns the first overflow so readiness can
+     * block recording when the selected inventory is too small.
+     *
+     * @returns {{label: string, minutes: number}|null} First overflowing side, or `null` when every planned side fits.
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: None.
+     */
+    function getTapePlanOverflow() {
+      for (const layout of state.tapeLayouts) {
+        const minutes = layout.tapeFormat || layout.tapeMinutes || state.tapeMinutes;
+        const sideLength = layout.sideLengthMs || minutes * 30 * 1000;
+        if (duration(layout.sideA) > sideLength) return { label: `Tape ${layout.tapeNumber || layout.number} Side A`, minutes };
+        if (duration(layout.sideB) > sideLength) return { label: `Tape ${layout.tapeNumber || layout.number} Side B`, minutes };
+      }
+      return null;
     }
 
     function isRecordingReadinessReady() {
@@ -2663,6 +2742,12 @@
 
     function renderTapeOptions() {
       const formats = getAvailableTapeFormats();
+      if (!formats.length) {
+        el.tapeSelect.innerHTML = `<option value="">No tapes in inventory</option>`;
+        el.tapeSelect.disabled = true;
+        return;
+      }
+      el.tapeSelect.disabled = false;
       if (!formats.includes(state.tapeMinutes)) {
         state.tapeMinutes = formats.includes(90) ? 90 : formats[0];
         el.tapeLabel.textContent = `C${state.tapeMinutes}`;
@@ -3242,9 +3327,6 @@
         for (const minutes of normalizeTapeFormats(value, fallbackFormats)) {
           inventory[minutes] = Math.max(1, inventory[minutes] || 1);
         }
-      }
-      if (!Object.values(inventory).some(quantity => quantity > 0)) {
-        for (const minutes of normalizeTapeFormats(fallbackFormats, [90])) inventory[minutes] = 1;
       }
       return inventory;
     }
