@@ -185,10 +185,6 @@ renderReadiness()
 getRecordingReadinessStatus()
 assertRecordingReadinessReady(side)
 renderRecordingLockState()
-startWizard()
-advanceWizard()
-retreatWizard()
-exitWizard()
 ```
 
 `renderSplit()` owns most planning UI. `renderRecordMode()` owns transport/recording UI.
@@ -198,8 +194,6 @@ exitWizard()
 `getRecordingReadinessStatus()` is the shared readiness source for the panel and Start Side A/B gates. Recording starts are blocked unless all prerequisite rows are green.
 
 The Tape readiness row also checks `Tapes you have`: recording is blocked when inventory is empty, when the plan needs more cassettes than entered, or when any planned side exceeds the selected cassette format.
-
-The First Tape Wizard is a session-only controller in `src/app.js`. It does not duplicate playlist, tape, checklist, level-check, dry-run, or recording logic; each step scrolls to existing UI and the final Start recording action calls `startSideA()`.
 
 ### Safety and confirmation functions
 

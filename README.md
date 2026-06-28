@@ -44,7 +44,6 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Controls Spotify playback for Side A / Side B recording with preflight safety checks.
 - Locks planning controls while cueing, recording, pausing, or waiting for a flip.
 - Provides a seven-row Recording Readiness panel and blocks Start Side A/B until all rows are green.
-- Provides a six-step First Tape Wizard for playlist, cassette, checklist, level check, dry run, and recording start.
 - Provides Dry Run mode with visible simulation logging, recording countdowns, deck readiness guidance, and optional LAN monitoring.
 - Handles Spotify 429 rate limits with a Retry-After countdown and recording-safe playback command replay.
 - Adds calibration helpers for leader tape delay, motor latency, safety margin, and browser-based level-check tones.
@@ -178,8 +177,6 @@ user-modify-playback-state
 18. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
 19. After Side A auto-pauses, flip the cassette and use `Start Side B`.
 20. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
-
-`Start First Tape Wizard` provides a guided version of the same flow. It reuses the existing playlist, tape, deck checklist, level-check, Dry Run, and Start Side A controls; it does not create a separate recording path.
 
 ## Profiles and Tape Collection
 

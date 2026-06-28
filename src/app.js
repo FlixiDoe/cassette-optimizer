@@ -161,10 +161,6 @@
       dryRun: false,
       dryRunLog: [],
       dryRun429Simulated: false,
-      // Wizard state is session-only and resets on page close because it is kept only in this in-memory state object.
-      wizardActive: false,
-      wizardStep: 0,
-      wizardDryRunComplete: false,
       audioContext: null,
       levelToneNode: null,
       levelToneGain: null,
@@ -811,15 +807,6 @@
       el.dryRunToggle.addEventListener("change", updateDryRun);
       el.startLevelToneBtn.addEventListener("click", startLevelTone);
       el.stopLevelToneBtn.addEventListener("click", stopLevelTone);
-      el.startWizardBtn.addEventListener("click", startWizard);
-      el.wizardNextBtn.addEventListener("click", advanceWizard);
-      el.wizardBackBtn.addEventListener("click", retreatWizard);
-      el.wizardExitBtn.addEventListener("click", exitWizard);
-      el.wizardStartRecordingBtn.addEventListener("click", () => {
-        // The wizard's final action calls the normal Side A starter so recording uses the same preflight, cue, and timer path as the main flow.
-        startSideA();
-      });
-      el.levelCheckItems.addEventListener("change", renderWizard);
       window.addEventListener("beforeunload", persistToken);
       startSharedStatusPolling();
       restoreTapeInventory();
@@ -832,7 +819,6 @@
       renderDeckChecklist();
       renderDryRun();
       renderCalibration();
-      renderWizard();
     }
 
     /**
@@ -2556,8 +2542,6 @@
       state.recordMode = "flip";
       state.activeRecordSide = "A";
       if (state.dryRun && !sideB().length) {
-        // A Dry Run that reaches Side A completion with no Side B available satisfies the wizard rehearsal gate.
-        state.wizardDryRunComplete = true;
         state.recordMode = "idle";
         state.activeRecordSide = null;
       }
@@ -2584,10 +2568,6 @@
       }
       state.recordMode = "idle";
       state.activeRecordSide = null;
-      if (state.dryRun) {
-        // A Dry Run that reaches Side B completion satisfies the wizard rehearsal gate.
-        state.wizardDryRunComplete = true;
-      }
       renderRecordMode("Complete");
       if (!state.dryRun) schedulePlaybackPoll(getPlaybackPollDelay());
     }
@@ -2642,10 +2622,8 @@
       el.startB.classList.toggle("blocked", !readinessReady);
       el.pauseBtn.disabled = cueing || (needsToken && !state.token) || !recording;
       el.abortBtn.disabled = !abortable;
-      el.startWizardBtn.hidden = isRecordingLockActive();
       renderRecordingLockState();
       updateDeckChecklistState();
-      renderWizard();
       // Recording mode and button gates changed, so Recording Readiness must reflect the latest active state.
       renderReadiness();
       pushSharedStatus();
@@ -3054,128 +3032,10 @@
       state.dryRun = el.dryRunToggle.checked;
       localStorage.setItem("dry_run_mode", String(state.dryRun));
       if (state.dryRun) stopPollingPlayback();
-      if (state.dryRun) {
-        // Starting a new Dry Run clears the wizard completion gate until a simulated side flow reaches completion.
-        state.wizardDryRunComplete = false;
-      }
       // The DRY RUN banner appears immediately when active and disappears as soon as live Spotify commands are re-enabled.
       renderDryRunState();
       renderRecordMode();
       log(state.dryRun ? "Dry Run enabled. Spotify playback commands will be skipped." : "Dry Run disabled. Spotify playback commands are active.");
-    }
-
-    const WIZARD_STEPS = [
-      { title: "Step 1 - Select playlist", target: "playlistInput" },
-      { title: "Step 2 - Select cassette format", target: "tapeSelect" },
-      { title: "Step 3 - Deck checklist", target: "deckChecklist" },
-      { title: "Step 4 - Level check", target: "levelCheckHelper" },
-      { title: "Step 5 - Dry run", target: "dryRunToggle" },
-      { title: "Step 6 - Start recording", target: "startA" }
-    ];
-
-    function startWizard() {
-      state.wizardActive = true;
-      state.wizardStep = 0;
-      state.wizardDryRunComplete = false;
-      renderWizard();
-      scrollWizardTargetIntoView();
-    }
-
-    /**
-     * Advances the First Tape Wizard by one step when the current gate passes.
-     *
-     * It checks the current step's readiness condition, keeps the wizard on
-     * the current step when the gate is incomplete, increments the in-memory
-     * step index when allowed, re-renders the wizard controls, and scrolls the
-     * existing UI block for the newly active step into view.
-     *
-     * @returns {void}
-     * @throws {Error} Does not throw directly.
-     *
-     * Side effects: Mutates wizard state, updates wizard DOM controls, and scrolls the page.
-     */
-    function advanceWizard() {
-      if (!state.wizardActive || !canAdvanceWizard()) return;
-      state.wizardStep = Math.min(WIZARD_STEPS.length - 1, state.wizardStep + 1);
-      renderWizard();
-      scrollWizardTargetIntoView();
-    }
-
-    /**
-     * Moves the First Tape Wizard back by one step.
-     *
-     * It decrements the in-memory step index without changing playlist,
-     * cassette, checklist, level-check, dry-run, or recording state, then
-     * re-renders controls and scrolls the previous existing UI block into view.
-     *
-     * @returns {void}
-     * @throws {Error} Does not throw directly.
-     *
-     * Side effects: Mutates wizard step state, updates wizard DOM controls, and scrolls the page.
-     */
-    function retreatWizard() {
-      if (!state.wizardActive) return;
-      state.wizardStep = Math.max(0, state.wizardStep - 1);
-      renderWizard();
-      scrollWizardTargetIntoView();
-    }
-
-    /**
-     * Exits the First Tape Wizard without changing normal app state.
-     *
-     * It hides the wizard panel, resets the session-only step index, and leaves
-     * all existing playlist, tape, checklist, level-check, dry-run, and
-     * recording controls exactly as they were.
-     *
-     * @returns {void}
-     * @throws {Error} Does not throw directly.
-     *
-     * Side effects: Mutates wizard state and updates wizard DOM visibility.
-     */
-    function exitWizard() {
-      state.wizardActive = false;
-      state.wizardStep = 0;
-      renderWizard();
-    }
-
-    function renderWizard() {
-      if (!el.wizardPanel) return;
-      const active = state.wizardActive && !isRecordingLockActive();
-      el.wizardPanel.hidden = !active;
-      el.startWizardBtn.hidden = active || isRecordingLockActive();
-      if (!active) return;
-      const step = WIZARD_STEPS[state.wizardStep];
-      el.wizardTitle.textContent = step.title;
-      el.wizardProgress.textContent = `${state.wizardStep + 1}/${WIZARD_STEPS.length}`;
-      el.wizardBackBtn.disabled = state.wizardStep === 0;
-      // Step 3 requires the deck checklist gate because the wizard should not advance to levels until the deck setup is complete.
-      // Step 4 requires every informational level checkpoint so the first-tape rehearsal includes the manual audio setup pass.
-      // Step 5 requires a completed Dry Run so the user rehearses the timer and flip path before live recording.
-      el.wizardNextBtn.disabled = !canAdvanceWizard();
-      el.wizardNextBtn.hidden = state.wizardStep === WIZARD_STEPS.length - 1;
-      el.wizardStartRecordingBtn.hidden = state.wizardStep !== WIZARD_STEPS.length - 1;
-    }
-
-    function canAdvanceWizard() {
-      if (state.wizardStep === 0) return projectTracks().length >= 1;
-      if (state.wizardStep === 1) return Boolean(selectedTapeLayout() && selectedTapeMinutes());
-      if (state.wizardStep === 2) return isChecklistComplete();
-      if (state.wizardStep === 3) return areLevelCheckpointsComplete();
-      if (state.wizardStep === 4) return state.wizardDryRunComplete;
-      return false;
-    }
-
-    function areLevelCheckpointsComplete() {
-      const inputs = [...el.levelCheckItems.querySelectorAll("input[type='checkbox']")];
-      return inputs.length > 0 && inputs.every(input => input.checked);
-    }
-
-    function scrollWizardTargetIntoView() {
-      const targetId = WIZARD_STEPS[state.wizardStep]?.target;
-      const target = targetId ? el[targetId] : null;
-      if (!target) return;
-      if (target.closest("details")) target.closest("details").open = true;
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
     /**

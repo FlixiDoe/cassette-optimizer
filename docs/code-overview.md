@@ -106,9 +106,6 @@ Manual setup:
   deckChecklistDone, dryRun, calibration,
   audioContext, levelToneNode, levelToneGain
 
-First Tape Wizard:
-  wizardActive, wizardStep, wizardDryRunComplete
-
 LAN monitor:
   statusApiAvailable, statusPollId, remoteStatusSeen
 

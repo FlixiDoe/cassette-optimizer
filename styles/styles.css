@@ -99,39 +99,6 @@
       margin-bottom: 18px;
     }
 
-    .wizard-launch {
-      margin-bottom: 16px;
-    }
-
-    .wizard-panel {
-      display: grid;
-      gap: 10px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #11150f;
-      padding: 12px;
-      margin-bottom: 16px;
-    }
-
-    .wizard-header,
-    .wizard-actions {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .wizard-header b {
-      color: var(--green);
-      text-transform: uppercase;
-    }
-
-    .wizard-header span {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
     h1, h2, h3, p { margin: 0; }
     h1 { font-size: clamp(24px, 3vw, 42px); letter-spacing: 0; line-height: 1; }
     h2 { font-size: 16px; color: var(--green); text-transform: uppercase; }
@@ -395,9 +362,9 @@
 
     .tape-format-row {
       display: grid;
-      grid-template-columns: minmax(58px, auto) minmax(0, 1fr);
-      gap: 6px 8px;
-      align-items: center;
+      grid-template-columns: max-content minmax(220px, 1.25fr) minmax(180px, .75fr);
+      gap: 8px;
+      align-items: start;
       border: 1px solid var(--line);
       border-radius: 6px;
       padding: 8px;
@@ -409,6 +376,8 @@
       font-size: 12px;
       font-weight: 700;
       text-transform: uppercase;
+      padding-top: 10px;
+      white-space: nowrap;
     }
 
     .tape-format-row select {
@@ -416,7 +385,7 @@
     }
 
     .tape-format-row em {
-      grid-column: 1 / -1;
+      grid-column: 2 / -1;
       color: var(--muted);
       font-size: 11px;
       font-style: normal;
@@ -1350,6 +1319,18 @@
     }
 
     @media (max-width: 760px) {
+      .tape-format-row {
+        grid-template-columns: 1fr;
+      }
+
+      .tape-format-row span {
+        padding-top: 0;
+      }
+
+      .tape-format-row em {
+        grid-column: 1;
+      }
+
       body[data-host-mode="lan-monitor"] {
         padding: 10px;
       }
