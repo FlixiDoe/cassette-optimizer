@@ -88,7 +88,7 @@
       selectedDeviceId: localStorage.getItem("spotify_device_id") || "",
       tapeMinutes: 90,
       availableTapeFormats: [60, 90],
-      tapeInventory: { 60: 1, 90: 1 },
+      tapeInventory: {},
       tapeCollection: [],
       project: null,
       projectDirty: false,
@@ -430,7 +430,6 @@
       };
       saveCassetteProfiles([...profiles, profile]);
       setActiveCassette(profile.id);
-      addTapeCollectionItem(profile.id);
       renderProfileControls();
       recomputeTimingDependentViews("Cassette profile created.");
     }
@@ -527,6 +526,13 @@
       saveTapeCollection();
     }
 
+    function removeTapeCollectionItem(cassetteProfileId) {
+      const index = state.tapeCollection.findIndex(item => item.cassetteProfileId === cassetteProfileId);
+      if (index < 0) return;
+      state.tapeCollection = state.tapeCollection.filter((_, itemIndex) => itemIndex !== index);
+      saveTapeCollection();
+    }
+
     function getCassetteProfileById(id) {
       return loadCassetteProfiles().find(profile => profile.id === id) || null;
     }
@@ -552,28 +558,20 @@
       try {
         const saved = JSON.parse(localStorage.getItem(TAPE_COLLECTION_KEY) || "[]");
         state.tapeCollection = Array.isArray(saved) ? saved.filter(item => item && typeof item === "object" && typeof item.cassetteProfileId === "string") : [];
-        reconcileTapeCollectionWithProfiles();
+        removeAutoMigratedTapeCollectionItems();
       } catch {
         localStorage.removeItem(TAPE_COLLECTION_KEY);
         state.tapeCollection = [];
-        reconcileTapeCollectionWithProfiles();
       }
     }
 
-    function reconcileTapeCollectionWithProfiles() {
-      const ownedProfileIds = new Set(state.tapeCollection.map(item => item.cassetteProfileId));
-      const missingProfiles = loadCassetteProfiles().filter(profile => !ownedProfileIds.has(profile.id));
-      if (!missingProfiles.length) return;
-      const now = new Date().toISOString();
-      const migratedItems = missingProfiles.map((profile, index) => ({
-        id: `owned_tape_${Date.now()}_${index}_${slugify(profile.id)}`,
-        cassetteProfileId: profile.id,
-        label: profile.name,
-        addedAt: now
-      }));
-      state.tapeCollection = [...state.tapeCollection, ...migratedItems];
-      // Migration keeps existing cassette profiles visible in exact-model dropdowns instead of only showing profiles created after tapeCollection existed.
-      saveTapeCollection();
+    function removeAutoMigratedTapeCollectionItems() {
+      const before = state.tapeCollection.length;
+      state.tapeCollection = state.tapeCollection.filter(item => !/^owned_tape_\d+_\d+_/.test(item.id || ""));
+      if (state.tapeCollection.length !== before) {
+        // Remove entries created by the short-lived automatic profile-to-collection migration so defaults return to zero owned cassettes.
+        saveTapeCollection();
+      }
     }
 
     function isLocalhost() {
@@ -667,6 +665,7 @@
       el.tapePlanSelect.addEventListener("change", selectTapeLayout);
       el.tapeFormatList.addEventListener("change", updatePerTapeFormat);
       el.tapeInventory.addEventListener("change", updateAvailableTapeFormats);
+      el.tapeInventory.addEventListener("click", updateTapeCollectionFromButton);
       el.deckChecklist.addEventListener("change", updateDeckChecklist);
       el.skipDeckChecklist.addEventListener("change", updateDeckChecklist);
       el.dryRunToggle.addEventListener("change", updateDryRun);
@@ -3301,14 +3300,42 @@
     }
 
     function renderTapeInventory() {
-      const totalInventory = getTapeInventory();
-      const profiledInventory = getProfiledTapeInventory();
-      el.tapeInventory.innerHTML = TAPE_FORMATS.map(minutes => {
-        const quantity = totalInventory[minutes] || 0;
-        const profiled = profiledInventory[minutes] || 0;
-        const note = profiled ? ` (${profiled} from profiles)` : "";
-        return `<label class="tape-check tape-quantity"><span>C${minutes}${escapeHtml(note)}</span><input type="number" min="0" max="99" step="1" value="${quantity}" data-tape-inventory-minutes="${minutes}" aria-label="C${minutes} quantity"></label>`;
+      const counts = countCollectionProfiles();
+      const profiles = loadCassetteProfiles();
+      if (!profiles.length) {
+        el.tapeInventory.innerHTML = `<p class="small">Create a cassette profile, then add owned copies here.</p>`;
+        return;
+      }
+      el.tapeInventory.innerHTML = profiles.map(profile => {
+        const quantity = counts[profile.id] || 0;
+        return `<div class="tape-check tape-quantity">
+          <span>${escapeHtml(profile.name)} - C${escapeHtml(profile.lengthMinutes)}</span>
+          <button type="button" data-cassette-inventory-action="remove" data-cassette-profile-id="${escapeHtml(profile.id)}" aria-label="Remove ${escapeHtml(profile.name)}">-</button>
+          <b>${quantity}</b>
+          <button type="button" data-cassette-inventory-action="add" data-cassette-profile-id="${escapeHtml(profile.id)}" aria-label="Add ${escapeHtml(profile.name)}">+</button>
+        </div>`;
       }).join("");
+    }
+
+    function updateTapeCollectionFromButton(event) {
+      const button = event.target.closest("[data-cassette-inventory-action]");
+      if (!button) return;
+      if (blockIfRecordingLocked("Tape inventory")) {
+        renderTapeInventory();
+        return;
+      }
+      const profileId = button.dataset.cassetteProfileId;
+      if (button.dataset.cassetteInventoryAction === "add") {
+        addTapeCollectionItem(profileId);
+      } else {
+        removeTapeCollectionItem(profileId);
+      }
+      state.availableTapeFormats = getAvailableTapeFormats();
+      markProjectDirty();
+      renderTapeOptions();
+      computeSplit();
+      renderSplit();
+      renderTapeInventory();
     }
 
     function updateAvailableTapeFormats() {
@@ -3316,14 +3343,6 @@
         renderTapeInventory();
         return;
       }
-      const profiledInventory = getProfiledTapeInventory();
-      state.tapeInventory = normalizeTapeInventory(Object.fromEntries(
-        [...el.tapeInventory.querySelectorAll("[data-tape-inventory-minutes]")].map(input => {
-          const total = Math.max(0, Math.round(Number(input.value) || 0));
-          const profiled = profiledInventory[input.dataset.tapeInventoryMinutes] || 0;
-          return [input.dataset.tapeInventoryMinutes, Math.max(0, total - profiled)];
-        })
-      ), [state.tapeMinutes]);
       state.availableTapeFormats = getAvailableTapeFormats();
       markProjectDirty();
       localStorage.setItem("tape_inventory", JSON.stringify(state.tapeInventory));
@@ -3355,11 +3374,7 @@
     }
 
     function getTapeInventory() {
-      const inventory = normalizeTapeInventory(state.tapeInventory, state.availableTapeFormats);
-      for (const [minutes, quantity] of Object.entries(getProfiledTapeInventory())) {
-        inventory[minutes] = (inventory[minutes] || 0) + quantity;
-      }
-      return inventory;
+      return getProfiledTapeInventory();
     }
 
     function selectTapeLayout() {
@@ -4236,7 +4251,7 @@
         }
       } else {
         for (const minutes of normalizeTapeFormats(value, fallbackFormats)) {
-          inventory[minutes] = Math.max(1, inventory[minutes] || 1);
+          inventory[minutes] = 0;
         }
       }
       return inventory;

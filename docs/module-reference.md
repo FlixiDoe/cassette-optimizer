@@ -558,9 +558,9 @@ exportProfileFolder()
 importProfileFolder()
 ```
 
-`tapeCollection` is stored in localStorage as owned physical cassette entries linked to cassette profile ids. Legacy `tape_inventory` now represents unprofiled C-length quantities only; `getTapeInventory()` adds those unprofiled counts to the owned cassette collection grouped by cassette profile length.
+`tapeCollection` is stored in localStorage as owned physical cassette entries linked to cassette profile ids. `getTapeInventory()` groups those owned copies by cassette profile length so planning only sees explicitly added physical cassettes.
 
-Creating a cassette profile also creates one owned cassette entry for that profile, so adding a Maxell UR-90 immediately increments the C90 inventory total. Per-tape planning can store `cassetteProfileId`, letting each planned physical cassette select an exact model from owned cassette profiles.
+First-run inventory is empty. Creating a cassette profile defines a reusable cassette model only; the user adds or removes owned physical copies with plus/minus controls in `Tapes you have`. Per-tape planning can store `cassetteProfileId`, letting each planned physical cassette select an exact model from owned cassette profiles.
 
 `exportProfileFolder()` writes a local folder tree through the File System Access API:
 

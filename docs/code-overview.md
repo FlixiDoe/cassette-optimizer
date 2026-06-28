@@ -294,10 +294,10 @@ The app now separates cassette models from owned physical cassette copies.
 ```text
 cassetteProfiles  -> reusable model definitions such as Maxell UR-90
 tapeCollection    -> owned physical copies linked to cassetteProfileId
-tape_inventory    -> unprofiled fallback C-length counts
+tape_inventory    -> legacy/exported unprofiled C-length counts
 ```
 
-Adding a cassette profile creates one `tapeCollection` item for that model. `getTapeInventory()` combines profile-owned copies with unprofiled C-length counts, so a new C90 cassette model immediately increases the C90 inventory total while still preserving manually entered generic inventory.
+First-run inventory is empty. Cassette profiles are only model definitions; owned physical copies are added and removed with the plus/minus controls in `Tapes you have`. `getTapeInventory()` now reports the owned collection grouped by cassette profile length, so planning only sees cassette copies the user explicitly added.
 
 Each planned tape layout can store `cassetteProfileId`. The per-tape planning controls show exact owned cassette models that match the selected length and avoid offering more copies than exist in `tapeCollection`.
 
@@ -310,4 +310,4 @@ profiles/playlist-profiles/
 profiles/tape-collection/
 ```
 
-Deck and cassette profile files are one JSON document per profile. `playlist-profiles` stores the active project as playlist-oriented JSON. `tape-collection` stores owned physical cassette copies and unprofiled inventory separately so model definitions and ownership counts can evolve independently.
+Deck and cassette profile files are one JSON document per profile. `playlist-profiles` stores the active project as playlist-oriented JSON. `tape-collection` stores owned physical cassette copies and legacy unprofiled inventory separately so model definitions and ownership counts can evolve independently.

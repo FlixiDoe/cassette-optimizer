@@ -526,14 +526,18 @@ The merge strategy is intentionally non-destructive. Imported profiles overwrite
 Cassette profiles describe reusable cassette models. `tapeCollection` describes owned physical copies.
 
 ```text
-Add cassette profile
-  -> saveCassetteProfiles(...)
+Click + on a cassette profile row
   -> addTapeCollectionItem(profile.id)
   -> saveTapeCollection()
   -> getTapeInventory() includes the new cassette length
+
+Click - on a cassette profile row
+  -> removeTapeCollectionItem(profile.id)
+  -> saveTapeCollection()
+  -> getTapeInventory() removes one owned copy
 ```
 
-`Tape inventory` inputs show total inventory by C-length. When the user edits those totals, the app subtracts profile-linked cassette copies and stores the remainder in legacy `tape_inventory` as unprofiled stock. This keeps existing C60/C90 workflows working while exact cassette models become available.
+First-run inventory is empty. Cassette profile creation does not add a physical tape automatically; the user explicitly adds or removes owned copies with plus/minus controls in `Tapes you have`.
 
 Per-tape exact cassette selection is handled inside `renderPerTapeFormatControls()`:
 
@@ -568,7 +572,7 @@ Import profile folder
   -> showDirectoryPicker({ mode: "read" })
   -> locate profiles/ or use selected folder directly
   -> merge deck/cassette profile files by id
-  -> restore owned cassette collection and unprofiled inventory
+  -> restore owned cassette collection and legacy unprofiled inventory
   -> import the first playlist profile when present
   -> render profile, inventory, planning, and recording UI
 ```
