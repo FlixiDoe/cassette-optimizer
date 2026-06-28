@@ -167,6 +167,7 @@
       restoreToken();
       handleCallback();
       bindEvents();
+      renderProfileControls();
       renderAuth();
       renderSplit();
       renderRecordMode();
@@ -359,6 +360,156 @@
       setActiveCassette(DEFAULT_CASSETTE_PROFILES[0].id);
     }
 
+    function renderProfileControls() {
+      renderDeckProfileControls();
+      renderCassetteProfileControls();
+      renderCalibration();
+      renderSlackMargin();
+    }
+
+    function renderDeckProfileControls() {
+      const profiles = loadDeckProfiles();
+      const active = getActiveDeck();
+      el.deckProfileSelect.innerHTML = profiles.map(profile => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.id)}</option>`).join("");
+      el.deckProfileSelect.value = active?.id || "";
+      el.deckProfileName.value = active?.name || "";
+      el.deckDolbyNR.checked = Boolean(active?.dolbyNR);
+      el.deckTypeIISupport.checked = Boolean(active?.typeIISupport);
+    }
+
+    function renderCassetteProfileControls() {
+      const profiles = loadCassetteProfiles();
+      const active = getActiveCassette();
+      el.cassetteProfileSelect.innerHTML = profiles.map(profile => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.id)}</option>`).join("");
+      el.cassetteProfileSelect.value = active?.id || "";
+      el.cassetteProfileName.value = active?.name || "";
+      el.cassetteProfileType.value = active?.type === "II" ? "II" : "I";
+      el.cassetteProfileLength.value = active?.lengthMinutes || 90;
+      el.cassetteLeaderLength.value = active?.leaderLength ?? "";
+      el.cassetteSlackMargin.value = active?.slackMargin ?? "";
+    }
+
+    function selectDeckProfile() {
+      setActiveDeck(el.deckProfileSelect.value);
+      renderProfileControls();
+      recomputeTimingDependentViews("Deck profile selected.");
+    }
+
+    function selectCassetteProfile() {
+      setActiveCassette(el.cassetteProfileSelect.value);
+      const active = getActiveCassette();
+      if (active?.lengthMinutes) setTapeLengthFromProfile(active.lengthMinutes);
+      renderProfileControls();
+      recomputeTimingDependentViews("Cassette profile selected.");
+    }
+
+    function addDeckProfile() {
+      const profiles = loadDeckProfiles();
+      const base = getActiveDeck() || DEFAULT_DECK_PROFILE;
+      const profile = {
+        ...base,
+        id: uniqueProfileId("deck_custom", profiles),
+        name: `New deck ${profiles.length + 1}`
+      };
+      saveDeckProfiles([...profiles, profile]);
+      setActiveDeck(profile.id);
+      renderProfileControls();
+      recomputeTimingDependentViews("Deck profile created.");
+    }
+
+    function addCassetteProfile() {
+      const profiles = loadCassetteProfiles();
+      const base = getActiveCassette() || DEFAULT_CASSETTE_PROFILES[0];
+      const profile = {
+        ...base,
+        id: uniqueProfileId("tape_custom", profiles),
+        name: `New cassette ${profiles.length + 1}`
+      };
+      saveCassetteProfiles([...profiles, profile]);
+      setActiveCassette(profile.id);
+      renderProfileControls();
+      recomputeTimingDependentViews("Cassette profile created.");
+    }
+
+    function updateDeckProfile() {
+      const active = getActiveDeck();
+      if (!active) return;
+      const profiles = loadDeckProfiles();
+      const updated = {
+        ...active,
+        name: el.deckProfileName.value.trim() || active.name,
+        leaderTapeDelay: clampNumber(el.leadInDelay.value, 0, 120),
+        motorLatency: clampNumber(el.motorLatency.value, 0, 30),
+        safetyMargin: clampSeconds(el.safetyMargin.value, 0, 300),
+        defaultSlackMargin: clampSeconds(el.slackMargin.value, 0, 120),
+        dolbyNR: el.deckDolbyNR.checked,
+        typeIISupport: el.deckTypeIISupport.checked
+      };
+      // Write the edited deck profile immediately so the existing timing inputs behave as a live deck editor.
+      saveDeckProfiles(profiles.map(profile => profile.id === updated.id ? updated : profile));
+      renderDeckProfileControls();
+      recomputeTimingDependentViews("Deck profile updated.");
+    }
+
+    function updateCassetteProfile() {
+      const active = getActiveCassette();
+      if (!active) return;
+      const profiles = loadCassetteProfiles();
+      const updated = {
+        ...active,
+        name: el.cassetteProfileName.value.trim() || active.name,
+        type: el.cassetteProfileType.value === "II" ? "II" : "I",
+        lengthMinutes: Math.max(1, Math.min(180, Math.round(Number(el.cassetteProfileLength.value) || active.lengthMinutes || 90))),
+        leaderLength: optionalNumber(el.cassetteLeaderLength.value, 0, 120),
+        slackMargin: optionalSeconds(el.cassetteSlackMargin.value, 0, 120)
+      };
+      // Write cassette edits immediately so measured leader/slack changes affect planning without a separate save step.
+      saveCassetteProfiles(profiles.map(profile => profile.id === updated.id ? updated : profile));
+      setTapeLengthFromProfile(updated.lengthMinutes);
+      renderCassetteProfileControls();
+      recomputeTimingDependentViews("Cassette profile updated.");
+    }
+
+    function setTapeLengthFromProfile(minutes) {
+      state.tapeMinutes = TAPE_FORMATS.includes(Number(minutes)) ? Number(minutes) : state.tapeMinutes;
+      if (state.project && state.project.tapes.length <= 1 && state.project.tapes[0]) {
+        state.project.tapes[0].tapeFormat = state.tapeMinutes;
+      }
+    }
+
+    function recomputeTimingDependentViews(message) {
+      if (state.project || state.tracks.length) computeSplit();
+      renderTapeOptions();
+      renderSlackMargin();
+      renderSplit();
+      renderRecordMode();
+      if (message) {
+        el.profileStatus.textContent = message;
+        log(message);
+      }
+    }
+
+    function uniqueProfileId(prefix, profiles) {
+      const existing = new Set(profiles.map(profile => profile.id));
+      let index = profiles.length + 1;
+      let id = `${prefix}_${Date.now()}`;
+      while (existing.has(id)) {
+        id = `${prefix}_${Date.now()}_${index}`;
+        index += 1;
+      }
+      return id;
+    }
+
+    function optionalSeconds(value, min, max) {
+      if (String(value).trim() === "") return null;
+      return clampSeconds(value, min, max);
+    }
+
+    function optionalNumber(value, min, max) {
+      if (String(value).trim() === "") return null;
+      return clampNumber(value, min, max);
+    }
+
     function isLocalhost() {
       return location.hostname === "127.0.0.1" || location.hostname === "localhost";
     }
@@ -398,6 +549,34 @@
         el.importConfigFile.click();
       });
       el.importConfigFile.addEventListener("change", importTapeConfig);
+      el.deckProfileSelect.addEventListener("change", selectDeckProfile);
+      el.deckProfileName.addEventListener("change", updateDeckProfile);
+      el.leadInDelay.addEventListener("change", updateCalibration);
+      el.leadInDelay.addEventListener("input", updateCalibration);
+      el.motorLatency.addEventListener("change", updateCalibration);
+      el.motorLatency.addEventListener("input", updateCalibration);
+      el.safetyMargin.addEventListener("change", updateCalibration);
+      el.safetyMargin.addEventListener("input", updateCalibration);
+      el.deckDolbyNR.addEventListener("change", updateDeckProfile);
+      el.deckTypeIISupport.addEventListener("change", updateDeckProfile);
+      el.addDeckProfileBtn.addEventListener("click", addDeckProfile);
+      el.cassetteProfileSelect.addEventListener("change", selectCassetteProfile);
+      el.cassetteProfileName.addEventListener("change", updateCassetteProfile);
+      el.cassetteProfileType.addEventListener("change", updateCassetteProfile);
+      el.cassetteProfileLength.addEventListener("change", updateCassetteProfile);
+      el.cassetteLeaderLength.addEventListener("change", updateCassetteProfile);
+      el.cassetteLeaderLength.addEventListener("input", updateCassetteProfile);
+      el.cassetteSlackMargin.addEventListener("change", updateCassetteProfile);
+      el.cassetteSlackMargin.addEventListener("input", updateCassetteProfile);
+      el.addCassetteProfileBtn.addEventListener("click", addCassetteProfile);
+      el.exportProfilesBtn.addEventListener("click", exportProfiles);
+      el.importProfilesBtn.addEventListener("click", () => el.importProfilesFile.click());
+      el.importProfilesFile.addEventListener("change", event => {
+        // The hidden file input is read only after the user chooses an export JSON file.
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (file) importProfiles(file);
+      });
       el.moveSplitEarlier.addEventListener("click", () => moveManualSplit(-1));
       el.moveSplitLater.addEventListener("click", () => moveManualSplit(1));
       el.lockSplitBtn.addEventListener("click", lockManualSplitFromSelect);
@@ -423,12 +602,6 @@
       el.deckChecklist.addEventListener("change", updateDeckChecklist);
       el.skipDeckChecklist.addEventListener("change", updateDeckChecklist);
       el.dryRunToggle.addEventListener("change", updateDryRun);
-      el.leadInDelay.addEventListener("change", updateCalibration);
-      el.leadInDelay.addEventListener("input", updateCalibration);
-      el.motorLatency.addEventListener("change", updateCalibration);
-      el.motorLatency.addEventListener("input", updateCalibration);
-      el.safetyMargin.addEventListener("change", updateCalibration);
-      el.safetyMargin.addEventListener("input", updateCalibration);
       el.startLevelToneBtn.addEventListener("click", startLevelTone);
       el.stopLevelToneBtn.addEventListener("click", stopLevelTone);
       el.startWizardBtn.addEventListener("click", startWizard);
@@ -2910,19 +3083,23 @@
     }
 
     function renderCalibration() {
-      el.leadInDelay.value = state.calibration.leadInSeconds;
-      el.motorLatency.value = state.calibration.motorLatencySeconds;
-      el.safetyMargin.value = state.calibration.safetyMarginSeconds;
+      const deck = getActiveDeck();
+      el.leadInDelay.value = deck ? deck.leaderTapeDelay : state.calibration.leadInSeconds;
+      el.motorLatency.value = deck ? deck.motorLatency : state.calibration.motorLatencySeconds;
+      el.safetyMargin.value = deck ? deck.safetyMargin : state.calibration.safetyMarginSeconds;
     }
 
     function updateCalibration() {
+      updateDeckProfile();
+      const timing = getEffectiveTimingSettings();
       state.calibration = normalizeCalibration({
-        leadInSeconds: el.leadInDelay.value,
-        motorLatencySeconds: el.motorLatency.value,
-        safetyMarginSeconds: el.safetyMargin.value
+        leadInSeconds: timing.leaderTapeDelay,
+        motorLatencySeconds: timing.motorLatency,
+        safetyMarginSeconds: timing.safetyMargin
       });
       if (state.project) state.project.calibration = { ...state.calibration };
       markProjectDirty();
+      // Keep the legacy calibration key synchronized for older exports and any users who temporarily clear all deck profiles.
       localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
       renderCalibration();
       renderSplit();
@@ -2958,9 +3135,9 @@
       if (!deck) {
         return {
           // Fallback reads the current #leadInDelay input so legacy manual calibration still works when no profile is active.
-          leaderTapeDelay: clampSeconds(el.leadInDelay.value, 0, 120),
+          leaderTapeDelay: clampNumber(el.leadInDelay.value, 0, 120),
           // Fallback reads the current #motorLatency input so legacy manual calibration still works when no profile is active.
-          motorLatency: clampSeconds(el.motorLatency.value, 0, 30),
+          motorLatency: clampNumber(el.motorLatency.value, 0, 30),
           // Fallback reads the current #safetyMargin input so legacy safety warnings still work when no profile is active.
           safetyMargin: clampSeconds(el.safetyMargin.value, 0, 300),
           // Fallback reads the current #slackMargin input so legacy planning still works when no profile is active.
@@ -2976,8 +3153,8 @@
       // Missing cassette slack falls back from cassette to deck because most cassettes are not measured individually.
       const slackMargin = cassette?.slackMargin ?? deck.defaultSlackMargin;
       return {
-        leaderTapeDelay: clampSeconds(leaderTapeDelay, 0, 120),
-        motorLatency: clampSeconds(deck.motorLatency, 0, 30),
+        leaderTapeDelay: clampNumber(leaderTapeDelay, 0, 120),
+        motorLatency: clampNumber(deck.motorLatency, 0, 30),
         safetyMargin: clampSeconds(deck.safetyMargin, 0, 300),
         slackMargin: clampSeconds(slackMargin, 0, 120)
       };
@@ -2987,6 +3164,12 @@
       const number = Number(value);
       if (!Number.isFinite(number)) return min;
       return Math.min(max, Math.max(min, Math.round(number)));
+    }
+
+    function clampNumber(value, min, max) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return min;
+      return Math.min(max, Math.max(min, number));
     }
 
     function setTapeLength(minutes) {
@@ -3005,7 +3188,7 @@
     }
 
     function renderSlackMargin() {
-      el.slackMargin.value = state.slackMarginSeconds;
+      el.slackMargin.value = getEffectiveTimingSettings().slackMargin;
     }
 
     function updateSlackMargin() {
@@ -3013,7 +3196,14 @@
         renderSlackMargin();
         return;
       }
-      state.slackMarginSeconds = clampSeconds(el.slackMargin.value, 0, 120);
+      const cassette = getActiveCassette();
+      if (cassette?.slackMargin !== null && cassette?.slackMargin !== undefined) {
+        el.cassetteSlackMargin.value = el.slackMargin.value;
+        updateCassetteProfile();
+      } else {
+        updateDeckProfile();
+      }
+      state.slackMarginSeconds = getEffectiveTimingSettings().slackMargin;
       if (state.project) state.project.slackMarginSeconds = state.slackMarginSeconds;
       markProjectDirty();
       computeSplit();
@@ -3445,6 +3635,129 @@
       } catch (error) {
         log(error.message);
       }
+    }
+
+    /**
+     * Exports deck and cassette profiles as a JSON file.
+     *
+     * Steps:
+     * 1. Collect all saved deck profiles and cassette profiles from localStorage.
+     * 2. Wrap them in a versioned profile export payload.
+     * 3. Generate a dated filename so repeated exports are easy to identify.
+     * 4. Trigger a browser download for the JSON payload.
+     *
+     * @returns {void}
+     * @throws {DOMException} May throw if browser download APIs or storage reads are unavailable.
+     *
+     * Side effects: Triggers a file download; does not write to localStorage.
+     */
+    function exportProfiles() {
+      const today = new Date().toISOString().slice(0, 10);
+      const payload = {
+        app: "cassette-optimizer",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        deckProfiles: loadDeckProfiles(),
+        cassetteProfiles: loadCassetteProfiles()
+      };
+      // The date suffix makes it easy to identify the most recent export when multiple files accumulate in the downloads folder.
+      downloadJson(payload, `cassette-profiles-${today}.json`);
+      el.profileStatus.textContent = "Profiles exported.";
+      log("Profiles exported as JSON.");
+    }
+
+    /**
+     * Imports deck and cassette profiles from a JSON file.
+     *
+     * Steps:
+     * 1. Read the selected File with FileReader.
+     * 2. Parse JSON and validate the top-level profile export structure.
+     * 3. Validate each deck and cassette profile independently.
+     * 4. Merge imported profiles with local profiles by id, overwriting matches and adding new ids.
+     * 5. Save the merged arrays and re-render selectors plus timing-dependent views.
+     *
+     * @param {File} file - JSON profile export selected by the user.
+     * @returns {Promise<void>} Resolves after import succeeds or a user-visible validation error is shown.
+     * @throws {Error} Does not intentionally throw; file, parse, and validation failures are caught and shown in the UI.
+     *
+     * Side effects: Reads a local File object, writes profile localStorage keys, re-renders profile selectors, and recomputes timing-dependent UI.
+     */
+    function importProfiles(file) {
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onerror = () => {
+          el.profileStatus.textContent = "Could not read file — make sure it is a valid profiles export.";
+          resolve();
+        };
+        reader.onload = () => {
+          try {
+            // The selected File is read as text so JSON.parse can validate the export payload before storage is modified.
+            const payload = JSON.parse(String(reader.result || ""));
+            // Future versions may introduce migration logic here if the profile schema changes.
+            const version = Number(payload.version || 1);
+            if (version !== 1) console.warn(`Unknown profile export version ${version}; attempting version 1 import.`);
+            // Validate the top-level export structure before any merge so malformed files cannot partially overwrite storage.
+            if (!Array.isArray(payload.deckProfiles) || !Array.isArray(payload.cassetteProfiles)) {
+              el.profileStatus.textContent = "Could not read file — make sure it is a valid profiles export.";
+              resolve();
+              return;
+            }
+            const validDecks = payload.deckProfiles.filter(profile => {
+              const valid = isValidDeckProfile(profile);
+              // Invalid entries are skipped individually rather than aborting the import — a single malformed profile should not prevent valid profiles from being imported.
+              if (!valid) console.warn("Skipping invalid deck profile import entry.", profile);
+              return valid;
+            });
+            const validCassettes = payload.cassetteProfiles.filter(profile => {
+              const valid = isValidCassetteProfile(profile);
+              // Invalid entries are skipped individually rather than aborting the import — a single malformed profile should not prevent valid profiles from being imported.
+              if (!valid) console.warn("Skipping invalid cassette profile import entry.", profile);
+              return valid;
+            });
+            const activeDeckId = getActiveDeck()?.id;
+            const activeCassetteId = getActiveCassette()?.id;
+            // Merge rather than replace so the user does not lose profiles that were created locally after the export was made.
+            saveDeckProfiles(mergeProfilesById(loadDeckProfiles(), validDecks));
+            // Merge rather than replace so the user does not lose profiles that were created locally after the export was made.
+            saveCassetteProfiles(mergeProfilesById(loadCassetteProfiles(), validCassettes));
+            if (activeDeckId && loadDeckProfiles().some(profile => profile.id === activeDeckId)) setActiveDeck(activeDeckId);
+            if (activeCassetteId && loadCassetteProfiles().some(profile => profile.id === activeCassetteId)) setActiveCassette(activeCassetteId);
+            renderProfileControls();
+            recomputeTimingDependentViews(`Imported ${validDecks.length} deck(s) and ${validCassettes.length} cassette(s).`);
+          } catch {
+            el.profileStatus.textContent = "Could not read file — make sure it is a valid profiles export.";
+          }
+          resolve();
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    function isValidDeckProfile(profile) {
+      return profile && typeof profile === "object"
+        && typeof profile.id === "string"
+        && typeof profile.name === "string"
+        && typeof profile.leaderTapeDelay === "number"
+        && typeof profile.motorLatency === "number"
+        && typeof profile.safetyMargin === "number"
+        && typeof profile.defaultSlackMargin === "number";
+    }
+
+    function isValidCassetteProfile(profile) {
+      return profile && typeof profile === "object"
+        && typeof profile.id === "string"
+        && typeof profile.name === "string"
+        && (profile.type === "I" || profile.type === "II")
+        && typeof profile.lengthMinutes === "number";
+    }
+
+    function mergeProfilesById(existingProfiles, importedProfiles) {
+      const merged = new Map((Array.isArray(existingProfiles) ? existingProfiles : []).map(profile => [profile.id, profile]));
+      for (const profile of importedProfiles) {
+        // Imported ids overwrite local matches, while new ids are appended through the same map.
+        merged.set(profile.id, profile);
+      }
+      return [...merged.values()];
     }
 
     async function importTapeConfig(event) {

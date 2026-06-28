@@ -67,6 +67,25 @@
           <label class="label" for="playlistInput">Playlist URL or ID</label>
           <input id="playlistInput" value="" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
         </div>
+        <div class="profile-panel">
+          <label class="label" for="deckProfileSelect">Deck profile</label>
+          <div class="row">
+            <select id="deckProfileSelect"></select>
+            <button id="addDeckProfileBtn" type="button">New</button>
+          </div>
+          <label class="label" for="deckProfileName">Deck name</label>
+          <input id="deckProfileName" autocomplete="off">
+          <div class="check-grid">
+            <label class="check-row">
+              <input id="deckDolbyNR" type="checkbox">
+              <span>Dolby NR</span>
+            </label>
+            <label class="check-row">
+              <input id="deckTypeIISupport" type="checkbox">
+              <span>Type II support</span>
+            </label>
+          </div>
+        </div>
         <div id="playlistPickerPanel">
           <label class="label" for="playlistSelect">Your Spotify playlists</label>
           <div class="row">
@@ -80,6 +99,38 @@
           <label class="label" for="tapeSelect">Tape format</label>
           <select id="tapeSelect"></select>
         </div>
+        <div class="profile-panel">
+          <label class="label" for="cassetteProfileSelect">Cassette profile</label>
+          <div class="row">
+            <select id="cassetteProfileSelect"></select>
+            <button id="addCassetteProfileBtn" type="button">New</button>
+          </div>
+          <label class="label" for="cassetteProfileName">Cassette name</label>
+          <input id="cassetteProfileName" autocomplete="off">
+          <div class="row">
+            <label>
+              <span class="label" for="cassetteProfileType">Type</span>
+              <select id="cassetteProfileType">
+                <option value="I">Type I</option>
+                <option value="II">Type II</option>
+              </select>
+            </label>
+            <label>
+              <span class="label" for="cassetteProfileLength">Length</span>
+              <input id="cassetteProfileLength" type="number" min="1" max="180" step="1" value="90">
+            </label>
+          </div>
+          <div class="row">
+            <label>
+              <span class="label" for="cassetteLeaderLength">Leader offset</span>
+              <input id="cassetteLeaderLength" type="number" min="0" max="120" step="1" placeholder="Deck default">
+            </label>
+            <label>
+              <span class="label" for="cassetteSlackMargin">Slack override</span>
+              <input id="cassetteSlackMargin" type="number" min="0" max="120" step="1" placeholder="Deck default">
+            </label>
+          </div>
+        </div>
         <div>
           <label class="label" for="slackMargin">Tape Slack Margin (seconds)</label>
           <input id="slackMargin" type="number" min="0" max="120" step="1" value="0">
@@ -92,7 +143,11 @@
           <button id="exportConfigBtn" type="button" disabled>Export Config</button>
           <button id="importConfigBtn" type="button">Import Config</button>
           <input id="importConfigFile" type="file" accept="application/json,.json" hidden>
+          <button id="exportProfilesBtn" type="button">Export profiles</button>
+          <button id="importProfilesBtn" type="button">Import profiles</button>
+          <input id="importProfilesFile" type="file" accept="application/json,.json" hidden>
         </div>
+        <div class="small" id="profileStatus" aria-live="polite"></div>
         <button id="loadBtn" class="primary">Load playlist</button>
         <button id="applyBtn" class="warn" disabled>Apply to Spotify</button>
         <div class="empty-state" id="inputEmptyState"></div>
