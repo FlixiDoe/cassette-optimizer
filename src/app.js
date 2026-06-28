@@ -2193,7 +2193,8 @@
       if (!el.spotifyStatusItems) return;
       const checklistReady = isAudioChecklistConfirmed();
       const selectedDevice = state.devices.find(device => device.id === state.selectedDeviceId);
-      const activeSelectedDevice = selectedDevice ? selectedDevice.is_active : state.playbackStatus.deviceActive;
+      const selectedDeviceReady = isSpotifyDeviceReady();
+      const selectedDeviceLabel = selectedDevice?.name || state.playbackStatus.deviceName || (state.selectedDeviceId ? "Selected" : "");
       const tokenValid = Boolean(state.token && Date.now() <= state.expiresAt);
       const playlistReady = projectTracks().length >= 1;
       const selectedLayout = selectedTapeLayout();
@@ -2210,9 +2211,9 @@
         },
         {
           label: "Device",
-          state: activeSelectedDevice || state.dryRun ? "ok" : "bad",
-          icon: activeSelectedDevice || state.dryRun ? "✅" : "❌",
-          value: state.dryRun ? "Dry Run device skipped" : activeSelectedDevice ? selectedDevice?.name || state.playbackStatus.deviceName || "Active" : "No device / device offline"
+          state: selectedDeviceReady ? "ok" : "bad",
+          icon: selectedDeviceReady ? "✅" : "❌",
+          value: state.dryRun ? "Dry Run device skipped" : selectedDeviceReady ? selectedDeviceLabel || "Device selected" : "No device selected"
         },
         {
           label: "Playlist",
@@ -2251,7 +2252,7 @@
       }).join("");
       const warnings = [];
       if (!state.dryRun && !state.token) warnings.push("Connect Spotify before recording.");
-      if (!state.dryRun && !activeSelectedDevice) warnings.push("Select and activate a Spotify device.");
+      if (!selectedDeviceReady) warnings.push("Select a Spotify device.");
       if (!checklistReady) warnings.push("Confirm the audio quality checklist before recording.");
       if (state.playbackRecoveryMessage) warnings.push(state.playbackRecoveryMessage);
       el.spotifyStatusWarning.textContent = warnings.join(" ");
