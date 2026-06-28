@@ -63,21 +63,19 @@
             </label>
           </details>
         </div>
-        <div>
-          <label class="label" for="playlistInput">Playlist URL or ID</label>
-          <input id="playlistInput" value="" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
-        </div>
         <div class="profile-panel">
-          <label class="label" for="deckProfileSelect">Deck profile</label>
-          <div class="row">
-            <select id="deckProfileSelect"></select>
-            <button id="addDeckProfileBtn" type="button">New</button>
+          <div class="profile-toolbar">
+            <label class="label" for="deckProfileSelect">Deck profile</label>
+            <div class="row">
+              <select id="deckProfileSelect"></select>
+              <button id="addDeckProfileBtn" type="button">New</button>
+            </div>
+            <div class="row">
+              <button id="deleteDeckProfileBtn" type="button" class="danger">Delete</button>
+              <button id="deleteAllDeckProfilesBtn" type="button" class="danger">Delete all</button>
+            </div>
+            <button id="saveDeckProfileBtn" type="button" class="primary">Save deck profile</button>
           </div>
-          <div class="row">
-            <button id="deleteDeckProfileBtn" type="button" class="danger">Delete</button>
-            <button id="deleteAllDeckProfilesBtn" type="button" class="danger">Delete all</button>
-          </div>
-          <button id="saveDeckProfileBtn" type="button" class="primary">Save deck profile</button>
           <label class="label" for="deckProfileName">Deck name</label>
           <input id="deckProfileName" autocomplete="off">
           <div class="row">
@@ -113,7 +111,12 @@
             <textarea id="deckNotes" rows="2"></textarea>
           </label>
         </div>
-        <div id="playlistPickerPanel">
+        <div id="playlistPickerPanel" class="playlist-panel">
+          <div>
+            <label class="label" for="playlistInput">Playlist URL or ID</label>
+            <input id="playlistInput" value="" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
+          </div>
+          <button id="loadBtn" class="primary">Load playlist</button>
           <label class="label" for="playlistSelect">Your Spotify playlists</label>
           <div class="row">
             <select id="playlistSelect" disabled>
@@ -127,16 +130,18 @@
           <select id="tapeSelect"></select>
         </div>
         <div class="profile-panel">
-          <label class="label" for="cassetteProfileSelect">Cassette profile</label>
-          <div class="row">
-            <select id="cassetteProfileSelect"></select>
-            <button id="addCassetteProfileBtn" type="button">New</button>
+          <div class="profile-toolbar">
+            <label class="label" for="cassetteProfileSelect">Cassette profile</label>
+            <div class="row">
+              <select id="cassetteProfileSelect"></select>
+              <button id="addCassetteProfileBtn" type="button">New</button>
+            </div>
+            <div class="row">
+              <button id="deleteCassetteProfileBtn" type="button" class="danger">Delete</button>
+              <button id="deleteAllCassetteProfilesBtn" type="button" class="danger">Delete all</button>
+            </div>
+            <button id="saveCassetteProfileBtn" type="button" class="primary">Save cassette profile</button>
           </div>
-          <div class="row">
-            <button id="deleteCassetteProfileBtn" type="button" class="danger">Delete</button>
-            <button id="deleteAllCassetteProfilesBtn" type="button" class="danger">Delete all</button>
-          </div>
-          <button id="saveCassetteProfileBtn" type="button" class="primary">Save cassette profile</button>
           <label class="label" for="cassetteProfileName">Cassette name</label>
           <input id="cassetteProfileName" autocomplete="off">
           <div class="row">
@@ -210,7 +215,6 @@
           <button id="importProfileFolderBtn" type="button">Import profile folder</button>
         </div>
         <div class="small" id="profileStatus" aria-live="polite"></div>
-        <button id="loadBtn" class="primary">Load playlist</button>
         <button id="applyBtn" class="warn" disabled>Apply to Spotify</button>
         <div class="empty-state" id="inputEmptyState"></div>
         <div class="warnings" id="warnings"></div>

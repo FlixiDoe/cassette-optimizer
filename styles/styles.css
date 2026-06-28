@@ -175,6 +175,17 @@
     .row > * { flex: 1; }
     .label { color: var(--muted); font-size: 12px; text-transform: uppercase; margin-bottom: 6px; display: block; }
 
+    .profile-panel,
+    .playlist-panel,
+    .profile-toolbar {
+      display: grid;
+      gap: 12px;
+    }
+
+    .profile-toolbar {
+      padding-bottom: 4px;
+    }
+
     .advanced-secret {
       border: 1px dashed #735d28;
       border-radius: 6px;

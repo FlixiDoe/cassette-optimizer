@@ -56,6 +56,8 @@ wizardExitBtn       -> exitWizard()
 
 New UI controls should follow the same pattern: keep the DOM element in `index.html`, add a handler in `bindEvents()`, mutate `state`, then call the render function that owns the affected UI.
 
+The playlist controls are grouped together in the input panel: `playlistInput`, `loadBtn`, `playlistSelect`, and `loadPlaylistsBtn` sit in the same playlist block so loading by URL/ID and loading from the user's Spotify playlists share one place in the UI.
+
 ## First Tape Wizard flow
 
 The First Tape Wizard keeps `wizardActive`, `wizardStep`, and `wizardDryRunComplete` in memory only. It resets on page close and does not write to localStorage or the project model.
