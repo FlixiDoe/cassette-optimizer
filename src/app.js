@@ -552,10 +552,28 @@
       try {
         const saved = JSON.parse(localStorage.getItem(TAPE_COLLECTION_KEY) || "[]");
         state.tapeCollection = Array.isArray(saved) ? saved.filter(item => item && typeof item === "object" && typeof item.cassetteProfileId === "string") : [];
+        reconcileTapeCollectionWithProfiles();
       } catch {
         localStorage.removeItem(TAPE_COLLECTION_KEY);
         state.tapeCollection = [];
+        reconcileTapeCollectionWithProfiles();
       }
+    }
+
+    function reconcileTapeCollectionWithProfiles() {
+      const ownedProfileIds = new Set(state.tapeCollection.map(item => item.cassetteProfileId));
+      const missingProfiles = loadCassetteProfiles().filter(profile => !ownedProfileIds.has(profile.id));
+      if (!missingProfiles.length) return;
+      const now = new Date().toISOString();
+      const migratedItems = missingProfiles.map((profile, index) => ({
+        id: `owned_tape_${Date.now()}_${index}_${slugify(profile.id)}`,
+        cassetteProfileId: profile.id,
+        label: profile.name,
+        addedAt: now
+      }));
+      state.tapeCollection = [...state.tapeCollection, ...migratedItems];
+      // Migration keeps existing cassette profiles visible in exact-model dropdowns instead of only showing profiles created after tapeCollection existed.
+      saveTapeCollection();
     }
 
     function isLocalhost() {
