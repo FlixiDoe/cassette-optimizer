@@ -89,6 +89,8 @@ getClientSecret()
 
 `spotifyFetch()` is the only function new Spotify Web API calls should normally use. It refreshes tokens, converts common player/device failures into clearer errors, and sets recovery copy for the Recording Readiness panel.
 
+`spotifyFetch()` also owns Spotify Web API 429 handling. It reads `Retry-After` with a 5-second fallback, retries non-recording requests once, buffers active-recording playback commands for replay while the same side is still active, and never applies this logic to Spotify Accounts token requests because those use `fetchAccounts()`.
+
 ### Playlist functions
 
 ```text
@@ -184,7 +186,7 @@ exitWizard()
 
 `renderSplit()` owns most planning UI. `renderRecordMode()` owns transport/recording UI.
 
-`renderReadiness()` writes the seven Recording Readiness traffic-light rows: Spotify, Device, Playlist, Tape, Checklist, API, and Ready. The API row is a green placeholder until the Spotify 429 handling path supplies live rate-limit state.
+`renderReadiness()` writes the seven Recording Readiness traffic-light rows: Spotify, Device, Playlist, Tape, Checklist, API, and Ready. The API row turns warning during Retry-After countdowns, red for non-retryable rate-limit errors, and green otherwise.
 
 The First Tape Wizard is a session-only controller in `src/app.js`. It does not duplicate playlist, tape, checklist, level-check, dry-run, or recording logic; each step scrolls to existing UI and the final Start recording action calls `startSideA()`.
 
@@ -244,6 +246,7 @@ showRecordCue(side, remaining)
 clearRecordCue()
 buildSidePlaybackPayload(tracks, position, positionMs)
 simulateDryRunAction(action)
+handleRateLimit(path, options, response, data, context)
 pausePlayback()
 abortRecording()
 startTimer()
@@ -258,6 +261,8 @@ completeSideB()
 `runRecordingPreflight(...)` bridges the pure `src/recording-preflight.js` validator to UI warnings/logging.
 
 `simulateDryRunAction(...)` is the recording-flow Dry Run boundary. It logs would-be playback commands to the console and visible Dry Run log without calling Spotify, while the cue countdown, timers, flip prompt, and completion transitions continue at real speed.
+
+`handleRateLimit(...)` is the centralized Spotify 429 path. During active recording it keeps the tape timer running, shows a non-blocking warning, and stores playback commands for replay after Retry-After only if the same side is still recording.
 
 ### Spotify monitoring functions
 

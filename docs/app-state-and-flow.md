@@ -271,6 +271,8 @@ renderRecordMode()
 
 When Dry Run is active, recording-flow Spotify playback commands are routed through `simulateDryRunAction(...)` instead of `spotifyFetch(...)`. The visible DRY RUN banner and log make the simulation explicit, while cue delays, motor/leader timing, side countdowns, flip state, and return-to-idle behavior still run at real speed.
 
+Dry Run also simulates one Spotify 429 during the Side A countdown and routes it through the same visible rate-limit banner, countdown, button-disable, and Readiness API-row path used by real 429 handling.
+
 While `recordMode` is `cue_a`, `cue_b`, `recording_a`, `recording_b`, `paused`, or `flip`, `renderRecordingLockState()` disables dangerous planning controls and sets `body[data-recording-state="active"]`. Each dangerous handler also calls `blockIfRecordingLocked(...)`.
 
 ## Timer flow
@@ -310,6 +312,16 @@ schedule next poll with adaptive delay
 Rate limits are handled through `SpotifyApiError.retryAfter`. Avoid adding new polling loops; reuse the existing scheduler.
 
 Playback/device recovery text is surfaced through `setPlaybackRecovery(...)` and rendered by `renderReadiness()`. Use that path for user-actionable Spotify failures instead of logging only to the console.
+
+## Spotify rate-limit flow
+
+All Spotify Web API calls go through `spotifyFetch(...)`. When Spotify returns HTTP 429, `handleRateLimit(...)` reads `Retry-After` in seconds and defaults to 5 seconds if the header is missing.
+
+Outside active recording, the failed request waits for the countdown and retries once. If the second attempt returns 429, the API row turns red and the error is surfaced instead of retrying indefinitely.
+
+During active recording, playback commands are buffered with their target side. The cassette countdown is not paused. After the countdown, the command replays only if the same side is still actively recording; otherwise it is discarded.
+
+The rate-limit banner disables Start Side A, Start Side B, Refresh Devices, and Refresh Playlists while the countdown runs. The Recording Readiness API row shows warning during countdown, red for non-retryable errors, and green otherwise.
 
 ## Remote playlist reorder flow
 

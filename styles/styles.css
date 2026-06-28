@@ -632,6 +632,16 @@
       font-size: 12px;
     }
 
+    .rate-limit-banner {
+      border: 1px solid var(--amber);
+      border-radius: 6px;
+      background: rgba(255,191,73,.16);
+      color: #ffd98a;
+      padding: 10px;
+      text-align: center;
+      font-weight: 700;
+    }
+
     .spotify-status-panel {
       border: 1px solid var(--line);
       border-radius: 6px;

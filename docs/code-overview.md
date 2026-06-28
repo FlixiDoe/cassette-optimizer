@@ -203,6 +203,9 @@ Spotify API calls are made from `src/app.js` through `spotifyFetch(...)`. That w
 - requires a token,
 - refreshes expired access tokens,
 - retries once after a 401 when a refresh token exists,
+- intercepts Spotify Web API 429 responses and reads `Retry-After`,
+- retries non-recording 429s once after the wait,
+- buffers active-recording playback commands and replays them only if the side is still active,
 - converts Spotify API errors into useful error messages,
 - preserves `Retry-After` metadata through `SpotifyApiError`.
 

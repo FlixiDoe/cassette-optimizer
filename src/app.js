@@ -75,6 +75,14 @@
       importError: "",
       remoteStatusSeen: false,
       playbackRecoveryMessage: "",
+      rateLimit: {
+        active: false,
+        secondsRemaining: 0,
+        retryAfterSeconds: 0,
+        timerId: null,
+        bufferedCall: null,
+        error: ""
+      },
       playbackStatus: {
         deviceActive: false,
         deviceName: "",
@@ -497,28 +505,32 @@
      * Side effects: May refresh and persist tokens, fetches `https://api.spotify.com/v1`, updates playback recovery messages, and may start PKCE re-login through `refreshAccessToken`.
      */
     async function spotifyFetch(path, options = {}) {
+      const { retryAttempted = false, ...fetchOptions } = options;
       // All Spotify Web API calls require a bearer token obtained from Spotify Accounts.
       if (!state.token) throw new Error("Connect Spotify first.");
       // Refresh before the request if the locally stored expiry timestamp has passed.
       if (Date.now() > state.expiresAt) await refreshAccessToken();
       // Prefix app-relative API paths with the Spotify Web API origin.
       const response = await fetch(`https://api.spotify.com/v1${path}`, {
-        ...options,
+        ...fetchOptions,
         headers: {
           // `Authorization: Bearer` carries the access token for the scopes granted during PKCE login.
           "Authorization": `Bearer ${state.token}`,
           // JSON is used for playlist reorder payloads and Spotify player command payloads.
           "Content-Type": "application/json",
-          ...(options.headers || {})
+          ...(fetchOptions.headers || {})
         }
       });
       // A 401 from the Web API can mean the access token expired earlier than expected; refresh once and retry.
       if (response.status === 401 && state.refreshToken) {
         await refreshAccessToken();
-        return spotifyFetch(path, options);
+        return spotifyFetch(path, fetchOptions);
       }
       // Spotify playback-control endpoints commonly return 204 No Content on success.
-      if (response.status === 204) return null;
+      if (response.status === 204) {
+        if (state.rateLimit.active && !state.rateLimit.bufferedCall) clearRateLimitState();
+        return null;
+      }
       // Parse JSON if available; some Spotify error responses can be empty.
       const data = await response.json().catch(() => null);
       if (!response.ok) {
@@ -533,15 +545,170 @@
         if (response.status === 401) {
           setPlaybackRecovery("Spotify login expired. Reconnect Spotify, then retry recording.");
         }
-        // Spotify sends `Retry-After` seconds on 429 so polling can back off instead of hammering playback state.
+        // Spotify returned 429; read Retry-After with a 5 s fallback, exclude the token endpoint by keeping this logic inside the Web API wrapper, retry only once outside active recording, and buffer playback commands during active recording so tape countdowns keep running.
         if (response.status === 429) {
-          const retryAfter = Number(response.headers.get("Retry-After") || 5);
-          setPlaybackRecovery(`Spotify is rate limiting playback checks. Waiting ${retryAfter}s before retrying automatically.`);
+          return handleRateLimit(path, fetchOptions, response, data, { retryAttempted });
         }
         // Preserve response metadata for callers and tests that need status-specific handling.
         throw new SpotifyApiError(message, response, data);
       }
+      if (state.rateLimit.active && !state.rateLimit.bufferedCall) clearRateLimitState();
       return data;
+    }
+
+    /**
+     * Handles Spotify Web API rate limits for normal and recording flows.
+     *
+     * It reads Spotify's `Retry-After` header with a 5 second fallback, starts
+     * the visible countdown banner, disables start/refresh controls while the
+     * countdown runs, retries non-recording requests once after the wait, and
+     * buffers active-recording playback commands so they can replay only if
+     * the same recording side is still active. Requests to Spotify Accounts
+     * token endpoints are excluded because those calls use `fetchAccounts()`,
+     * not this Web API wrapper.
+     *
+     * @param {string} path - Spotify Web API path that received HTTP 429.
+     * @param {RequestInit} options - Fetch options for the failed request.
+     * @param {Response} response - Spotify 429 response containing optional `Retry-After`.
+     * @param {object|null} data - Parsed Spotify error body, when available.
+     * @param {object} [context={}] - Retry context.
+     * @param {boolean} [context.retryAttempted=false] - Whether this request already used its one automatic non-recording retry.
+     * @returns {Promise<object|null>} Retried response outside recording, buffered-command placeholder during recording, or rejection on final 429.
+     * @throws {SpotifyApiError} Throws when a non-recording retry has already failed or a non-bufferable recording request is rate limited.
+     *
+     * Side effects: Mutates rate-limit state, starts/stops countdown timers, disables/re-enables controls, updates readiness and recording status, may replay a buffered Spotify command, and logs status.
+     */
+    async function handleRateLimit(path, options, response, data, { retryAttempted = false } = {}) {
+      const retryAfterSeconds = Math.max(1, Number(response.headers.get("Retry-After") || 5) || 5);
+      const error = new SpotifyApiError(data?.error?.message || response.statusText || "Spotify rate limit", response, data);
+      const recording = isActiveRecordingSide();
+      const bufferable = recording && isPlaybackCommand(path, options);
+      startRateLimitCountdown(retryAfterSeconds, bufferable ? "recording" : "normal");
+      if (bufferable) {
+        const side = state.activeRecordSide;
+        // Store the failed playback command and the side it belongs to; replay only while that side is still actively recording.
+        state.rateLimit.bufferedCall = { path, options, side };
+        setPlaybackRecovery(`Spotify rate limited - playback command will retry in ${retryAfterSeconds}s.`);
+        el.recordMonitor.textContent = `⚠️ Spotify rate limited - playback command will retry in ${retryAfterSeconds}s`;
+        log(`Spotify rate limit hit during Side ${side}. Playback command will retry in ${retryAfterSeconds}s.`);
+        scheduleBufferedPlaybackReplay(retryAfterSeconds);
+        return null;
+      }
+      if (recording) {
+        state.rateLimit.error = "429 in progress";
+        setPlaybackRecovery(`Spotify rate limited - monitoring will retry in ${retryAfterSeconds}s.`);
+        throw error;
+      }
+      if (retryAttempted) {
+        state.rateLimit.error = "Non-retryable rate limit";
+        renderRateLimitState();
+        throw error;
+      }
+      await wait(retryAfterSeconds * 1000);
+      try {
+        const result = await spotifyFetch(path, { ...options, retryAttempted: true });
+        clearRateLimitState();
+        return result;
+      } catch (retryError) {
+        state.rateLimit.error = retryError instanceof SpotifyApiError && retryError.status === 429 ? "Non-retryable rate limit" : state.rateLimit.error;
+        renderRateLimitState();
+        throw retryError;
+      }
+    }
+
+    function startRateLimitCountdown(seconds, mode) {
+      if (state.rateLimit.timerId) clearInterval(state.rateLimit.timerId);
+      state.rateLimit.active = true;
+      state.rateLimit.error = "";
+      state.rateLimit.retryAfterSeconds = seconds;
+      state.rateLimit.secondsRemaining = seconds;
+      // The Retry-After countdown ticks once per second and re-enables Start/Refresh controls when the rate-limit state clears.
+      state.rateLimit.timerId = setInterval(() => {
+        state.rateLimit.secondsRemaining = Math.max(0, state.rateLimit.secondsRemaining - 1);
+        renderRateLimitState();
+      }, 1000);
+      setPlaybackRecovery(`Spotify rate limit reached - retrying in ${seconds}s.`);
+      log(mode === "recording" ? `Spotify rate limit reached during recording. Retrying command in ${seconds}s.` : `Spotify rate limit reached. Retrying in ${seconds}s.`);
+      renderRateLimitState();
+    }
+
+    function scheduleBufferedPlaybackReplay(seconds) {
+      window.setTimeout(async () => {
+        const buffered = state.rateLimit.bufferedCall;
+        if (!buffered) return;
+        state.rateLimit.bufferedCall = null;
+        if (!isActiveRecordingSide() || state.activeRecordSide !== buffered.side) {
+          // Discard buffered playback commands after the side ends so a late retry cannot disturb the next side or idle state.
+          log("Discarded buffered Spotify command because the recording side ended.");
+          clearRateLimitState();
+          return;
+        }
+        try {
+          // Replay the buffered playback command only while the original side is still active.
+          await spotifyFetch(buffered.path, buffered.options);
+          clearRateLimitState();
+          log("Replayed buffered Spotify playback command after rate limit.");
+        } catch (error) {
+          state.rateLimit.error = error.message;
+          renderRateLimitState();
+          log(`Buffered Spotify command failed: ${error.message}`);
+        }
+      }, seconds * 1000);
+    }
+
+    function clearRateLimitState() {
+      if (state.rateLimit.timerId) clearInterval(state.rateLimit.timerId);
+      state.rateLimit.active = false;
+      state.rateLimit.secondsRemaining = 0;
+      state.rateLimit.retryAfterSeconds = 0;
+      state.rateLimit.timerId = null;
+      state.rateLimit.bufferedCall = null;
+      state.rateLimit.error = "";
+      setPlaybackRecovery("");
+      renderRecordMode();
+      renderRateLimitState();
+    }
+
+    function renderRateLimitState() {
+      if (!el.rateLimitBanner) return;
+      const active = state.rateLimit.active;
+      // The banner appears while Spotify's Retry-After countdown is active and disappears once retry/replay finishes or the request is discarded.
+      el.rateLimitBanner.hidden = !active && !state.rateLimit.error;
+      el.rateLimitBanner.textContent = active
+        ? `Spotify rate limit reached - retrying in ${state.rateLimit.secondsRemaining} s`
+        : state.rateLimit.error || "";
+      [el.startA, el.startB, el.loadDevicesBtn, el.loadPlaylistsBtn].forEach(control => {
+        if (!control) return;
+        // Start and refresh controls stay disabled during the countdown so the app does not add more Spotify requests while waiting.
+        if (active) control.disabled = true;
+      });
+      if (!active) {
+        el.loadDevicesBtn.disabled = !state.token;
+        el.loadPlaylistsBtn.disabled = !state.token;
+      }
+      renderReadiness();
+    }
+
+    function isActiveRecordingSide() {
+      return state.recordMode === "recording_a" || state.recordMode === "recording_b";
+    }
+
+    function isPlaybackCommand(path, options = {}) {
+      const method = String(options.method || "GET").toUpperCase();
+      return method !== "GET" && path.startsWith("/me/player");
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function simulateDryRunRateLimit() {
+      const retryAfterSeconds = 5;
+      simulateDryRunAction("Simulated Spotify 429 during Side A countdown; no Spotify endpoint was called.");
+      startRateLimitCountdown(retryAfterSeconds, "normal");
+      window.setTimeout(() => {
+        if (state.rateLimit.active && state.dryRun) clearRateLimitState();
+      }, retryAfterSeconds * 1000);
     }
 
     /**
@@ -1191,9 +1358,8 @@
           }
           if (state.dryRun && side === "A" && !state.dryRun429Simulated && Math.random() < .22) {
             state.dryRun429Simulated = true;
-            // This intentional simulated 429 exercises the future rate-limit UI path; TODO: wire to handleRateLimit() in Feature 6.
-            simulateDryRunAction("Simulated Spotify 429 during Side A countdown; no Spotify endpoint was called.");
-            setPlaybackRecovery("Dry Run simulated Spotify 429. Rate-limit handling will be wired in Feature 6.");
+            // This intentional simulated 429 exercises the full rate-limit banner, countdown, button-disable, and readiness API-row path without calling Spotify.
+            simulateDryRunRateLimit();
           }
           showRecordCue(side, remaining);
         }, 1000);
@@ -1837,9 +2003,9 @@
       el.startB.textContent = pausedB ? "Resume Side B" : "Start Side B";
       const needsToken = !state.dryRun;
       // All 12 deck checklist items must be checked before arming Side A; the skip toggle bypasses only this gate while token, side, and mode gates remain active.
-      el.startA.disabled = cueing || !a.length || (needsToken && !state.token) || !checklistComplete || !(state.recordMode === "idle" || pausedA);
+      el.startA.disabled = state.rateLimit.active || cueing || !a.length || (needsToken && !state.token) || !checklistComplete || !(state.recordMode === "idle" || pausedA);
       // All 12 deck checklist items must be checked before arming Side B; the skip toggle bypasses only this gate while token, side, and mode gates remain active.
-      el.startB.disabled = cueing || !b.length || (needsToken && !state.token) || !checklistComplete || !(state.recordMode === "flip" || pausedB);
+      el.startB.disabled = state.rateLimit.active || cueing || !b.length || (needsToken && !state.token) || !checklistComplete || !(state.recordMode === "flip" || pausedB);
       // The blocked class makes an incomplete checklist visually distinct without changing any other start-button guard.
       el.startA.classList.toggle("blocked", !checklistComplete);
       // The blocked class makes an incomplete checklist visually distinct without changing any other start-button guard.
@@ -1992,8 +2158,8 @@
       const selectedLayout = selectedTapeLayout();
       const sideLengthMs = selectedSideLengthMs();
       const tapeReady = Boolean(selectedLayout && selectedTapeMinutes() && (!playlistReady || (duration(sideA()) <= sideLengthMs && duration(sideB()) <= sideLengthMs)));
-      // TODO: Feature 6 wires this placeholder API row to live Spotify 429 and non-retryable error state.
-      const apiReady = true;
+      // The API row is warning during Retry-After countdowns, red after non-retryable errors, and green otherwise.
+      const apiState = state.rateLimit.error ? "bad" : state.rateLimit.active ? "warn" : "ok";
       const statuses = [
         {
           label: "Spotify",
@@ -2027,9 +2193,9 @@
         },
         {
           label: "API",
-          state: apiReady ? "ok" : "warn",
-          icon: apiReady ? "✅" : "⚠️",
-          value: apiReady ? "No active rate limit" : "429 in progress"
+          state: apiState,
+          icon: apiState === "ok" ? "✅" : apiState === "warn" ? "⚠️" : "❌",
+          value: state.rateLimit.error || (state.rateLimit.active ? "429 in progress" : "No active rate limit")
         }
       ];
       const ready = statuses.every(item => item.state === "ok");
@@ -2527,8 +2693,8 @@
       el.applyBtn.disabled = !tracks.length || !state.token;
       el.exportConfigBtn.disabled = !state.project || !tracks.length;
       el.pauseBtn.disabled = !state.token;
-      el.loadPlaylistsBtn.disabled = !state.token;
-      el.loadDevicesBtn.disabled = !state.token;
+      el.loadPlaylistsBtn.disabled = !state.token || state.rateLimit.active;
+      el.loadDevicesBtn.disabled = !state.token || state.rateLimit.active;
       el.playlistSelect.disabled = !state.token || !state.playlists.length;
       el.deviceSelect.disabled = !state.token || !state.devices.length;
       renderRecordMode();
