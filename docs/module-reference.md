@@ -508,3 +508,41 @@ Automated Node test files run through `npm test` / `node --test`. Current covera
 ## scratch/*.cjs
 
 Scratch regression scripts are CommonJS `.cjs` files so they can run in this ESM project without transpilation. They are intended to be runnable locally without Spotify login for logic and state-flow checks. New project/export regression tests should follow the same lightweight style unless they belong in the automated `test/` suite.
+
+## Deck and Cassette Profile Functions
+
+`src/app.js` now stores recording timing through two local profile layers.
+
+Deck profile functions:
+
+```text
+loadDeckProfiles()
+saveDeckProfiles(profiles)
+getActiveDeck()
+setActiveDeck(id)
+```
+
+Deck profiles are stored in `localStorage.deckProfiles`; the selected deck id is stored separately in `localStorage.activeDeckId`. The default first-run profile is `Philips AZ1025/00` with measured leader delay, motor latency, safety margin, default slack margin, Dolby NR, and Type II support fields.
+
+Cassette profile functions:
+
+```text
+loadCassetteProfiles()
+saveCassetteProfiles(profiles)
+getActiveCassette()
+setActiveCassette(id)
+```
+
+Cassette profiles are stored in `localStorage.cassetteProfiles`; the selected cassette id is stored separately in `localStorage.activeCassetteId`. Defaults include `Maxell UR-90` and `Sony HF90`.
+
+Timing and profile import/export functions:
+
+```text
+getEffectiveTimingSettings()
+exportProfiles()
+importProfiles(file)
+```
+
+`getEffectiveTimingSettings()` returns `{ leaderTapeDelay, motorLatency, safetyMargin, slackMargin }`. It uses deck values as the base, adds `cassette.leaderLength` as an optional leader offset, uses cassette slack when measured, and otherwise falls back to the deck default slack margin. If no active deck exists, it reads the legacy HTML inputs directly.
+
+`exportProfiles()` downloads `cassette-profiles-YYYY-MM-DD.json` with `version: 1`, all deck profiles, and all cassette profiles. `importProfiles(file)` validates the JSON structure, skips malformed individual profiles with `console.warn`, merges imported profiles by id, writes localStorage, and re-renders the selectors and timing-dependent planning UI.

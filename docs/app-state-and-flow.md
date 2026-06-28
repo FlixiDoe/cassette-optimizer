@@ -454,3 +454,69 @@ Does it respect recording lock guards?
 Does it avoid storing secrets?
 Did relevant docs change in the same commit?
 ```
+
+## Profile Selection Flow
+
+Deck and cassette profiles are initialized during `init()` before the main render path. First-run startup creates the default deck and cassette profiles only when their localStorage keys are absent.
+
+```text
+init()
+  initializeDeckProfiles()
+  initializeCassetteProfiles()
+  bindEvents()
+  renderProfileControls()
+  renderAuth()
+  renderSplit()
+```
+
+The profile selectors write only active ids:
+
+```text
+deckProfileSelect      -> setActiveDeck(...)
+cassetteProfileSelect  -> setActiveCassette(...)
+```
+
+The active profile data remains in the profile arrays. This keeps selection stable when imports overwrite profile objects by id.
+
+The existing timing inputs are profile editors:
+
+```text
+leadInDelay     -> active deck leaderTapeDelay
+motorLatency    -> active deck motorLatency
+safetyMargin    -> active deck safetyMargin
+slackMargin     -> active deck defaultSlackMargin, unless the active cassette has a slack override
+```
+
+Cassette-specific fields edit the active cassette profile:
+
+```text
+cassetteProfileName
+cassetteProfileType
+cassetteProfileLength
+cassetteLeaderLength
+cassetteSlackMargin
+```
+
+After a profile selection or edit, `recomputeTimingDependentViews(...)` recomputes tape planning when tracks exist, re-renders selector/input state, updates recording UI, and logs the change.
+
+## Profile Import Flow
+
+Profile import is separate from tape config import.
+
+```text
+Import profiles button
+  -> hidden importProfilesFile input
+  -> importProfiles(file)
+      -> FileReader reads JSON
+      -> validate deckProfiles and cassetteProfiles arrays
+      -> validate individual entries
+      -> skip malformed entries with console.warn
+      -> merge valid entries by id
+      -> saveDeckProfiles(...)
+      -> saveCassetteProfiles(...)
+      -> preserve active ids when still present
+      -> renderProfileControls()
+      -> recomputeTimingDependentViews(...)
+```
+
+The merge strategy is intentionally non-destructive. Imported profiles overwrite local profiles with the same id, imported new ids are added, and local profiles not included in the export are kept.

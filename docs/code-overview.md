@@ -265,3 +265,24 @@ New import/export field    -> src/app.js serialize/normalize functions, src/conf
 ```
 
 Documentation updates are part of the change, not a follow-up. When behavior, setup, architecture, state flow, safety, or maintenance expectations change, update the relevant docs before committing and pushing.
+
+## Deck and Cassette Profiles
+
+Recording timing is now modeled as two local-first profile layers.
+
+The deck profile is the primary timing source. It stores the deck name, leader tape delay, motor latency, safety margin, default slack margin, automatic recording level placeholder, Dolby NR support, and Type II support. Deck data lives in `localStorage.deckProfiles`, while `localStorage.activeDeckId` stores the selected id.
+
+The cassette profile is the secondary timing source. It stores the cassette name, type (`I` or `II`), length in minutes, optional tape-specific slack, and optional leader-length offset. Cassette data lives in `localStorage.cassetteProfiles`, while `localStorage.activeCassetteId` stores the selected id.
+
+`getEffectiveTimingSettings()` combines the layers:
+
+```text
+leaderTapeDelay = deck.leaderTapeDelay + (cassette.leaderLength ?? 0)
+motorLatency    = deck.motorLatency
+safetyMargin    = deck.safetyMargin
+slackMargin     = cassette.slackMargin ?? deck.defaultSlackMargin
+```
+
+The existing Leader Tape Delay, Motor Latency, Safety Margin, and Tape Slack Margin inputs remain in the UI and now act as live editors for the active profile values. Planning, cue timing, and warning calculations use `getEffectiveTimingSettings()` rather than reading those inputs directly, with an HTML-input fallback when profile storage is empty.
+
+Profiles can be exported and imported independently of project config. The profile export format is a versioned JSON object with `deckProfiles` and `cassetteProfiles` arrays. Imports merge by `id`: matching ids are overwritten, new ids are added, and local profiles absent from the import remain untouched.
