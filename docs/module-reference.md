@@ -520,6 +520,8 @@ loadDeckProfiles()
 saveDeckProfiles(profiles)
 getActiveDeck()
 setActiveDeck(id)
+deleteActiveDeckProfile()
+deleteAllDeckProfiles()
 ```
 
 Deck profiles are stored in `localStorage.deckProfiles`; the selected deck id is stored separately in `localStorage.activeDeckId`. The default first-run profile is `Philips AZ1025/00` with manufacturer, model, measured leader delay, motor latency, safety margin, default slack margin, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes fields.
@@ -531,9 +533,13 @@ loadCassetteProfiles()
 saveCassetteProfiles(profiles)
 getActiveCassette()
 setActiveCassette(id)
+deleteActiveCassetteProfile()
+deleteAllCassetteProfiles()
 ```
 
 Cassette profiles are stored in `localStorage.cassetteProfiles`; the selected cassette id is stored separately in `localStorage.activeCassetteId`. Defaults include `Maxell UR-90` and `Sony HF90`, with manufacturer, model, optional year, condition flags, type, length, leader offset, and slack override fields.
+
+Deleting one or all cassette profiles also removes matching owned cassette copies from `tapeCollection` and clears exact-model selections from planned tapes.
 
 Timing and profile import/export functions:
 

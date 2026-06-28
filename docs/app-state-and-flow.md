@@ -510,6 +510,17 @@ cassetteSlackMargin
 
 After a profile selection or edit, `recomputeTimingDependentViews(...)` recomputes tape planning when tracks exist, re-renders selector/input state, updates recording UI, and logs the change.
 
+Profile deletion is explicit and confirmation-gated:
+
+```text
+deleteDeckProfileBtn          -> deleteActiveDeckProfile()
+deleteAllDeckProfilesBtn      -> deleteAllDeckProfiles()
+deleteCassetteProfileBtn      -> deleteActiveCassetteProfile()
+deleteAllCassetteProfilesBtn  -> deleteAllCassetteProfiles()
+```
+
+Deleting a cassette profile also removes owned cassette copies for that profile and clears matching `cassetteProfileId` values from planned tapes so exact-model dropdowns cannot point at deleted model data.
+
 ## Profile Import Flow
 
 Profile import is separate from tape config import.

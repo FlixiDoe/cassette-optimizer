@@ -403,6 +403,8 @@
       el.deckTypeIISupport.checked = Boolean(active?.typeIISupport);
       el.deckTypeIVSupport.checked = Boolean(active?.typeIVSupport);
       el.deckNotes.value = active?.notes || "";
+      el.deleteDeckProfileBtn.disabled = !active;
+      el.deleteAllDeckProfilesBtn.disabled = !profiles.length;
     }
 
     function renderCassetteProfileControls() {
@@ -422,6 +424,8 @@
       el.cassetteConditionTestTape.checked = Boolean(condition.testTape);
       el.cassetteLeaderLength.value = active?.leaderLength ?? "";
       el.cassetteSlackMargin.value = active?.slackMargin ?? "";
+      el.deleteCassetteProfileBtn.disabled = !active;
+      el.deleteAllCassetteProfilesBtn.disabled = !profiles.length;
     }
 
     function selectDeckProfile() {
@@ -452,6 +456,27 @@
       recomputeTimingDependentViews("Deck profile created.");
     }
 
+    function deleteActiveDeckProfile() {
+      const active = getActiveDeck();
+      if (!active) return;
+      if (!confirm(`Delete deck profile "${active.name || active.id}"?`)) return;
+      const profiles = loadDeckProfiles().filter(profile => profile.id !== active.id);
+      saveDeckProfiles(profiles);
+      setActiveDeck(profiles[0]?.id || "");
+      renderProfileControls();
+      recomputeTimingDependentViews("Deck profile deleted.");
+    }
+
+    function deleteAllDeckProfiles() {
+      const profiles = loadDeckProfiles();
+      if (!profiles.length) return;
+      if (!confirm(`Delete all ${profiles.length} deck profiles?`)) return;
+      saveDeckProfiles([]);
+      setActiveDeck("");
+      renderProfileControls();
+      recomputeTimingDependentViews("All deck profiles deleted.");
+    }
+
     function addCassetteProfile() {
       const profiles = loadCassetteProfiles();
       const base = getActiveCassette() || DEFAULT_CASSETTE_PROFILES[0];
@@ -464,6 +489,32 @@
       setActiveCassette(profile.id);
       renderProfileControls();
       recomputeTimingDependentViews("Cassette profile created.");
+    }
+
+    function deleteActiveCassetteProfile() {
+      const active = getActiveCassette();
+      if (!active) return;
+      if (!confirm(`Delete cassette profile "${active.name || active.id}"? Owned copies for this model will also be removed.`)) return;
+      const profiles = loadCassetteProfiles().filter(profile => profile.id !== active.id);
+      saveCassetteProfiles(profiles);
+      setActiveCassette(profiles[0]?.id || "");
+      removeTapeCollectionItemsForProfiles(new Set([active.id]));
+      clearTapeCassetteProfileReferences(new Set([active.id]));
+      renderProfileControls();
+      recomputeTimingDependentViews("Cassette profile deleted.");
+    }
+
+    function deleteAllCassetteProfiles() {
+      const profiles = loadCassetteProfiles();
+      if (!profiles.length) return;
+      if (!confirm(`Delete all ${profiles.length} cassette profiles? Owned cassette copies and per-tape model selections will also be cleared.`)) return;
+      const ids = new Set(profiles.map(profile => profile.id));
+      saveCassetteProfiles([]);
+      setActiveCassette("");
+      removeTapeCollectionItemsForProfiles(ids);
+      clearTapeCassetteProfileReferences(ids);
+      renderProfileControls();
+      recomputeTimingDependentViews("All cassette profiles deleted.");
     }
 
     function updateDeckProfile() {
@@ -584,6 +635,23 @@
       saveTapeCollection();
     }
 
+    function removeTapeCollectionItemsForProfiles(profileIds) {
+      const before = state.tapeCollection.length;
+      state.tapeCollection = state.tapeCollection.filter(item => !profileIds.has(item.cassetteProfileId));
+      if (state.tapeCollection.length !== before) saveTapeCollection();
+    }
+
+    function clearTapeCassetteProfileReferences(profileIds) {
+      const tapes = state.project?.tapes || state.tapeLayouts || [];
+      let changed = false;
+      for (const tape of tapes) {
+        if (!tape?.cassetteProfileId || !profileIds.has(tape.cassetteProfileId)) continue;
+        tape.cassetteProfileId = "";
+        changed = true;
+      }
+      if (changed) markProjectDirty();
+    }
+
     function getCassetteProfileById(id) {
       return loadCassetteProfiles().find(profile => profile.id === id) || null;
     }
@@ -681,6 +749,8 @@
       el.deckTypeIVSupport.addEventListener("change", updateDeckProfile);
       el.deckNotes.addEventListener("change", updateDeckProfile);
       el.addDeckProfileBtn.addEventListener("click", addDeckProfile);
+      el.deleteDeckProfileBtn.addEventListener("click", deleteActiveDeckProfile);
+      el.deleteAllDeckProfilesBtn.addEventListener("click", deleteAllDeckProfiles);
       el.cassetteProfileSelect.addEventListener("change", selectCassetteProfile);
       el.cassetteProfileName.addEventListener("change", updateCassetteProfile);
       el.cassetteManufacturer.addEventListener("change", updateCassetteProfile);
@@ -697,6 +767,8 @@
       el.cassetteSlackMargin.addEventListener("change", updateCassetteProfile);
       el.cassetteSlackMargin.addEventListener("input", updateCassetteProfile);
       el.addCassetteProfileBtn.addEventListener("click", addCassetteProfile);
+      el.deleteCassetteProfileBtn.addEventListener("click", deleteActiveCassetteProfile);
+      el.deleteAllCassetteProfilesBtn.addEventListener("click", deleteAllCassetteProfiles);
       el.exportProfilesBtn.addEventListener("click", exportProfiles);
       el.importProfilesBtn.addEventListener("click", () => el.importProfilesFile.click());
       el.exportProfileFolderBtn.addEventListener("click", exportProfileFolder);
