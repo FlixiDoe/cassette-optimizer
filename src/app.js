@@ -35,6 +35,9 @@
     // `deckProfiles` stores the user's saved deck timing presets, while `activeDeckId` stores only the selected deck id so profile edits can replace the array without losing selection intent.
     const DECK_PROFILES_KEY = "deckProfiles";
     const ACTIVE_DECK_ID_KEY = "activeDeckId";
+    // `cassetteProfiles` stores measured cassette presets, while `activeCassetteId` stores only the selected cassette id so tape selection can change without rewriting profile data.
+    const CASSETTE_PROFILES_KEY = "cassetteProfiles";
+    const ACTIVE_CASSETTE_ID_KEY = "activeCassetteId";
     // These Philips AZ1025/00 values preserve the maintainer's known deck baseline: measured leader delay, small motor spin-up, and conservative five-second safety/default slack margins.
     const DEFAULT_DECK_PROFILE = {
       id: "deck_philips_az1025",
@@ -47,6 +50,28 @@
       dolbyNR: false,
       typeIISupport: false
     };
+    const DEFAULT_CASSETTE_PROFILES = [
+      {
+        id: "tape_maxell_ur90",
+        name: "Maxell UR-90",
+        type: "I",
+        lengthMinutes: 90,
+        // slackMargin: null means this cassette has no measured tape-specific slack — the deck's defaultSlackMargin will be used. This is expected for most cassettes until the user measures them.
+        slackMargin: 5,
+        // leaderLength: null means the leader tape length has not been measured for this cassette — no offset is applied to the deck's base leaderTapeDelay.
+        leaderLength: null
+      },
+      {
+        id: "tape_sony_hf90",
+        name: "Sony HF90",
+        type: "I",
+        lengthMinutes: 90,
+        // slackMargin: null means this cassette has no measured tape-specific slack — the deck's defaultSlackMargin will be used. This is expected for most cassettes until the user measures them.
+        slackMargin: null,
+        // leaderLength: null means the leader tape length has not been measured for this cassette — no offset is applied to the deck's base leaderTapeDelay.
+        leaderLength: null
+      }
+    ];
     const state = {
       token: null,
       refreshToken: null,
@@ -135,6 +160,7 @@
 
     function init() {
       initializeDeckProfiles();
+      initializeCassetteProfiles();
       el.clientId.value = localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
       restoreClientSecretPreference();
       applyHostMode();
@@ -238,6 +264,99 @@
       if (localStorage.getItem(DECK_PROFILES_KEY) !== null) return;
       saveDeckProfiles([{ ...DEFAULT_DECK_PROFILE }]);
       setActiveDeck(DEFAULT_DECK_PROFILE.id);
+    }
+
+    /**
+     * Loads saved cassette profiles from localStorage.
+     *
+     * Steps:
+     * 1. Read the `cassetteProfiles` JSON array from durable browser storage.
+     * 2. Return an empty list when the key is missing so first-run setup can seed defaults.
+     * 3. Parse the saved JSON and return it only when it is an array.
+     * 4. Return an empty list if parsing fails or storage contains a non-array value.
+     *
+     * @returns {Array<object>} Saved cassette profiles, or an empty array when storage is missing or invalid.
+     * @throws {Error} Does not throw; malformed localStorage data is handled as an empty profile list.
+     *
+     * Side effects: Reads `cassetteProfiles` from `localStorage`.
+     */
+    function loadCassetteProfiles() {
+      // Reading the profiles array separately from the active id keeps selection stable when cassette profiles are edited or imported.
+      const saved = localStorage.getItem(CASSETTE_PROFILES_KEY);
+      if (saved === null) return [];
+      try {
+        const profiles = JSON.parse(saved);
+        return Array.isArray(profiles) ? profiles : [];
+      } catch {
+        // If localStorage contains malformed JSON (e.g. from a failed write), return [] rather than throwing — the UI treats this as first run and re-populates defaults.
+        return [];
+      }
+    }
+
+    /**
+     * Saves cassette profiles to localStorage.
+     *
+     * Steps:
+     * 1. Accept the caller-provided profile array.
+     * 2. Serialize the array as JSON.
+     * 3. Write it to the `cassetteProfiles` durable storage key.
+     *
+     * @param {Array<object>} profiles - Cassette profile objects to persist.
+     * @returns {void}
+     * @throws {DOMException} May throw if localStorage writes are blocked or quota is exceeded.
+     *
+     * Side effects: Writes `cassetteProfiles` in `localStorage`.
+     */
+    function saveCassetteProfiles(profiles) {
+      // Persist the complete cassette profile list as one JSON array so imports and edits can replace profiles atomically.
+      localStorage.setItem(CASSETTE_PROFILES_KEY, JSON.stringify(Array.isArray(profiles) ? profiles : []));
+    }
+
+    /**
+     * Gets the active cassette profile.
+     *
+     * Steps:
+     * 1. Load the saved cassette profiles.
+     * 2. Read `activeCassetteId` from durable browser storage.
+     * 3. Return the matching profile when the selected id exists.
+     * 4. Fall back to the first saved profile when the active id is missing or stale.
+     *
+     * @returns {object|null} Active cassette profile, first available profile, or null when no profiles exist.
+     * @throws {Error} Does not throw; missing profile state returns null.
+     *
+     * Side effects: Reads `cassetteProfiles` and `activeCassetteId` from `localStorage`.
+     */
+    function getActiveCassette() {
+      const profiles = loadCassetteProfiles();
+      if (!profiles.length) return null;
+      // The selected id is separate from the profile list so selecting a cassette does not rewrite measured profile fields.
+      const activeId = localStorage.getItem(ACTIVE_CASSETTE_ID_KEY);
+      return profiles.find(profile => profile.id === activeId) || profiles[0] || null;
+    }
+
+    /**
+     * Sets the active cassette profile id.
+     *
+     * Steps:
+     * 1. Receive the id selected by the caller.
+     * 2. Store the id separately from the profile array.
+     * 3. Leave cassette profile data unchanged.
+     *
+     * @param {string} id - Cassette profile id to mark as active.
+     * @returns {void}
+     * @throws {DOMException} May throw if localStorage writes are blocked.
+     *
+     * Side effects: Writes `activeCassetteId` in `localStorage`.
+     */
+    function setActiveCassette(id) {
+      // Store only the active id here because the full cassette profile object already lives in `cassetteProfiles`.
+      localStorage.setItem(ACTIVE_CASSETTE_ID_KEY, String(id || ""));
+    }
+
+    function initializeCassetteProfiles() {
+      if (localStorage.getItem(CASSETTE_PROFILES_KEY) !== null) return;
+      saveCassetteProfiles(DEFAULT_CASSETTE_PROFILES.map(profile => ({ ...profile })));
+      setActiveCassette(DEFAULT_CASSETTE_PROFILES[0].id);
     }
 
     function isLocalhost() {
