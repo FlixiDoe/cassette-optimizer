@@ -5,6 +5,7 @@ This file is the documentation index. It intentionally avoids repeating the READ
 ## Start here
 
 - [README.md](README.md) — short user setup, Spotify configuration, responsible use, and recording checklist.
+- [CHANGELOG.md](CHANGELOG.md) — release notes and feature highlights.
 - [TODO.md](TODO.md) — short-lived active task list; currently empty except later ideas.
 
 ## Code documentation
@@ -27,6 +28,7 @@ Keep each topic in one place:
 
 ```text
 User setup and safe use      -> README.md
+Release notes                -> CHANGELOG.md
 Current active work          -> TODO.md
 Code architecture            -> docs/code-overview.md
 Runtime state and flow       -> docs/app-state-and-flow.md

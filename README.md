@@ -20,6 +20,7 @@ Cassette Optimizer keeps a Spotify playlist in order, plans it across one or mor
 - [docs/app-state-and-flow.md](docs/app-state-and-flow.md) — how state moves through the app.
 - [docs/module-reference.md](docs/module-reference.md) — file-by-file code reference.
 - [docs/ai-usage.md](docs/ai-usage.md) — AI tools used for research, prompting, implementation, and repository maintenance.
+- [CHANGELOG.md](CHANGELOG.md) — release notes and feature highlights.
 - [TODO.md](TODO.md) — short-lived task list; currently no active implementation tasks.
 
 ## Responsible Use
