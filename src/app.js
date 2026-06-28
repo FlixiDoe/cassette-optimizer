@@ -619,6 +619,7 @@
       el.addCassetteProfileBtn.addEventListener("click", addCassetteProfile);
       el.exportProfilesBtn.addEventListener("click", exportProfiles);
       el.importProfilesBtn.addEventListener("click", () => el.importProfilesFile.click());
+      el.exportProfileFolderBtn.addEventListener("click", exportProfileFolder);
       el.importProfilesFile.addEventListener("change", event => {
         // The hidden file input is read only after the user chooses an export JSON file.
         const file = event.target.files?.[0];
@@ -3756,6 +3757,104 @@
       downloadJson(payload, `cassette-profiles-${today}.json`);
       el.profileStatus.textContent = "Profiles exported.";
       log("Profiles exported as JSON.");
+    }
+
+    /**
+     * Exports all local profile/config data into a folder tree.
+     *
+     * Steps:
+     * 1. Ask the user to choose a writable directory with the File System Access API.
+     * 2. Create a `profiles` folder with dedicated subfolders for decks, cassettes, playlists, and tape collection data.
+     * 3. Write every deck and cassette profile as its own JSON file.
+     * 4. Write the current playlist project, unprofiled inventory, owned cassette collection, and a manifest.
+     *
+     * @returns {Promise<void>} Resolves after the folder export succeeds or a user-visible unsupported-browser message is shown.
+     * @throws {DOMException} May throw if the user denies directory access or the browser blocks file writes.
+     *
+     * Side effects: Prompts for a local folder and writes JSON files into that folder; does not modify localStorage.
+     */
+    async function exportProfileFolder() {
+      if (!window.showDirectoryPicker) {
+        el.profileStatus.textContent = "Profile folder export needs a browser with folder write access.";
+        log("Profile folder export is not supported in this browser.");
+        return;
+      }
+      try {
+        const root = await window.showDirectoryPicker({ mode: "readwrite" });
+        const profilesDir = await getOrCreateDirectory(root, "profiles");
+        const deckDir = await getOrCreateDirectory(profilesDir, "deck-profiles");
+        const cassetteDir = await getOrCreateDirectory(profilesDir, "cassette-profiles");
+        const playlistDir = await getOrCreateDirectory(profilesDir, "playlist-profiles");
+        const collectionDir = await getOrCreateDirectory(profilesDir, "tape-collection");
+        const exportedAt = new Date().toISOString();
+        for (const profile of loadDeckProfiles()) {
+          await writeJsonFile(deckDir, `${profileFilename(profile.name, profile.id)}.json`, { version: 1, exportedAt, profile });
+        }
+        for (const profile of loadCassetteProfiles()) {
+          await writeJsonFile(cassetteDir, `${profileFilename(profile.name, profile.id)}.json`, { version: 1, exportedAt, profile });
+        }
+        await writeJsonFile(collectionDir, "owned-cassettes.json", { version: 1, exportedAt, tapeCollection: state.tapeCollection });
+        await writeJsonFile(collectionDir, "unprofiled-inventory.json", { version: 1, exportedAt, tapeInventory: state.tapeInventory });
+        if (state.project) {
+          await writeJsonFile(playlistDir, `${profileFilename(state.project.projectTitle, state.project.sourcePlaylistId || "current")}.json`, buildPlaylistProfilePayload(exportedAt));
+        }
+        await writeJsonFile(profilesDir, "manifest.json", {
+          app: "cassette-optimizer",
+          version: 1,
+          exportedAt,
+          folders: ["deck-profiles", "cassette-profiles", "playlist-profiles", "tape-collection"]
+        });
+        el.profileStatus.textContent = "Profile folder exported.";
+        log("Profile folder exported.");
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        el.profileStatus.textContent = `Profile folder export failed: ${error.message}`;
+        log(`Profile folder export failed: ${error.message}`);
+      }
+    }
+
+    function buildPlaylistProfilePayload(exportedAt) {
+      syncStateFromProject();
+      return {
+        app: "cassette-optimizer",
+        version: 1,
+        exportedAt,
+        projectTitle: state.project.projectTitle,
+        playlistId: state.project.sourcePlaylistId,
+        playlistName: state.project.sourcePlaylistName,
+        playlistCoverUrl: state.project.coverUrl,
+        selectedTapeIndex: state.project.selectedTapeIndex,
+        selectedTapeMinutes: selectedTapeMinutes(),
+        availableTapeFormats: getAvailableTapeFormats(),
+        tapeInventory: getTapeInventory(),
+        tapeCollection: state.tapeCollection,
+        splitMode: state.project.splitMode || "automatic",
+        slackMarginSeconds: state.slackMarginSeconds,
+        jCardOverrides: state.project.jCardOverrides || {},
+        calibration: { ...state.calibration },
+        timestamps: {
+          createdAt: state.project.createdAt,
+          updatedAt: state.project.updatedAt,
+          exportedAt
+        },
+        tracks: state.project.sourceTracks.map(serializeTrack),
+        tapes: state.project.tapes.map(serializeTape)
+      };
+    }
+
+    async function getOrCreateDirectory(parent, name) {
+      return parent.getDirectoryHandle(name, { create: true });
+    }
+
+    async function writeJsonFile(directory, filename, payload) {
+      const file = await directory.getFileHandle(filename, { create: true });
+      const writable = await file.createWritable();
+      await writable.write(JSON.stringify(payload, null, 2));
+      await writable.close();
+    }
+
+    function profileFilename(name, id) {
+      return `${slugify(name || id || "profile")}-${slugify(id || "profile")}`;
     }
 
     /**
