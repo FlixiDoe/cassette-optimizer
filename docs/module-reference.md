@@ -188,6 +188,8 @@ exitWizard()
 
 `renderReadiness()` writes the seven Recording Readiness traffic-light rows: Spotify, Device, Playlist, Tape, Checklist, API, and Ready. The API row turns warning during Retry-After countdowns, red for non-retryable rate-limit errors, and green otherwise.
 
+`getRecordingReadinessStatus()` is the shared readiness source for the panel and Start Side A/B gates. Recording starts are blocked unless all prerequisite rows are green.
+
 The First Tape Wizard is a session-only controller in `src/app.js`. It does not duplicate playlist, tape, checklist, level-check, dry-run, or recording logic; each step scrolls to existing UI and the final Start recording action calls `startSideA()`.
 
 ### Safety and confirmation functions

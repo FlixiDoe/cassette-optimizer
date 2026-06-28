@@ -1229,6 +1229,8 @@
         // A physical tape side cannot start without at least one whole track assigned to that side.
         if (!sideA().length) throw new Error("Side A has no tracks.");
         resuming = state.recordMode === "paused" && state.activeRecordSide === "A";
+        // Recording may only start when every Recording Readiness row is green.
+        assertRecordingReadinessReady("A");
         // Preflight blocks missing auth/device data, unplayable URIs, unchecked deck setup, and side overflows.
         runRecordingPreflight("A", sideA());
         el.flipBanner.classList.remove("show");
@@ -1291,6 +1293,8 @@
         // Side B may be empty when the selected tape uses only Side A.
         if (!sideB().length) throw new Error("Side B has no tracks.");
         resuming = state.recordMode === "paused" && state.activeRecordSide === "B";
+        // Recording may only start when every Recording Readiness row is green.
+        assertRecordingReadinessReady("B");
         // Preflight enforces playable URI data and side capacity before the physical tape starts rolling.
         runRecordingPreflight("B", sideB());
         el.flipBanner.classList.remove("show");
@@ -2006,17 +2010,18 @@
       const cueing = state.recordMode === "cue_a" || state.recordMode === "cue_b";
       const abortable = cueing || recording || state.recordMode === "paused" || state.recordMode === "flip";
       const checklistComplete = isChecklistComplete();
+      const readinessReady = isRecordingReadinessReady();
       el.startA.textContent = pausedA ? "Resume Side A" : "Start Side A";
       el.startB.textContent = pausedB ? "Resume Side B" : "Start Side B";
       const needsToken = !state.dryRun;
-      // All 12 deck checklist items must be checked before arming Side A; the skip toggle bypasses only this gate while token, side, and mode gates remain active.
-      el.startA.disabled = state.rateLimit.active || cueing || !a.length || (needsToken && !state.token) || !checklistComplete || !(state.recordMode === "idle" || pausedA);
-      // All 12 deck checklist items must be checked before arming Side B; the skip toggle bypasses only this gate while token, side, and mode gates remain active.
-      el.startB.disabled = state.rateLimit.active || cueing || !b.length || (needsToken && !state.token) || !checklistComplete || !(state.recordMode === "flip" || pausedB);
-      // The blocked class makes an incomplete checklist visually distinct without changing any other start-button guard.
-      el.startA.classList.toggle("blocked", !checklistComplete);
-      // The blocked class makes an incomplete checklist visually distinct without changing any other start-button guard.
-      el.startB.classList.toggle("blocked", !checklistComplete);
+      // Every Recording Readiness row must be green before arming Side A; this keeps the button state aligned with the readiness panel.
+      el.startA.disabled = state.rateLimit.active || cueing || !a.length || (needsToken && !state.token) || !readinessReady || !(state.recordMode === "idle" || pausedA);
+      // Every Recording Readiness row must be green before arming Side B; this keeps the button state aligned with the readiness panel.
+      el.startB.disabled = state.rateLimit.active || cueing || !b.length || (needsToken && !state.token) || !readinessReady || !(state.recordMode === "flip" || pausedB);
+      // The blocked class makes a failed readiness gate visually distinct without changing any other start-button guard.
+      el.startA.classList.toggle("blocked", !readinessReady);
+      // The blocked class makes a failed readiness gate visually distinct without changing any other start-button guard.
+      el.startB.classList.toggle("blocked", !readinessReady);
       el.pauseBtn.disabled = cueing || (needsToken && !state.token) || !recording;
       el.abortBtn.disabled = !abortable;
       el.startWizardBtn.hidden = isRecordingLockActive();
@@ -2171,26 +2176,19 @@
     }
 
     /**
-     * Renders the seven-row Recording Readiness traffic-light panel.
+     * Computes the Recording Readiness rows used by UI and start gates.
      *
-     * It evaluates Spotify token validity, selected/active device state,
-     * loaded playlist contents, cassette tape plan validity, deck checklist
-     * completion, current API/rate-limit status, and a final Ready summary row.
-     * Green rows show satisfied prerequisites, warning rows show recoverable
-     * setup gaps, red rows show blocking failures, and the Ready row is styled
-     * as the final aggregate of the first six rows.
+     * It evaluates the same six prerequisite rows shown in the panel:
+     * Spotify, Device, Playlist, Tape, Checklist, and API. The returned
+     * `ready` value is true only when all six rows are green, so Start Side
+     * A/B and the visible Ready row share one source of truth.
      *
-     * Call sites: `setPlaybackRecovery()` refreshes API/device copy,
-     * `renderRecordMode()` refreshes recording-button and mode-dependent state,
-     * and `updateDeckChecklistState()` refreshes checklist-dependent state.
-     *
-     * @returns {void}
+     * @returns {{statuses: Array<{label: string, state: string, icon: string, value: string}>, ready: boolean, warnings: string[]}} Readiness rows, aggregate ready state, and user-facing warnings.
      * @throws {Error} Does not throw directly.
      *
-     * Side effects: Replaces the Recording Readiness DOM rows and warning text.
+     * Side effects: None.
      */
-    function renderReadiness() {
-      if (!el.spotifyStatusItems) return;
+    function getRecordingReadinessStatus() {
       const checklistReady = isAudioChecklistConfirmed();
       const selectedDevice = state.devices.find(device => device.id === state.selectedDeviceId);
       const selectedDeviceReady = isSpotifyDeviceReady();
@@ -2241,21 +2239,73 @@
         }
       ];
       const ready = statuses.every(item => item.state === "ok");
-      statuses.push({
-        label: "Ready",
-        state: ready ? "ok" : "bad",
-        icon: ready ? "✅" : "❌",
-        value: ready ? "All systems ready" : "Resolve readiness rows"
-      });
-      el.spotifyStatusItems.innerHTML = statuses.map(item => {
-        return `<div class="readiness-row ${item.state}${item.label === "Ready" ? " final" : ""}"><span><i>${item.icon}</i>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`;
-      }).join("");
       const warnings = [];
       if (!state.dryRun && !state.token) warnings.push("Connect Spotify before recording.");
       if (!selectedDeviceReady) warnings.push("Select a Spotify device.");
       if (!checklistReady) warnings.push("Confirm the audio quality checklist before recording.");
       if (state.playbackRecoveryMessage) warnings.push(state.playbackRecoveryMessage);
-      el.spotifyStatusWarning.textContent = warnings.join(" ");
+      return { statuses, ready, warnings };
+    }
+
+    function isRecordingReadinessReady() {
+      return getRecordingReadinessStatus().ready;
+    }
+
+    /**
+     * Blocks recording starts unless all Recording Readiness rows are green.
+     *
+     * It reuses `getRecordingReadinessStatus()` so the click guard cannot drift
+     * from the rendered panel, writes the blocking rows into the readiness
+     * warning area, logs the reason, and throws to stop the start flow before
+     * cue timers or Spotify playback can begin.
+     *
+     * @param {"A"|"B"} side - Cassette side the user attempted to start.
+     * @returns {void}
+     * @throws {Error} Throws when any Recording Readiness row is not green.
+     *
+     * Side effects: Updates readiness warning text and writes a log entry on blocked starts.
+     */
+    function assertRecordingReadinessReady(side) {
+      const readiness = getRecordingReadinessStatus();
+      if (readiness.ready) return;
+      const blockedRows = readiness.statuses.filter(item => item.state !== "ok").map(item => item.label).join(", ");
+      const message = `Recording Readiness is not all green. Fix before starting Side ${side}: ${blockedRows}.`;
+      el.spotifyStatusWarning.textContent = message;
+      log(message);
+      throw new Error(message);
+    }
+
+    /**
+     * Renders the seven-row Recording Readiness traffic-light panel.
+     *
+     * It reads the shared readiness status, appends the final Ready row,
+     * replaces the panel DOM, and writes any user-facing warnings beneath the
+     * rows. Green rows show satisfied prerequisites, warning rows show
+     * recoverable setup gaps, and red rows show blocking failures.
+     *
+     * Call sites: `setPlaybackRecovery()` refreshes API/device copy,
+     * `renderRecordMode()` refreshes recording-button and mode-dependent state,
+     * and `updateDeckChecklistState()` refreshes checklist-dependent state.
+     *
+     * @returns {void}
+     * @throws {Error} Does not throw directly.
+     *
+     * Side effects: Replaces the Recording Readiness DOM rows and warning text.
+     */
+    function renderReadiness() {
+      if (!el.spotifyStatusItems) return;
+      const readiness = getRecordingReadinessStatus();
+      const statuses = [...readiness.statuses];
+      statuses.push({
+        label: "Ready",
+        state: readiness.ready ? "ok" : "bad",
+        icon: readiness.ready ? "✅" : "❌",
+        value: readiness.ready ? "All systems ready" : "Resolve readiness rows"
+      });
+      el.spotifyStatusItems.innerHTML = statuses.map(item => {
+        return `<div class="readiness-row ${item.state}${item.label === "Ready" ? " final" : ""}"><span><i>${item.icon}</i>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`;
+      }).join("");
+      el.spotifyStatusWarning.textContent = readiness.warnings.join(" ");
     }
 
     /**
