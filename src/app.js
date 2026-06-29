@@ -1607,25 +1607,15 @@
     }
 
     function selectUserPlaylist() {
-
       if (blockIfRecordingLocked("Playlist selection")) {
-
         renderPlaylistOptions();
-
         return;
-
       }
-
       const selected = state.playlists.find(playlist => playlist.id === el.playlistSelect.value);
-
       if (!selected) return;
-
       el.playlistInput.value = selected.id;
-
       log(`Selected playlist: ${selected.name}. Click Load playlist to fetch tracks.`);
-
     }
-
 
     function createMixtapeProject({ projectTitle, playlistId, playlistName, coverUrl, tracks, tapeMinutes, selectedTapeIndex = 0 }) {
       const now = new Date().toISOString();
@@ -1726,64 +1716,76 @@
 
     async function fetchAllTracks(playlistId) {
       const tracks = [];
-      let url = `/playlists/${playlistId}/tracks?limit=50&fields=items(track(id,uri,name,duration_ms,artists(name),is_local)),next,total`;
+      let url = `/playlists/${playlistId}/tracks?limit=50&additional_types=track`;
+      let receivedItems = 0;
+
       while (url) {
-        let page;
-        try {
-          page = await spotifyFetch(url);
-        } catch (error) {
-          if (tracks.length || !(error instanceof SpotifyApiError) || error.status !== 403) throw error;
-          return fetchAllTracksFromPlaylistItems(playlistId);
-        }
-        for (const item of page.items || []) {
+        const page = await spotifyFetch(url);
+        const items = Array.isArray(page.items) ? page.items : [];
+        receivedItems += items.length;
+
+        for (const item of items) {
           const track = normalizePlaylistTrackItem(item);
           if (track) tracks.push(track);
         }
+
         url = page.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
       }
+
+      if (tracks.length) return tracks;
+
+      const fallbackTracks = await fetchAllTracksFromPlaylistItems(playlistId);
+      if (fallbackTracks.length) return fallbackTracks;
+
+      if (receivedItems > 0) {
+        throw new Error(`Spotify returned ${receivedItems} playlist items, but none were usable Spotify tracks.`);
+      }
+
       return tracks;
     }
 
     async function fetchAllTracksFromPlaylistItems(playlistId) {
-
       const tracks = [];
-
-      let url = `/playlists/${playlistId}?fields=tracks(total,next,items(track(id,uri,name,duration_ms,artists(name),is_local)))`;
+      let url = `/playlists/${playlistId}?fields=tracks`;
 
       while (url) {
-
         const page = await spotifyFetch(url);
-
         const container = page.tracks || page.items || page;
-
         const items = Array.isArray(container.items) ? container.items : [];
 
         for (const item of items) {
-
           const track = normalizePlaylistTrackItem(item);
-
           if (track) tracks.push(track);
-
         }
 
         url = container.next ? container.next.replace("https://api.spotify.com/v1", "") : "";
-
       }
 
       return tracks;
-
     }
 
-
     function normalizePlaylistTrackItem(item) {
-      const track = item?.track || item?.item;
+      const candidates = [item?.track, item?.item, item].filter(Boolean);
+      const track = candidates.find(candidate =>
+        candidate?.type === "track" ||
+        String(candidate?.uri || "").startsWith("spotify:track:") ||
+        Number.isFinite(Number(candidate?.duration_ms))
+      );
+
       if (!track || track.is_local || !track.uri) return null;
+
+      const durationMs = Number(track.duration_ms);
+      if (!Number.isFinite(durationMs) || durationMs <= 0) return null;
+
       return {
-        id: track.id,
+        id: track.id || String(track.uri).replace("spotify:track:", ""),
         uri: track.uri,
-        name: track.name,
-        artists: (track.artists || []).map(artist => artist.name).join(", "),
-        duration_ms: track.duration_ms
+        name: track.name || "Untitled track",
+        artists: (track.artists || [])
+          .map(artist => typeof artist === "string" ? artist : artist?.name)
+          .filter(Boolean)
+          .join(", ") || "Unknown artist",
+        duration_ms: durationMs
       };
     }
 
