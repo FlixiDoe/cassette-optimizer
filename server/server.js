@@ -39,7 +39,13 @@ const server = http.createServer((req, res) => {
   if (url.pathname === "/api/status" && req.method === "POST") {
     readBody(req, maxBodyBytes)
       .then(body => {
-        const next = JSON.parse(body || "{}");
+        let next;
+        try {
+          next = JSON.parse(body || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "Invalid JSON body" });
+          return;
+        }
         sharedStatus = sanitizeStatus(next);
         sendJson(res, 200, { ok: true });
       })
