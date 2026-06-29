@@ -145,6 +145,7 @@ Required scopes:
 
 ```text
 playlist-read-private
+playlist-read-collaborative
 playlist-modify-private
 playlist-modify-public
 user-read-playback-state
@@ -173,6 +174,8 @@ user-modify-playback-state
 18. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
 19. After Side A auto-pauses, flip the cassette and use `Start Side B`.
 20. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+
+Playlist loading uses Spotify's current playlist items API and follows paging beyond the first 100 items, so long owned or collaborative playlists can be planned as one project. If Spotify allows playlist metadata but blocks track items for a public playlist owned by another account, the app keeps the playlist title/art visible and shows `No readable tracks`; cassette planning and recording remain blocked because track durations and URIs are not available.
 
 ## Profiles and Tape Collection
 
@@ -274,6 +277,7 @@ For manual checklists:
 - Rate limited: wait for the app's retry countdown in the Recording Readiness panel.
 - Expired token: reconnect Spotify and refresh devices.
 - Playlist list is empty: reconnect Spotify and ensure the token has `playlist-read-private`.
+- Playlist loads but shows `No readable tracks`: Spotify allowed playlist metadata but did not allow this token to read the track items. Use an owned or collaborative playlist, duplicate the public playlist into your library/account, or choose a playlist whose items Spotify exposes to your token.
 - Connect Spotify not visible on plain phone/LAN IP: this is by design. Open `http://127.0.0.1:8787` on the host machine, or use Tailscale Serve with the `https://...ts.net/callback` redirect URI registered in Spotify.
 - Tailscale URL shows disconnected: tokens are per origin; connect Spotify again on the `https://...ts.net/` URL.
 

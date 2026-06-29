@@ -68,6 +68,16 @@ setProject(project)
 renderSplit()
 ```
 
+`fetchAllTracks()` tries the current Spotify playlist-items paging endpoint first:
+
+```text
+/playlists/{id}/items?limit=100&fields=items(item(...)),next,total
+```
+
+It also keeps compatibility fallbacks for older response shapes that expose playlist items under `tracks.items` or top-level `items`. Direct paging responses and detail-container responses are normalized through the same container helper so long playlists can continue past the first 100 items.
+
+Spotify may allow playlist metadata while returning `403 Forbidden` for track items, especially for public playlists owned by another account. In that case the app still creates a project with the playlist title and cover, but with zero source tracks. The lower panels must say `No readable tracks` instead of `No playlist loaded`; recording and tape planning stay blocked because track durations and Spotify URIs are unavailable.
+
 `fetchAllTracks()` skips local-only tracks and tracks without a usable Spotify URI. Track objects are normalized into a small shape:
 
 ```js

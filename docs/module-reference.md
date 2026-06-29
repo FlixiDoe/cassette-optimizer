@@ -103,7 +103,13 @@ loadUserPlaylists()
 fetchUserPlaylists()
 selectUserPlaylist()
 fetchAllTracks(playlistId)
+fetchTracksFromPlaylistContainer(startUrl)
+getPlaylistItemsContainer(page)
 ```
+
+`fetchAllTracks()` prefers Spotify's `/playlists/{id}/items` paging endpoint with `limit=100`, then falls back to older playlist detail and `/tracks` shapes. The parser accepts both `items[].item` and `items[].track`, and `getPlaylistItemsContainer()` distinguishes direct paging objects from detail containers such as `tracks.items`.
+
+When Spotify returns `403 Forbidden` for item reads but still allows playlist metadata, the caller receives an empty track list instead of a thrown error. The UI treats this as a loaded playlist with no readable tracks, not as no playlist loaded.
 
 `fetchAllTracks()` reduces Spotify track payloads to the compact local track shape:
 

@@ -215,6 +215,8 @@ Spotify API calls are made from `src/app.js` through `spotifyFetch(...)`. That w
 - converts Spotify API errors into useful error messages,
 - preserves `Retry-After` metadata through `SpotifyApiError`.
 
+Playlist track loading is intentionally centralized in `fetchAllTracks(...)`. It reads the current Spotify `/playlists/{id}/items` paging response first, follows `next` links for long playlists, accepts both `items[].item` and `items[].track`, and keeps older `tracks.items` response shapes as fallbacks. Do not add separate playlist item parsers in rendering or recording code; keep Spotify payload normalization at this boundary.
+
 Playback starts through `playSpotify(...)`, and side playback payloads are built from the currently selected side only. This is why Record Mode can treat Side A and Side B as explicit queues.
 
 The Recording Readiness panel uses `playbackRecoveryMessage` for actionable device/token/API guidance such as sleeping devices, target-device mismatch, idle playback after a command, rate limiting, and expired OAuth tokens.
