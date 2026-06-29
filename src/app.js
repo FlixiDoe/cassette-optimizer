@@ -32,6 +32,7 @@
       "Deck is in record/pause"
     ];
     const DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX = DECK_CHECKLIST_ITEMS.indexOf("Spotify device selected");
+    const SPOTIFY_PROGRESS_DRIFT_TOLERANCE_MS = 5000;
     // `deckProfiles` stores the user's saved deck timing presets, while `activeDeckId` stores only the selected deck id so profile edits can replace the array without losing selection intent.
     const DECK_PROFILES_KEY = "deckProfiles";
     const ACTIVE_DECK_ID_KEY = "activeDeckId";
@@ -2447,13 +2448,13 @@
       const expected = getExpectedTrackAtElapsed(tracks, localElapsed);
       state.playbackStatus.expectedTrackPlaying = Boolean(expected && playback.item.uri === expected.track.uri);
       // Five seconds is the tolerance window before the UI reports Spotify and cassette timing as out of sync.
-      state.playbackStatus.playbackInSync = Math.abs(driftMs) <= 5000;
+      state.playbackStatus.playbackInSync = Math.abs(driftMs) <= SPOTIFY_PROGRESS_DRIFT_TOLERANCE_MS;
       state.playbackStatus.driftMs = driftMs;
-      if (driftMs > -2000 && driftMs < 10000) {
+      if (driftMs > -2000 && driftMs <= SPOTIFY_PROGRESS_DRIFT_TOLERANCE_MS) {
         // Trust Spotify progress only when it is close enough to avoid jumping the local countdown.
         state.spotifySideElapsedMs = elapsed;
       }
-      if (elapsed > state.lastSideProgressMs && driftMs > -2000 && driftMs < 10000) {
+      if (elapsed > state.lastSideProgressMs && driftMs > -2000 && driftMs <= SPOTIFY_PROGRESS_DRIFT_TOLERANCE_MS) {
         // Keep a monotonic floor so repeated tracks with the same URI do not move the side timer backwards.
         state.lastSideProgressMs = elapsed;
         state.lastProgressUpdatedAt = Date.now();
@@ -2528,7 +2529,7 @@
       const localElapsed = getLocalRecordElapsed();
       if (!state.spotifySideElapsedMs) return localElapsed;
       const driftMs = state.spotifySideElapsedMs - localElapsed;
-      if (driftMs > 0 && driftMs < 10000) return state.spotifySideElapsedMs;
+      if (driftMs > 0 && driftMs <= SPOTIFY_PROGRESS_DRIFT_TOLERANCE_MS) return state.spotifySideElapsedMs;
       return localElapsed;
     }
 
