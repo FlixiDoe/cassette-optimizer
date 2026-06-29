@@ -1,5 +1,24 @@
 # Changelog
 
+## Cassette Optimizer 1.2.1
+
+Bugfix release for Spotify playlist loading regressions after the 1.2.0 stability release.
+
+### Fixes
+
+- Restore the Load playlist button behavior by keeping it from submitting the input form.
+- Prefer the pasted playlist URL or ID when loading, while still allowing the playlist dropdown as a fallback.
+- Read playlist track totals from both Spotify response shapes so dropdown entries no longer show false `0 tracks` when totals are present under `items`.
+- Load long owned or collaborative Spotify playlists through the current `/playlists/{id}/items` paging response, including `items[].item` track payloads.
+- Keep paginating playlist items beyond the first 100 tracks by handling both detail containers and direct paging responses.
+- Preserve loaded playlist metadata when Spotify allows playlist details but blocks track items, and show `No readable tracks` instead of incorrectly reverting lower panels to `No playlist loaded`.
+- Avoid `NaNx Cundefined` tape recommendations when no cassette formats are currently available.
+
+### Validation
+
+- `npm test` passes: 27/27 tests.
+- Browser check on `http://127.0.0.1:8787/`: a 113-track owned playlist loads all 113 tracks, while a Spotify-blocked public playlist stays visible as loaded metadata with no readable track items.
+
 ## Cassette Optimizer 1.2.0
 
 Feature and stability release for profile-driven cassette planning, local monitoring, and recording reliability.
