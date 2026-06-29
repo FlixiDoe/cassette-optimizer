@@ -1111,9 +1111,9 @@
         }
       });
       // A 401 from the Web API can mean the access token expired earlier than expected; refresh once and retry.
-      if (response.status === 401 && state.refreshToken) {
+      if (response.status === 401 && state.refreshToken && !retryAttempted) {
         await refreshAccessToken();
-        return spotifyFetch(path, fetchOptions);
+        return spotifyFetch(path, { ...fetchOptions, retryAttempted: true });
       }
       // Spotify playback-control endpoints commonly return 204 No Content on success.
       if (response.status === 204) {
