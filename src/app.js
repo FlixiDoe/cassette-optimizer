@@ -3296,7 +3296,10 @@
       const counts = countCollectionProfiles();
       const profiles = loadCassetteProfiles();
       if (!profiles.length) {
-        el.tapeInventory.innerHTML = `<p class="small">Create a cassette profile, then add owned copies here.</p>`;
+        el.tapeInventory.innerHTML = `<div class="tape-check tape-inventory-empty">
+          <span>No cassette profiles yet</span>
+          <button type="button" data-cassette-inventory-action="create-profile">Create profile</button>
+        </div>`;
         return;
       }
       el.tapeInventory.innerHTML = profiles.map(profile => {
@@ -3315,6 +3318,10 @@
       if (!button) return;
       if (blockIfRecordingLocked("Tape inventory")) {
         renderTapeInventory();
+        return;
+      }
+      if (button.dataset.cassetteInventoryAction === "create-profile") {
+        addCassetteProfile();
         return;
       }
       const profileId = button.dataset.cassetteProfileId;
