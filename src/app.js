@@ -1518,7 +1518,7 @@
       try {
         if (blockIfRecordingLocked("Load playlist")) return;
         if (!(await confirmReplaceDirtyProject())) return;
-        const playlistId = parsePlaylistId(el.playlistInput.value.trim());
+        const playlistId = getRequestedPlaylistId();
         if (!playlistId) throw new Error("Paste a Spotify playlist URL or ID.");
         log(`Loading playlist ${playlistId}...`);
         const playlist = await spotifyFetch(`/playlists/${playlistId}?fields=name,images(url,width,height),tracks(total)`);
@@ -1542,6 +1542,10 @@
         log(error.message);
         renderEmptyStates();
       }
+    }
+
+    function getRequestedPlaylistId() {
+      return parsePlaylistId(el.playlistInput.value.trim()) || parsePlaylistId(el.playlistSelect.value.trim());
     }
 
     async function loadUserPlaylists() {
@@ -1586,13 +1590,19 @@
             name: playlist.name || playlist.id,
             coverUrl: pickPlaylistCover(playlist.images || []),
             owner: playlist.owner?.display_name || "unknown owner",
-            tracks: playlist.tracks?.total ?? 0,
+            tracks: getPlaylistTrackTotal(playlist),
             public: playlist.public
           });
         }
         url = page.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
       }
       return playlists;
+    }
+
+    function getPlaylistTrackTotal(playlist) {
+      if (Number.isFinite(playlist?.tracks?.total)) return playlist.tracks.total;
+      if (Number.isFinite(playlist?.items?.total)) return playlist.items.total;
+      return null;
     }
 
     function selectUserPlaylist() {
@@ -1711,20 +1721,48 @@
       const tracks = [];
       let url = `/playlists/${playlistId}/tracks?limit=100&fields=items(track(id,uri,name,duration_ms,artists(name),is_local)),next,total`;
       while (url) {
-        const page = await spotifyFetch(url);
+        let page;
+        try {
+          page = await spotifyFetch(url);
+        } catch (error) {
+          if (tracks.length || !(error instanceof SpotifyApiError) || error.status !== 403) throw error;
+          return fetchAllTracksFromPlaylistItems(playlistId);
+        }
         for (const item of page.items || []) {
-          if (!item.track || item.track.is_local || !item.track.uri) continue;
-          tracks.push({
-            id: item.track.id,
-            uri: item.track.uri,
-            name: item.track.name,
-            artists: (item.track.artists || []).map(artist => artist.name).join(", "),
-            duration_ms: item.track.duration_ms
-          });
+          const track = normalizePlaylistTrackItem(item);
+          if (track) tracks.push(track);
         }
         url = page.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
       }
       return tracks;
+    }
+
+    async function fetchAllTracksFromPlaylistItems(playlistId) {
+      const tracks = [];
+      let url = `/playlists/${playlistId}?fields=items(total,next,items(item(id,uri,name,duration_ms,artists(name),is_local)))`;
+      while (url) {
+        const page = await spotifyFetch(url);
+        const container = page.items || page;
+        const items = Array.isArray(container.items) ? container.items : [];
+        for (const item of items) {
+          const track = normalizePlaylistTrackItem(item);
+          if (track) tracks.push(track);
+        }
+        url = container.next ? container.next.replace("https://api.spotify.com/v1", "") : "";
+      }
+      return tracks;
+    }
+
+    function normalizePlaylistTrackItem(item) {
+      const track = item?.track || item?.item;
+      if (!track || track.is_local || !track.uri) return null;
+      return {
+        id: track.id,
+        uri: track.uri,
+        name: track.name,
+        artists: (track.artists || []).map(artist => artist.name).join(", "),
+        duration_ms: track.duration_ms
+      };
     }
 
     /**
@@ -4744,7 +4782,8 @@
       }
       el.playlistSelect.innerHTML = `<option value="">Choose a playlist...</option>` + state.playlists.map(playlist => {
         const visibility = playlist.public ? "public" : "private";
-        const label = `${playlist.name} - ${playlist.tracks} tracks - ${visibility}`;
+        const trackLabel = Number.isFinite(playlist.tracks) ? `${playlist.tracks} tracks` : "tracks unknown";
+        const label = `${playlist.name} - ${trackLabel} - ${visibility}`;
         return `<option value="${escapeHtml(playlist.id)}">${escapeHtml(label)}</option>`;
       }).join("");
       el.playlistSelect.disabled = false;
