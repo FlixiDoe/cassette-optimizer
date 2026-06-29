@@ -75,6 +75,7 @@
       timerId: null,
       timerRunning: false,
       cueTimerId: null,
+      recordCueFinish: null,
       pollingId: null,
       pollingDelayMs: 5000,
       pollingPausedUntil: 0,
@@ -1858,7 +1859,7 @@
         }
         state.autoPauseDone = false;
         // The cue gives the operator time to release record/pause before Spotify starts.
-        await runRecordCue("A");
+        if (!(await runRecordCue("A"))) return;
         state.recordMode = "recording_a";
         state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
@@ -1921,7 +1922,7 @@
           state.lastSideProgressMs = 0;
         }
         state.autoPauseDone = false;
-        await runRecordCue("B");
+        if (!(await runRecordCue("B"))) return;
         state.recordMode = "recording_b";
         state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
@@ -1956,10 +1957,11 @@
      *
      * It clears any previous cue, displays the current side and remaining
      * seconds, logs the operator prompt, and resolves when the interval reaches
-     * zero so Spotify playback or the dry-run timer can start.
+     * zero so Spotify playback or the dry-run timer can start. If the user
+     * aborts or another cue replaces it, the promise resolves `false`.
      *
      * @param {"A"|"B"} side - Cassette side being cued.
-     * @returns {Promise<void>} Resolves when the countdown reaches zero.
+     * @returns {Promise<boolean>} Resolves `true` when the countdown reaches zero, or `false` when cancelled.
      * @throws {Error} Does not throw directly.
      *
      * Side effects: Starts and clears `state.cueTimerId`, mutates cue DOM, updates finish-time/record-mode UI, and logs status.
@@ -1971,12 +1973,19 @@
       showRecordCue(side, remaining);
       log(`Cue Side ${side}: press record now. ${state.dryRun ? "Dry Run timer" : "Spotify"} starts in ${remaining}s.`);
       return new Promise(resolve => {
+        const finish = value => {
+          if (state.cueTimerId) clearInterval(state.cueTimerId);
+          state.cueTimerId = null;
+          if (state.recordCueFinish === finish) state.recordCueFinish = null;
+          el.recordCue.classList.remove("show");
+          resolve(value);
+        };
+        state.recordCueFinish = finish;
         state.cueTimerId = setInterval(() => {
           remaining -= 1;
           if (remaining <= 0) {
             // Clearing the cue removes the banner before playback begins.
-            clearRecordCue();
-            resolve();
+            finish(true);
             return;
           }
           if (state.dryRun && side === "A" && !state.dryRun429Simulated && Math.random() < .22) {
@@ -2060,6 +2069,10 @@
     }
 
     function clearRecordCue() {
+      if (state.recordCueFinish) {
+        state.recordCueFinish(false);
+        return;
+      }
       if (state.cueTimerId) clearInterval(state.cueTimerId);
       state.cueTimerId = null;
       el.recordCue.classList.remove("show");
