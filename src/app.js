@@ -1221,6 +1221,9 @@
       // The Retry-After countdown ticks once per second and re-enables Start/Refresh controls when the rate-limit state clears.
       state.rateLimit.timerId = setInterval(() => {
         state.rateLimit.secondsRemaining = Math.max(0, state.rateLimit.secondsRemaining - 1);
+        if (state.rateLimit.secondsRemaining === 0) {
+          finishRateLimitCountdown();
+        }
         renderRateLimitState();
       }, 1000);
       setPlaybackRecovery(`Spotify rate limit reached - retrying in ${seconds}s.`);
@@ -1245,6 +1248,7 @@
           clearRateLimitState();
           log("Replayed buffered Spotify playback command after rate limit.");
         } catch (error) {
+          finishRateLimitCountdown();
           state.rateLimit.error = error.message;
           renderRateLimitState();
           log(`Buffered Spotify command failed: ${error.message}`);
@@ -1263,6 +1267,15 @@
       setPlaybackRecovery("");
       renderRecordMode();
       renderRateLimitState();
+    }
+
+    function finishRateLimitCountdown() {
+      if (state.rateLimit.timerId) clearInterval(state.rateLimit.timerId);
+      state.rateLimit.active = false;
+      state.rateLimit.secondsRemaining = 0;
+      state.rateLimit.retryAfterSeconds = 0;
+      state.rateLimit.timerId = null;
+      renderRecordMode();
     }
 
     function renderRateLimitState() {
