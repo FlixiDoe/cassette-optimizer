@@ -70,6 +70,7 @@ function migrateVersionOne(input) {
 }
 
 function migrateFutureConfig(input) {
+  console.warn(`Importing future cassette config version ${input.configVersion}; normalizing to version ${CURRENT_CONFIG_VERSION}.`);
   return migrateVersionOne({
     ...input,
     configVersion: CURRENT_CONFIG_VERSION
