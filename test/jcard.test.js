@@ -9,3 +9,7 @@ test("j-card title cleanup removes common long suffixes", () => {
   assert.equal(cleanJCardTrackTitle("Song [Deluxe Edition]"), "Song");
   assert.equal(cleanJCardTrackTitle("Song"), "Song");
 });
+
+test("j-card title cleanup preserves dash-separated live titles", () => {
+  assert.equal(cleanJCardTrackTitle("Alive - Live at Madison Square Garden"), "Alive - Live at Madison Square Garden");
+});

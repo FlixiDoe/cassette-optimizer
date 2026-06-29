@@ -36,7 +36,7 @@ export function getJCardDensityClass(trackCount) {
 
 export function cleanJCardTrackTitle(title) {
   return String(title || "Untitled track")
-    .replace(/\s*[-–—]\s*(?:\d{4}\s+)?(?:remaster(?:ed)?|remastered version|live|deluxe edition|bonus track).*$/i, "")
+    .replace(/\s*[-–—]\s*(?:\d{4}\s+)?(?:remaster(?:ed)?|remastered version|deluxe edition|bonus track).*$/i, "")
     .replace(/\s*\((?:\d{4}\s+)?(?:remaster(?:ed)?|remastered version|live|deluxe edition|bonus track)[^)]*\)\s*$/i, "")
     .replace(/\s*\[(?:\d{4}\s+)?(?:remaster(?:ed)?|remastered version|live|deluxe edition|bonus track)[^\]]*\]\s*$/i, "")
     .trim() || String(title || "Untitled track");
