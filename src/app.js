@@ -556,6 +556,7 @@
     function recomputeTimingDependentViews(message) {
       if (state.project || state.tracks.length) computeSplit();
       renderTapeOptions();
+      renderTapeInventory();
       renderSlackMargin();
       renderSplit();
       renderRecordMode();

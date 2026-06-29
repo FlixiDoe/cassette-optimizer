@@ -210,7 +210,7 @@
 
     .tape-inventory {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
       gap: 8px;
     }
 
@@ -235,7 +235,27 @@
     }
 
     .tape-quantity {
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px 24px 42px;
+      justify-content: normal;
+      cursor: default;
+    }
+
+    .tape-quantity span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .tape-quantity b {
+      align-self: center;
+      text-align: center;
+    }
+
+    .tape-quantity button {
+      width: 42px;
+      min-width: 42px;
+      min-height: 42px;
+      padding: 0;
     }
 
     .tape-quantity input {
@@ -243,6 +263,12 @@
       min-height: 28px;
       padding: 0 6px;
       text-align: center;
+    }
+
+    .tape-inventory-empty {
+      grid-column: 1 / -1;
+      justify-content: space-between;
+      cursor: default;
     }
 
     .tape-check:has(input:checked) {
