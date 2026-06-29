@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliOptions = parseCliOptions(process.argv.slice(2));
 const port = Number(cliOptions.port || process.env.PORT || 8787);
 const host = cliOptions.host || process.env.HOST || "127.0.0.1";
+const statusWriteToken = process.env.STATUS_WRITE_TOKEN || "";
 const maxBodyBytes = 64 * 1024;
 
 let sharedStatus = {
@@ -37,6 +38,10 @@ const server = http.createServer((req, res) => {
   }
 
   if (url.pathname === "/api/status" && req.method === "POST") {
+    if (!canWriteStatus(req)) {
+      sendJson(res, 403, { ok: false, error: "Invalid or missing status write token" });
+      return;
+    }
     readBody(req, maxBodyBytes)
       .then(body => {
         let next;
@@ -70,6 +75,18 @@ server.listen(port, host, () => {
   console.log(`Cassette Optimizer server listening on http://127.0.0.1:${port}/`);
   for (const url of getLanUrls()) console.log(`LAN: ${url}`);
 });
+
+function canWriteStatus(req) {
+  if (isLocalRequest(req)) return true;
+  return Boolean(statusWriteToken) && req.headers["x-status-write-token"] === statusWriteToken;
+}
+
+function isLocalRequest(req) {
+  const address = req.socket.remoteAddress || "";
+  return address === "127.0.0.1"
+    || address === "::1"
+    || address === "::ffff:127.0.0.1";
+}
 
 function parseCliOptions(args) {
   const options = {};

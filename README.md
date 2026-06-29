@@ -122,6 +122,8 @@ They serve the same app on all network interfaces and add a small `/api/status` 
 
 LAN clients are monitor-only. Spotify OAuth and playback control must be done from `http://127.0.0.1:8787` on the host machine.
 
+`GET /api/status` stays readable on LAN for monitor devices. `POST /api/status` is accepted from localhost automatically; non-local writers must send `x-status-write-token` matching the optional `STATUS_WRITE_TOKEN` environment variable, otherwise the server returns `403`.
+
 Keep the LAN server on a trusted private network only. Do not expose it directly to the public internet.
 
 ## Tailscale Serve Control Mode

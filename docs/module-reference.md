@@ -488,6 +488,8 @@ GET /api/health reports server status and LAN URLs
 
 The server stores status in memory only. It does not store Spotify tokens and does not call Spotify.
 
+`POST /api/status` accepts localhost writes without a token. Non-local writes require `STATUS_WRITE_TOKEN` on the server and a matching `x-status-write-token` request header; invalid or missing tokens return `403`. `GET /api/status` remains available to LAN monitor clients.
+
 Invalid JSON sent to `POST /api/status` returns `400` with `Invalid JSON body`.
 
 The server is ES module code and accepts cross-platform CLI options:
