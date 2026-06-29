@@ -104,7 +104,7 @@ function normalizeTape(input, index, fallbackTapeMinutes) {
 }
 
 function normalizeTracks(value) {
-  return Array.isArray(value) ? value.map(normalizeTrack).filter(track => track.duration_ms >= 0) : [];
+  return Array.isArray(value) ? value.map(normalizeTrack).filter(track => track.duration_ms > 0) : [];
 }
 
 function normalizeTrack(input) {

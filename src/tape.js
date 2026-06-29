@@ -97,7 +97,6 @@ function fillSide(tracks, startIndex, sideLengthMs) {
     if (nextMs > sideLengthMs && endIndex > startIndex) break;
     sideMs = nextMs;
     endIndex += 1;
-    if (sideMs > sideLengthMs) break;
   }
   return endIndex;
 }

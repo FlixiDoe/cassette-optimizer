@@ -48,3 +48,24 @@ test("future configs are normalized without dropping unknown fields", () => {
   assert.equal(migrated.tapes[0].tapeFormat, 90);
   assert.equal(migrated.slackMarginSeconds, 0);
 });
+
+test("imports drop zero-length tracks", () => {
+  const migrated = migrateImportedConfig({
+    sourceTracks: [
+      { uri: "spotify:track:zero", name: "Zero", artists: "Artist", duration_ms: 0 },
+      { uri: "spotify:track:one", name: "One", artists: "Artist", duration_ms: 120000 }
+    ],
+    tapes: [
+      {
+        sideA: [
+          { uri: "spotify:track:zero", name: "Zero", artists: "Artist", duration_ms: 0 },
+          { uri: "spotify:track:one", name: "One", artists: "Artist", duration_ms: 120000 }
+        ],
+        sideB: []
+      }
+    ]
+  });
+
+  assert.deepEqual(migrated.sourceTracks.map(track => track.uri), ["spotify:track:one"]);
+  assert.deepEqual(migrated.tapes[0].sideA.map(track => track.uri), ["spotify:track:one"]);
+});
