@@ -71,6 +71,7 @@
       activeRecordSide: null,
       autoPauseDone: false,
       timerId: null,
+      timerRunning: false,
       cueTimerId: null,
       pollingId: null,
       pollingDelayMs: 5000,
@@ -2137,16 +2138,29 @@
     function startTimer() {
       if (state.timerId) clearInterval(state.timerId);
       state.timerId = null;
+      state.timerRunning = false;
       el.pauseBtn.disabled = false;
-      state.timerId = setInterval(updateTimer, 250);
-      updateTimer();
+      state.timerId = setInterval(runTimerTick, 250);
+      runTimerTick();
     }
 
     function stopTimer() {
       if (state.timerId) clearInterval(state.timerId);
       state.timerId = null;
       state.sideAStartedAt = 0;
-      updateTimer();
+      runTimerTick();
+    }
+
+    async function runTimerTick() {
+      if (state.timerRunning) return;
+      state.timerRunning = true;
+      try {
+        await updateTimer();
+      } catch (error) {
+        log(error.message);
+      } finally {
+        state.timerRunning = false;
+      }
     }
 
     async function updateTimer() {
@@ -2447,14 +2461,14 @@
       const effectiveElapsed = getProjectedRecordElapsed();
       // Complete slightly before exact duration to account for polling delay and avoid recording into the next side state.
       if (state.recordMode === "recording_a" && effectiveElapsed >= duration(sideA()) - 750 && !state.autoPauseDone) {
-        completeSideA();
+        await completeSideA();
         return;
       } else if (state.recordMode === "recording_b" && effectiveElapsed >= duration(sideB()) - 750 && !state.autoPauseDone) {
-        completeSideB();
+        await completeSideB();
         return;
       }
       renderRecordMode(playback.is_playing ? "Monitoring" : "Paused");
-      updateTimer();
+      await runTimerTick();
       schedulePlaybackPoll(getPlaybackPollDelay());
     }
 
