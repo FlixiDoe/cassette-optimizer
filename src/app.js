@@ -4021,7 +4021,11 @@
       for await (const entry of directory.values()) {
         if (entry.kind !== "file" || !entry.name.endsWith(".json")) continue;
         const file = await entry.getFile();
-        payloads.push(JSON.parse(await file.text()));
+        try {
+          payloads.push(JSON.parse(await file.text()));
+        } catch {
+          log(`Skipping unreadable JSON file: ${entry.name}`);
+        }
       }
       return payloads;
     }
