@@ -50,6 +50,11 @@
       playlistName: "",
       playlistCoverUrl: "",
       tracks: [],
+      pendingDeckProfiles: null,
+      pendingCassetteProfiles: null,
+      pendingCalibration: null,
+      timingUpdateTimerId: null,
+      pendingTimingMessage: "",
       playlists: [],
       devices: [],
       selectedDeviceId: localStorage.getItem("spotify_device_id") || "",
@@ -158,6 +163,7 @@
      * Side effects: Reads `deckProfiles` from `localStorage`.
      */
     function loadDeckProfiles() {
+      if (Array.isArray(state.pendingDeckProfiles)) return state.pendingDeckProfiles;
       // Reading the profiles array separately from the active id keeps selection stable when the profiles list is edited.
       const saved = localStorage.getItem(DECK_PROFILES_KEY);
       if (saved === null) return [];
@@ -184,7 +190,12 @@
      *
      * Side effects: Writes `deckProfiles` in `localStorage`.
      */
-    function saveDeckProfiles(profiles) {
+    function saveDeckProfiles(profiles, { defer = false } = {}) {
+      if (defer) {
+        state.pendingDeckProfiles = Array.isArray(profiles) ? profiles : [];
+        return;
+      }
+      state.pendingDeckProfiles = null;
       // Persist the complete profile list as one JSON array so imports and edits can replace profiles atomically.
       localStorage.setItem(DECK_PROFILES_KEY, JSON.stringify(Array.isArray(profiles) ? profiles : []));
     }
@@ -251,6 +262,7 @@
      * Side effects: Reads `cassetteProfiles` from `localStorage`.
      */
     function loadCassetteProfiles() {
+      if (Array.isArray(state.pendingCassetteProfiles)) return state.pendingCassetteProfiles;
       // Reading the profiles array separately from the active id keeps selection stable when cassette profiles are edited or imported.
       const saved = localStorage.getItem(CASSETTE_PROFILES_KEY);
       if (saved === null) return [];
@@ -277,7 +289,12 @@
      *
      * Side effects: Writes `cassetteProfiles` in `localStorage`.
      */
-    function saveCassetteProfiles(profiles) {
+    function saveCassetteProfiles(profiles, { defer = false } = {}) {
+      if (defer) {
+        state.pendingCassetteProfiles = Array.isArray(profiles) ? profiles : [];
+        return;
+      }
+      state.pendingCassetteProfiles = null;
       // Persist the complete cassette profile list as one JSON array so imports and edits can replace profiles atomically.
       localStorage.setItem(CASSETTE_PROFILES_KEY, JSON.stringify(Array.isArray(profiles) ? profiles : []));
     }
@@ -461,10 +478,11 @@
       recomputeTimingDependentViews("All cassette profiles deleted.");
     }
 
-    function updateDeckProfile() {
+    function updateDeckProfile(event) {
       const active = getActiveDeck();
       if (!active) return;
       const profiles = loadDeckProfiles();
+      const defer = event?.type === "input";
       const updated = {
         ...active,
         name: el.deckProfileName.value.trim() || active.name,
@@ -480,16 +498,21 @@
         typeIVSupport: el.deckTypeIVSupport.checked,
         notes: el.deckNotes.value.trim()
       };
-      // Write the edited deck profile immediately so the existing timing inputs behave as a live deck editor.
-      saveDeckProfiles(profiles.map(profile => profile.id === updated.id ? updated : profile));
+      // Keep the edited deck profile visible to timing reads immediately; input events persist and render through a short batch.
+      saveDeckProfiles(profiles.map(profile => profile.id === updated.id ? updated : profile), { defer });
+      if (defer) {
+        scheduleTimingDependentViews("Deck profile updated.");
+        return;
+      }
       renderDeckProfileControls();
       recomputeTimingDependentViews("Deck profile updated.");
     }
 
-    function updateCassetteProfile() {
+    function updateCassetteProfile(event) {
       const active = getActiveCassette();
       if (!active) return;
       const profiles = loadCassetteProfiles();
+      const defer = event?.type === "input";
       const updated = {
         ...active,
         name: el.cassetteProfileName.value.trim() || active.name,
@@ -506,9 +529,13 @@
         leaderLength: optionalNumber(el.cassetteLeaderLength.value, 0, 120),
         slackMargin: optionalSeconds(el.cassetteSlackMargin.value, 0, 120)
       };
-      // Write cassette edits immediately so measured leader/slack changes affect planning without a separate save step.
-      saveCassetteProfiles(profiles.map(profile => profile.id === updated.id ? updated : profile));
+      // Keep cassette edits visible to timing reads immediately; input events persist and render through a short batch.
+      saveCassetteProfiles(profiles.map(profile => profile.id === updated.id ? updated : profile), { defer });
       setTapeLengthFromProfile(updated.lengthMinutes);
+      if (defer) {
+        scheduleTimingDependentViews("Cassette profile updated.");
+        return;
+      }
       renderCassetteProfileControls();
       recomputeTimingDependentViews("Cassette profile updated.");
     }
@@ -568,6 +595,40 @@
         el.profileStatus.textContent = message;
         log(message);
       }
+    }
+
+    function scheduleTimingDependentViews(message) {
+      state.pendingTimingMessage = message || state.pendingTimingMessage;
+      if (state.timingUpdateTimerId) clearTimeout(state.timingUpdateTimerId);
+      state.timingUpdateTimerId = window.setTimeout(flushTimingDependentViews, 250);
+    }
+
+    function flushTimingDependentViews() {
+      const hasPending = state.timingUpdateTimerId
+        || Array.isArray(state.pendingDeckProfiles)
+        || Array.isArray(state.pendingCassetteProfiles)
+        || Boolean(state.pendingCalibration)
+        || Boolean(state.pendingTimingMessage);
+      if (!hasPending) return;
+      if (state.timingUpdateTimerId) clearTimeout(state.timingUpdateTimerId);
+      state.timingUpdateTimerId = null;
+      if (Array.isArray(state.pendingDeckProfiles)) {
+        const profiles = state.pendingDeckProfiles;
+        state.pendingDeckProfiles = null;
+        saveDeckProfiles(profiles);
+      }
+      if (Array.isArray(state.pendingCassetteProfiles)) {
+        const profiles = state.pendingCassetteProfiles;
+        state.pendingCassetteProfiles = null;
+        saveCassetteProfiles(profiles);
+      }
+      if (state.pendingCalibration) {
+        localStorage.setItem("recording_calibration", JSON.stringify(state.pendingCalibration));
+        state.pendingCalibration = null;
+      }
+      const message = state.pendingTimingMessage;
+      state.pendingTimingMessage = "";
+      recomputeTimingDependentViews(message);
     }
 
     function uniqueProfileId(prefix, profiles) {
@@ -809,6 +870,7 @@
       el.dryRunToggle.addEventListener("change", updateDryRun);
       el.startLevelToneBtn.addEventListener("click", startLevelTone);
       el.stopLevelToneBtn.addEventListener("click", stopLevelTone);
+      window.addEventListener("beforeunload", flushTimingDependentViews);
       window.addEventListener("beforeunload", persistToken);
       startSharedStatusPolling();
       restoreTapeInventory();
@@ -3204,8 +3266,9 @@
       el.safetyMargin.value = deck ? deck.safetyMargin : state.calibration.safetyMarginSeconds;
     }
 
-    function updateCalibration() {
-      updateDeckProfile();
+    function updateCalibration(event) {
+      const defer = event?.type === "input";
+      updateDeckProfile(event);
       const timing = getEffectiveTimingSettings();
       state.calibration = normalizeCalibration({
         leadInSeconds: timing.leaderTapeDelay,
@@ -3214,6 +3277,11 @@
       });
       if (state.project) state.project.calibration = { ...state.calibration };
       markProjectDirty();
+      if (defer) {
+        state.pendingCalibration = { ...state.calibration };
+        scheduleTimingDependentViews(`Recording calibration saved: leader tape ${state.calibration.leadInSeconds}s, motor ${state.calibration.motorLatencySeconds}s, safety ${state.calibration.safetyMarginSeconds}s.`);
+        return;
+      }
       // Keep the legacy calibration key synchronized for older exports and any users who temporarily clear all deck profiles.
       localStorage.setItem("recording_calibration", JSON.stringify(state.calibration));
       renderCalibration();
@@ -3306,21 +3374,26 @@
       el.slackMargin.value = getEffectiveTimingSettings().slackMargin;
     }
 
-    function updateSlackMargin() {
+    function updateSlackMargin(event) {
       if (blockIfRecordingLocked("Tape Slack Margin")) {
         renderSlackMargin();
         return;
       }
+      const defer = event?.type === "input";
       const cassette = getActiveCassette();
       if (cassette?.slackMargin !== null && cassette?.slackMargin !== undefined) {
         el.cassetteSlackMargin.value = el.slackMargin.value;
-        updateCassetteProfile();
+        updateCassetteProfile(event);
       } else {
-        updateDeckProfile();
+        updateDeckProfile(event);
       }
       state.slackMarginSeconds = getEffectiveTimingSettings().slackMargin;
       if (state.project) state.project.slackMarginSeconds = state.slackMarginSeconds;
       markProjectDirty();
+      if (defer) {
+        scheduleTimingDependentViews(`Tape slack margin set to ${state.slackMarginSeconds}s.`);
+        return;
+      }
       computeSplit();
       renderSlackMargin();
       renderSplit();
