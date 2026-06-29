@@ -78,7 +78,7 @@ test("expired Spotify sessions clear tokens, auth session data, device state, an
     }
   });
 
-  assert.equal(message, "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.");
+  assert.equal(message, "Session expired. Please reconnect Spotify.");
   assert.equal(state.token, null);
   assert.equal(state.refreshToken, null);
   assert.equal(state.expiresAt, 0);

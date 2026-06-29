@@ -8,7 +8,7 @@
  * tests and callers can supply the browser storage objects without importing
  * global state here.
  */
-export const SPOTIFY_SESSION_EXPIRED_MESSAGE = "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.";
+export const SPOTIFY_SESSION_EXPIRED_MESSAGE = "Session expired. Please reconnect Spotify.";
 
 // `spotify_token` stores the access token, refresh token, expiry timestamp, and original authorization timestamp.
 const TOKEN_STORAGE_KEY = "spotify_token";
