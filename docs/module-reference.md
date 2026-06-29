@@ -518,9 +518,11 @@ addDeckProfile()
 updateDeckProfile()
 deleteActiveDeckProfile()
 deleteAllDeckProfiles()
+exportActiveDeckProfile()
+importSingleProfile(file, "deck")
 ```
 
-Deck profiles are stored in `localStorage.deckProfiles`; the selected deck id is stored separately in `localStorage.activeDeckId`. The default first-run profile is `Philips AZ1025/00` with manufacturer, model, measured leader delay, motor latency, safety margin, default slack margin, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes fields.
+Deck profiles are stored in `localStorage.deckProfiles`; the selected deck id is stored separately in `localStorage.activeDeckId`. First-run deck profile storage is empty. New profiles start as blank user-owned records with timing values at zero, plus manufacturer, model, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes fields.
 
 Cassette profile functions:
 
@@ -533,11 +535,13 @@ addCassetteProfile()
 updateCassetteProfile()
 deleteActiveCassetteProfile()
 deleteAllCassetteProfiles()
+exportActiveCassetteProfile()
+importSingleProfile(file, "cassette")
 ```
 
-Cassette profiles are stored in `localStorage.cassetteProfiles`; the selected cassette id is stored separately in `localStorage.activeCassetteId`. Defaults include `Maxell UR-90` and `Sony HF90`, with manufacturer, model, optional year, condition flags, type, length, leader offset, and slack override fields.
+Cassette profiles are stored in `localStorage.cassetteProfiles`; the selected cassette id is stored separately in `localStorage.activeCassetteId`. First-run cassette profile storage is empty. New profiles start as user-owned records with manufacturer, model, optional year, condition flags, type, length, leader offset, and slack override fields.
 
-The Deck and Cassette profile editor controls expose explicit Save buttons (`saveDeckProfileBtn`, `saveCassetteProfileBtn`) that call the same update functions used by field change handlers. Delete and Delete all remain confirmation-gated cleanup actions.
+The Deck and Cassette profile editor controls expose explicit Save buttons (`saveDeckProfileBtn`, `saveCassetteProfileBtn`) that call the same update functions used by field change handlers. Delete and Delete all remain confirmation-gated cleanup actions. The selected deck or cassette profile can also be exported as an individual JSON file and imported independently from the all-profiles export.
 
 Deleting one or all cassette profiles also removes matching owned cassette copies from `tapeCollection` and clears exact-model selections from planned tapes.
 

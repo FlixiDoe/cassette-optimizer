@@ -40,60 +40,6 @@
     const ACTIVE_CASSETTE_ID_KEY = "activeCassetteId";
     // `tapeCollection` stores owned physical cassette entries linked to cassette profiles, while legacy `tape_inventory` keeps unprofiled C-length quantities.
     const TAPE_COLLECTION_KEY = "tapeCollection";
-    // These Philips AZ1025/00 values preserve the maintainer's known deck baseline: measured leader delay, small motor spin-up, and conservative five-second safety/default slack margins.
-    const DEFAULT_DECK_PROFILE = {
-      id: "deck_philips_az1025",
-      name: "Philips AZ1025/00",
-      manufacturer: "Philips",
-      model: "AZ1025/00",
-      leaderTapeDelay: 5.8,
-      motorLatency: 0.8,
-      safetyMargin: 5,
-      defaultSlackMargin: 5,
-      autoRecordingLevel: null,
-      dolbyNR: false,
-      typeIISupport: false,
-      typeIVSupport: false,
-      notes: ""
-    };
-    const DEFAULT_CASSETTE_PROFILES = [
-      {
-        id: "tape_maxell_ur90",
-        name: "Maxell UR-90",
-        manufacturer: "Maxell",
-        model: "UR-90",
-        type: "I",
-        lengthMinutes: 90,
-        year: null,
-        condition: {
-          new: false,
-          used: false,
-          testTape: false
-        },
-        // slackMargin: null means this cassette has no measured tape-specific slack — the deck's defaultSlackMargin will be used. This is expected for most cassettes until the user measures them.
-        slackMargin: 5,
-        // leaderLength: null means the leader tape length has not been measured for this cassette — no offset is applied to the deck's base leaderTapeDelay.
-        leaderLength: null
-      },
-      {
-        id: "tape_sony_hf90",
-        name: "Sony HF90",
-        manufacturer: "Sony",
-        model: "HF90",
-        type: "I",
-        lengthMinutes: 90,
-        year: null,
-        condition: {
-          new: false,
-          used: false,
-          testTape: false
-        },
-        // slackMargin: null means this cassette has no measured tape-specific slack — the deck's defaultSlackMargin will be used. This is expected for most cassettes until the user measures them.
-        slackMargin: null,
-        // leaderLength: null means the leader tape length has not been measured for this cassette — no offset is applied to the deck's base leaderTapeDelay.
-        leaderLength: null
-      }
-    ];
     const state = {
       token: null,
       refreshToken: null,
@@ -282,8 +228,8 @@
 
     function initializeDeckProfiles() {
       if (localStorage.getItem(DECK_PROFILES_KEY) !== null) return;
-      saveDeckProfiles([{ ...DEFAULT_DECK_PROFILE }]);
-      setActiveDeck(DEFAULT_DECK_PROFILE.id);
+      saveDeckProfiles([]);
+      setActiveDeck("");
     }
 
     /**
@@ -375,8 +321,8 @@
 
     function initializeCassetteProfiles() {
       if (localStorage.getItem(CASSETTE_PROFILES_KEY) !== null) return;
-      saveCassetteProfiles(DEFAULT_CASSETTE_PROFILES.map(profile => ({ ...profile })));
-      setActiveCassette(DEFAULT_CASSETTE_PROFILES[0].id);
+      saveCassetteProfiles([]);
+      setActiveCassette("");
     }
 
     function renderProfileControls() {
@@ -389,7 +335,9 @@
     function renderDeckProfileControls() {
       const profiles = loadDeckProfiles();
       const active = getActiveDeck();
-      el.deckProfileSelect.innerHTML = profiles.map(profile => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.id)}</option>`).join("");
+      el.deckProfileSelect.innerHTML = profiles.length
+        ? profiles.map(profile => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.id)}</option>`).join("")
+        : `<option value="">No deck profiles</option>`;
       el.deckProfileSelect.value = active?.id || "";
       el.deckProfileName.value = active?.name || "";
       el.deckManufacturer.value = active?.manufacturer || "";
@@ -402,18 +350,21 @@
       el.saveDeckProfileBtn.disabled = !active;
       el.deleteDeckProfileBtn.disabled = !active;
       el.deleteAllDeckProfilesBtn.disabled = !profiles.length;
+      el.exportDeckProfileBtn.disabled = !active;
     }
 
     function renderCassetteProfileControls() {
       const profiles = loadCassetteProfiles();
       const active = getActiveCassette();
-      el.cassetteProfileSelect.innerHTML = profiles.map(profile => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.id)}</option>`).join("");
+      el.cassetteProfileSelect.innerHTML = profiles.length
+        ? profiles.map(profile => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name || profile.id)}</option>`).join("")
+        : `<option value="">No cassette profiles</option>`;
       el.cassetteProfileSelect.value = active?.id || "";
       el.cassetteProfileName.value = active?.name || "";
       el.cassetteManufacturer.value = active?.manufacturer || "";
       el.cassetteModel.value = active?.model || "";
       el.cassetteProfileType.value = active?.type === "II" ? "II" : "I";
-      el.cassetteProfileLength.value = active?.lengthMinutes || 90;
+      el.cassetteProfileLength.value = active?.lengthMinutes || "";
       el.cassetteYear.value = active?.year ?? "";
       const condition = active?.condition || {};
       el.cassetteConditionNew.checked = Boolean(condition.new);
@@ -424,6 +375,7 @@
       el.saveCassetteProfileBtn.disabled = !active;
       el.deleteCassetteProfileBtn.disabled = !active;
       el.deleteAllCassetteProfilesBtn.disabled = !profiles.length;
+      el.exportCassetteProfileBtn.disabled = !active;
     }
 
     function selectDeckProfile() {
@@ -442,12 +394,7 @@
 
     function addDeckProfile() {
       const profiles = loadDeckProfiles();
-      const base = getActiveDeck() || DEFAULT_DECK_PROFILE;
-      const profile = {
-        ...base,
-        id: uniqueProfileId("deck_custom", profiles),
-        name: `New deck ${profiles.length + 1}`
-      };
+      const profile = createBlankDeckProfile(profiles);
       saveDeckProfiles([...profiles, profile]);
       setActiveDeck(profile.id);
       renderProfileControls();
@@ -477,12 +424,7 @@
 
     function addCassetteProfile() {
       const profiles = loadCassetteProfiles();
-      const base = getActiveCassette() || DEFAULT_CASSETTE_PROFILES[0];
-      const profile = {
-        ...base,
-        id: uniqueProfileId("tape_custom", profiles),
-        name: `New cassette ${profiles.length + 1}`
-      };
+      const profile = createBlankCassetteProfile(profiles);
       saveCassetteProfiles([...profiles, profile]);
       setActiveCassette(profile.id);
       renderProfileControls();
@@ -572,6 +514,43 @@
       if (state.project && state.project.tapes.length <= 1 && state.project.tapes[0]) {
         state.project.tapes[0].tapeFormat = state.tapeMinutes;
       }
+    }
+
+    function createBlankDeckProfile(profiles) {
+      return {
+        id: uniqueProfileId("deck_custom", profiles),
+        name: `New deck ${profiles.length + 1}`,
+        manufacturer: "",
+        model: "",
+        leaderTapeDelay: 0,
+        motorLatency: 0,
+        safetyMargin: 0,
+        defaultSlackMargin: 0,
+        autoRecordingLevel: null,
+        dolbyNR: false,
+        typeIISupport: false,
+        typeIVSupport: false,
+        notes: ""
+      };
+    }
+
+    function createBlankCassetteProfile(profiles) {
+      return {
+        id: uniqueProfileId("tape_custom", profiles),
+        name: `New cassette ${profiles.length + 1}`,
+        manufacturer: "",
+        model: "",
+        type: "I",
+        lengthMinutes: Number(state.tapeMinutes) || 90,
+        year: null,
+        condition: {
+          new: false,
+          used: false,
+          testTape: false
+        },
+        slackMargin: null,
+        leaderLength: null
+      };
     }
 
     function recomputeTimingDependentViews(message) {
@@ -750,6 +729,13 @@
       el.saveDeckProfileBtn.addEventListener("click", updateDeckProfile);
       el.deleteDeckProfileBtn.addEventListener("click", deleteActiveDeckProfile);
       el.deleteAllDeckProfilesBtn.addEventListener("click", deleteAllDeckProfiles);
+      el.exportDeckProfileBtn.addEventListener("click", exportActiveDeckProfile);
+      el.importDeckProfileBtn.addEventListener("click", () => el.importDeckProfileFile.click());
+      el.importDeckProfileFile.addEventListener("change", event => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (file) importSingleProfile(file, "deck");
+      });
       el.cassetteProfileSelect.addEventListener("change", selectCassetteProfile);
       el.cassetteProfileName.addEventListener("change", updateCassetteProfile);
       el.cassetteManufacturer.addEventListener("change", updateCassetteProfile);
@@ -769,6 +755,13 @@
       el.saveCassetteProfileBtn.addEventListener("click", updateCassetteProfile);
       el.deleteCassetteProfileBtn.addEventListener("click", deleteActiveCassetteProfile);
       el.deleteAllCassetteProfilesBtn.addEventListener("click", deleteAllCassetteProfiles);
+      el.exportCassetteProfileBtn.addEventListener("click", exportActiveCassetteProfile);
+      el.importCassetteProfileBtn.addEventListener("click", () => el.importCassetteProfileFile.click());
+      el.importCassetteProfileFile.addEventListener("change", event => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (file) importSingleProfile(file, "cassette");
+      });
       el.exportProfilesBtn.addEventListener("click", exportProfiles);
       el.importProfilesBtn.addEventListener("click", () => el.importProfilesFile.click());
       el.exportProfileFolderBtn.addEventListener("click", exportProfileFolder);
@@ -3793,6 +3786,38 @@
       log("Profiles exported as JSON.");
     }
 
+    function exportActiveDeckProfile() {
+      const profile = getActiveDeck();
+      if (!profile) {
+        el.profileStatus.textContent = "No deck profile selected.";
+        return;
+      }
+      downloadJson(buildSingleProfilePayload("deck", profile), `${profileFilename(profile.name, profile.id)}.deck-profile.json`);
+      el.profileStatus.textContent = "Deck profile exported.";
+      log("Deck profile exported as JSON.");
+    }
+
+    function exportActiveCassetteProfile() {
+      const profile = getActiveCassette();
+      if (!profile) {
+        el.profileStatus.textContent = "No cassette profile selected.";
+        return;
+      }
+      downloadJson(buildSingleProfilePayload("cassette", profile), `${profileFilename(profile.name, profile.id)}.cassette-profile.json`);
+      el.profileStatus.textContent = "Cassette profile exported.";
+      log("Cassette profile exported as JSON.");
+    }
+
+    function buildSingleProfilePayload(profileType, profile) {
+      return {
+        app: "cassette-optimizer",
+        version: 1,
+        profileType,
+        exportedAt: new Date().toISOString(),
+        profile
+      };
+    }
+
     /**
      * Exports all local profile/config data into a folder tree.
      *
@@ -4060,6 +4085,41 @@
         };
         reader.readAsText(file);
       });
+    }
+
+    async function importSingleProfile(file, profileType) {
+      try {
+        const payload = JSON.parse(await file.text());
+        const profiles = extractProfilesFromPayload(payload, profileType);
+        if (!profiles.length) {
+          el.profileStatus.textContent = `Could not read file - make sure it is a valid ${profileType} profile export.`;
+          return;
+        }
+        if (profileType === "deck") {
+          saveDeckProfiles(mergeProfilesById(loadDeckProfiles(), profiles));
+          setActiveDeck(profiles[0].id);
+          renderProfileControls();
+          recomputeTimingDependentViews(`Imported deck profile "${profiles[0].name}".`);
+          return;
+        }
+        saveCassetteProfiles(mergeProfilesById(loadCassetteProfiles(), profiles));
+        setActiveCassette(profiles[0].id);
+        if (profiles[0].lengthMinutes) setTapeLengthFromProfile(profiles[0].lengthMinutes);
+        renderProfileControls();
+        recomputeTimingDependentViews(`Imported cassette profile "${profiles[0].name}".`);
+      } catch {
+        el.profileStatus.textContent = `Could not read file - make sure it is a valid ${profileType} profile export.`;
+      }
+    }
+
+    function extractProfilesFromPayload(payload, profileType) {
+      const candidates = [];
+      if (payload?.profile) candidates.push(payload.profile);
+      if (profileType === "deck" && Array.isArray(payload?.deckProfiles)) candidates.push(...payload.deckProfiles);
+      if (profileType === "cassette" && Array.isArray(payload?.cassetteProfiles)) candidates.push(...payload.cassetteProfiles);
+      if (!candidates.length) candidates.push(payload);
+      const validator = profileType === "deck" ? isValidDeckProfile : isValidCassetteProfile;
+      return candidates.filter(validator);
     }
 
     function isValidDeckProfile(profile) {

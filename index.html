@@ -58,6 +58,11 @@
               <button id="deleteDeckProfileBtn" type="button" class="danger">Delete</button>
               <button id="deleteAllDeckProfilesBtn" type="button" class="danger">Delete all</button>
             </div>
+            <div class="row">
+              <button id="exportDeckProfileBtn" type="button">Export selected</button>
+              <button id="importDeckProfileBtn" type="button">Import deck</button>
+              <input id="importDeckProfileFile" type="file" accept="application/json,.json" hidden>
+            </div>
             <button id="saveDeckProfileBtn" type="button" class="primary">Save deck profile</button>
           </div>
           <label class="label" for="deckProfileName">Deck name</label>
@@ -124,6 +129,11 @@
               <button id="deleteCassetteProfileBtn" type="button" class="danger">Delete</button>
               <button id="deleteAllCassetteProfilesBtn" type="button" class="danger">Delete all</button>
             </div>
+            <div class="row">
+              <button id="exportCassetteProfileBtn" type="button">Export selected</button>
+              <button id="importCassetteProfileBtn" type="button">Import cassette</button>
+              <input id="importCassetteProfileFile" type="file" accept="application/json,.json" hidden>
+            </div>
             <button id="saveCassetteProfileBtn" type="button" class="primary">Save cassette profile</button>
           </div>
           <label class="label" for="cassetteProfileName">Cassette name</label>
@@ -148,7 +158,7 @@
             </label>
             <label>
               <span class="label" for="cassetteProfileLength">Length</span>
-              <input id="cassetteProfileLength" type="number" min="1" max="180" step="1" value="90">
+              <input id="cassetteProfileLength" type="number" min="1" max="180" step="1">
             </label>
           </div>
           <label>

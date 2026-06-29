@@ -293,12 +293,12 @@ The playlist input UI is grouped separately from profile editing. `playlistInput
 The app now separates cassette models from owned physical cassette copies.
 
 ```text
-cassetteProfiles  -> reusable model definitions such as Maxell UR-90
+cassetteProfiles  -> reusable user-defined cassette model records
 tapeCollection    -> owned physical copies linked to cassetteProfileId
 tape_inventory    -> legacy/exported unprofiled C-length counts
 ```
 
-First-run inventory is empty. Cassette profiles are only model definitions; owned physical copies are added and removed with the plus/minus controls in `Tapes you have`. `getTapeInventory()` now reports the owned collection grouped by cassette profile length, so planning only sees cassette copies the user explicitly added.
+First-run inventory and cassette profile storage are empty. Cassette profiles are only model definitions; owned physical copies are added and removed with the plus/minus controls in `Tapes you have`. `getTapeInventory()` now reports the owned collection grouped by cassette profile length, so planning only sees cassette copies the user explicitly added.
 
 Each planned tape layout can store `cassetteProfileId`. The per-tape planning controls show exact owned cassette models that match the selected length and avoid offering more copies than exist in `tapeCollection`.
 
