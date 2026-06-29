@@ -1,5 +1,24 @@
 # Changelog
 
+## Cassette Optimizer 1.2.0
+
+Feature and stability release for profile-driven cassette planning, local monitoring, and recording reliability.
+
+### Highlights
+
+- Add deck profiles and cassette profiles with explicit save/delete controls, richer metadata, and timing settings that feed recording calibration.
+- Track owned physical cassettes separately from cassette model profiles, including exact cassette-model selection for each planned tape.
+- Export and import profile data as individual JSON files, profile bundles, or a folder tree with deck profiles, cassette profiles, playlist profiles, and tape collection data.
+- Rework the left input panel into repeated Spotify, Playlist, Deck, Cassette, Tape planning, and Files sections with consistent control ordering.
+- Harden local and LAN status monitoring by keeping `GET /api/status` readable while requiring localhost or `STATUS_WRITE_TOKEN` for writes.
+- Improve recording reliability with guarded timer ticks, one-shot 401 retries, stable rate-limit countdown cleanup, cancellable cue promises, and PKCE callback cleanup.
+- Improve import and print robustness by dropping zero-length tracks, skipping unreadable profile JSON files, preserving dash-separated live titles, and warning before batched Spotify playlist writes.
+- Document Node.js `>=18`, profile workflows, status API write protection, and the updated stability behavior.
+
+### Validation
+
+- `npm test` passes: 27/27 tests.
+
 ## Cassette Optimizer 1.1.0
 
 Feature release for the current recording-readiness and cassette-planning workflow.
