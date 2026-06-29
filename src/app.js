@@ -1717,61 +1717,35 @@
     }
 
     async function fetchAllTracks(playlistId) {
-      const tracks = [];
-      let blockedBySpotify = false;
-      let url = `/playlists/${playlistId}/tracks?limit=50&additional_types=track`;
+      const sources = [
+        `/playlists/${playlistId}/items?limit=100&fields=items(track(id,uri,name,duration_ms,artists(name),is_local,type)),next,total`,
+        `/playlists/${playlistId}/items?limit=100&fields=items(item(id,uri,name,duration_ms,artists(name),is_local,type)),next,total`,
+        `/playlists/${playlistId}?fields=tracks(total,next,items(track(id,uri,name,duration_ms,artists(name),is_local,type)))`,
+        `/playlists/${playlistId}?fields=items(total,next,items(item(id,uri,name,duration_ms,artists(name),is_local,type)))`,
+        `/playlists/${playlistId}/tracks?limit=100&fields=items(track(id,uri,name,duration_ms,artists(name),is_local,type)),next,total&additional_types=track`
+      ];
       let receivedItems = 0;
+      let blockedBySpotify = false;
 
-      while (url) {
-        let page;
-        try {
-          page = await spotifyFetch(url);
-        } catch (error) {
-          if (tracks.length || !(error instanceof SpotifyApiError) || error.status !== 403) throw error;
-          blockedBySpotify = true;
-          break;
-        }
-        const items = Array.isArray(page.items) ? page.items : [];
-        receivedItems += items.length;
-
-        for (const item of items) {
-          const track = normalizePlaylistTrackItem(item);
-          if (track) tracks.push(track);
-        }
-
-        url = page.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
+      for (const url of sources) {
+        const result = await fetchTracksFromPlaylistContainer(url);
+        if (result.tracks.length) return result.tracks;
+        receivedItems += result.receivedItems;
+        blockedBySpotify = blockedBySpotify || result.blocked;
       }
-
-      if (tracks.length) return tracks;
-
-      const fallbackTracks = await fetchAllTracksFromPlaylistItems(playlistId);
-      if (fallbackTracks.length) return fallbackTracks;
-
-      if (blockedBySpotify) return tracks;
 
       if (receivedItems > 0) {
         throw new Error(`Spotify returned ${receivedItems} playlist items, but none were usable Spotify tracks.`);
       }
 
-      return tracks;
-    }
-
-    async function fetchAllTracksFromPlaylistItems(playlistId) {
-      const fallbackUrls = [
-        `/playlists/${playlistId}?fields=tracks(total,next,items(track(id,uri,name,duration_ms,artists(name),is_local,type)))`,
-        `/playlists/${playlistId}?fields=items(total,next,items(item(id,uri,name,duration_ms,artists(name),is_local,type)))`
-      ];
-
-      for (const url of fallbackUrls) {
-        const tracks = await fetchTracksFromPlaylistContainer(url);
-        if (tracks.length) return tracks;
-      }
-
+      if (blockedBySpotify) return [];
       return [];
     }
 
     async function fetchTracksFromPlaylistContainer(startUrl) {
       const tracks = [];
+      let receivedItems = 0;
+      let blocked = false;
       let url = startUrl;
 
       while (url) {
@@ -1780,10 +1754,12 @@
           page = await spotifyFetch(url);
         } catch (error) {
           if (!(error instanceof SpotifyApiError) || error.status !== 403) throw error;
-          return tracks;
+          blocked = true;
+          break;
         }
-        const container = page.tracks || page.items || page;
+        const container = getPlaylistItemsContainer(page);
         const items = Array.isArray(container.items) ? container.items : [];
+        receivedItems += items.length;
 
         for (const item of items) {
           const track = normalizePlaylistTrackItem(item);
@@ -1793,7 +1769,12 @@
         url = container.next ? container.next.replace("https://api.spotify.com/v1", "") : "";
       }
 
-      return tracks;
+      return { tracks, receivedItems, blocked };
+    }
+
+    function getPlaylistItemsContainer(page) {
+      if (Array.isArray(page?.items)) return page;
+      return page?.tracks || page?.items || page || {};
     }
 
     function normalizePlaylistTrackItem(item) {
@@ -3786,6 +3767,10 @@
       }
 
       const availableFormats = getAvailableTapeFormats();
+      if (!availableFormats.length) {
+        el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>Add at least one cassette format under Tapes you have.</span>`;
+        return;
+      }
       const fits = availableFormats.map(minutes => ({ minutes, ...analyzeTapeFit(minutes) }));
       const cleanFit = fits.find(format => totalMs <= format.minutes * 60 * 1000 && format.sideBFits);
       const totalOnlyFit = fits.find(format => totalMs <= format.minutes * 60 * 1000);
