@@ -59,6 +59,7 @@
       tapeCollection: [],
       project: null,
       projectDirty: false,
+      pendingConfirmClose: null,
       tapeLayouts: [],
       selectedTapeIndex: 0,
       slackMarginSeconds: 0,
@@ -1725,12 +1726,8 @@
     }
 
     function confirmPlaylistReorder() {
-      return new Promise(resolve => {
-        const existing = document.querySelector(".confirm-overlay");
-        if (existing) existing.remove();
-        const overlay = document.createElement("div");
-        overlay.className = "confirm-overlay";
-        overlay.innerHTML = `
+      return showConfirmOverlay(
+        `
           <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="applyConfirmTitle">
             <h3 id="applyConfirmTitle">Apply cassette order to Spotify?</h3>
             <p>This will replace the remote playlist sequence with the current full multi-tape plan.</p>
@@ -1740,15 +1737,8 @@
               <button type="button" class="warn" data-confirm-action="continue">Continue Anyway</button>
             </div>
           </div>
-        `;
-        document.body.append(overlay);
-        const finish = value => {
-          overlay.remove();
-          resolve(value);
-        };
-        overlay.addEventListener("click", event => {
-          if (event.target === overlay) finish(false);
-          const action = event.target?.dataset?.confirmAction;
+        `,
+        (action, finish) => {
           if (action === "cancel") finish(false);
           if (action === "backup") {
             exportTapeConfig();
@@ -1756,19 +1746,14 @@
             finish(false);
           }
           if (action === "continue") finish(true);
-        });
-        overlay.querySelector("[data-confirm-action='cancel']").focus();
-      });
+        }
+      );
     }
 
     function confirmReplaceDirtyProject() {
       if (!state.project || !state.projectDirty) return Promise.resolve(true);
-      return new Promise(resolve => {
-        const existing = document.querySelector(".confirm-overlay");
-        if (existing) existing.remove();
-        const overlay = document.createElement("div");
-        overlay.className = "confirm-overlay";
-        overlay.innerHTML = `
+      return showConfirmOverlay(
+        `
           <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="replaceConfirmTitle">
             <h3 id="replaceConfirmTitle">Replace unsaved cassette project?</h3>
             <p>The current plan has local changes. Export a backup before replacing it, or continue and discard those edits.</p>
@@ -1778,15 +1763,8 @@
               <button type="button" class="warn" data-confirm-action="replace">Replace Anyway</button>
             </div>
           </div>
-        `;
-        document.body.append(overlay);
-        const finish = value => {
-          overlay.remove();
-          resolve(value);
-        };
-        overlay.addEventListener("click", event => {
-          if (event.target === overlay) finish(false);
-          const action = event.target?.dataset?.confirmAction;
+        `,
+        (action, finish) => {
           if (action === "cancel") finish(false);
           if (action === "backup") {
             exportTapeConfig();
@@ -1794,6 +1772,32 @@
             finish(false);
           }
           if (action === "replace") finish(true);
+        }
+      );
+    }
+
+    function showConfirmOverlay(markup, handleAction) {
+      if (state.pendingConfirmClose) state.pendingConfirmClose(false);
+      const existing = document.querySelector(".confirm-overlay");
+      if (existing) existing.remove();
+      return new Promise(resolve => {
+        const overlay = document.createElement("div");
+        overlay.className = "confirm-overlay";
+        overlay.innerHTML = markup;
+        document.body.append(overlay);
+        const finish = value => {
+          if (state.pendingConfirmClose === finish) state.pendingConfirmClose = null;
+          overlay.remove();
+          resolve(value);
+        };
+        state.pendingConfirmClose = finish;
+        overlay.addEventListener("click", event => {
+          if (event.target === overlay) {
+            finish(false);
+            return;
+          }
+          const action = event.target?.dataset?.confirmAction;
+          if (action) handleAction(action, finish);
         });
         overlay.querySelector("[data-confirm-action='cancel']").focus();
       });
