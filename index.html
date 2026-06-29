@@ -29,7 +29,8 @@
     <section class="grid">
       <aside class="panel stack">
         <h2>Input</h2>
-        <div id="credentialsPanel">
+        <div id="credentialsPanel" class="input-section">
+          <h3 class="input-section-title">Spotify</h3>
           <div>
             <label class="label" for="clientId">Spotify Client ID</label>
             <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID">
@@ -47,23 +48,34 @@
             </label>
           </details>
         </div>
-        <div class="profile-panel">
+        <div id="playlistPickerPanel" class="playlist-panel input-section">
+          <h3 class="input-section-title">Playlist</h3>
+          <label class="label" for="playlistSelect">Your Spotify playlists</label>
+          <div class="row">
+            <select id="playlistSelect" disabled>
+              <option value="">Connect Spotify, then load playlists</option>
+            </select>
+            <button id="loadPlaylistsBtn" type="button" disabled>Refresh</button>
+          </div>
+          <button id="loadBtn" class="primary">Load playlist</button>
+          <div>
+            <label class="label" for="playlistInput">Playlist URL or ID</label>
+            <input id="playlistInput" value="" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
+          </div>
+        </div>
+        <div class="profile-panel input-section">
+          <h3 class="input-section-title">Deck</h3>
           <div class="profile-toolbar">
             <label class="label" for="deckProfileSelect">Deck profile</label>
             <div class="row">
               <select id="deckProfileSelect"></select>
               <button id="addDeckProfileBtn" type="button">New</button>
             </div>
+            <button id="saveDeckProfileBtn" type="button" class="primary">Save deck profile</button>
             <div class="row">
               <button id="deleteDeckProfileBtn" type="button" class="danger">Delete</button>
               <button id="deleteAllDeckProfilesBtn" type="button" class="danger">Delete all</button>
             </div>
-            <div class="row">
-              <button id="exportDeckProfileBtn" type="button">Export selected</button>
-              <button id="importDeckProfileBtn" type="button">Import deck</button>
-              <input id="importDeckProfileFile" type="file" accept="application/json,.json" hidden>
-            </div>
-            <button id="saveDeckProfileBtn" type="button" class="primary">Save deck profile</button>
           </div>
           <label class="label" for="deckProfileName">Deck name</label>
           <input id="deckProfileName" autocomplete="off">
@@ -99,42 +111,25 @@
             <span class="label" for="deckNotes">Notes</span>
             <textarea id="deckNotes" rows="2"></textarea>
           </label>
-        </div>
-        <div id="playlistPickerPanel" class="playlist-panel">
-          <div>
-            <label class="label" for="playlistInput">Playlist URL or ID</label>
-            <input id="playlistInput" value="" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
-          </div>
-          <button id="loadBtn" class="primary">Load playlist</button>
-          <label class="label" for="playlistSelect">Your Spotify playlists</label>
           <div class="row">
-            <select id="playlistSelect" disabled>
-              <option value="">Connect Spotify, then load playlists</option>
-            </select>
-            <button id="loadPlaylistsBtn" type="button" disabled>Refresh</button>
+            <button id="exportDeckProfileBtn" type="button">Export selected</button>
+            <button id="importDeckProfileBtn" type="button">Import deck</button>
+            <input id="importDeckProfileFile" type="file" accept="application/json,.json" hidden>
           </div>
         </div>
-        <div>
-          <label class="label" for="tapeSelect">Tape format</label>
-          <select id="tapeSelect"></select>
-        </div>
-        <div class="profile-panel">
+        <div class="profile-panel input-section">
+          <h3 class="input-section-title">Cassette</h3>
           <div class="profile-toolbar">
             <label class="label" for="cassetteProfileSelect">Cassette profile</label>
             <div class="row">
               <select id="cassetteProfileSelect"></select>
               <button id="addCassetteProfileBtn" type="button">New</button>
             </div>
+            <button id="saveCassetteProfileBtn" type="button" class="primary">Save cassette profile</button>
             <div class="row">
               <button id="deleteCassetteProfileBtn" type="button" class="danger">Delete</button>
               <button id="deleteAllCassetteProfilesBtn" type="button" class="danger">Delete all</button>
             </div>
-            <div class="row">
-              <button id="exportCassetteProfileBtn" type="button">Export selected</button>
-              <button id="importCassetteProfileBtn" type="button">Import cassette</button>
-              <input id="importCassetteProfileFile" type="file" accept="application/json,.json" hidden>
-            </div>
-            <button id="saveCassetteProfileBtn" type="button" class="primary">Save cassette profile</button>
           </div>
           <label class="label" for="cassetteProfileName">Cassette name</label>
           <input id="cassetteProfileName" autocomplete="off">
@@ -189,24 +184,37 @@
               <input id="cassetteSlackMargin" type="number" min="0" max="120" step="1" placeholder="Deck default">
             </label>
           </div>
+          <div class="row">
+            <button id="exportCassetteProfileBtn" type="button">Export selected</button>
+            <button id="importCassetteProfileBtn" type="button">Import cassette</button>
+            <input id="importCassetteProfileFile" type="file" accept="application/json,.json" hidden>
+          </div>
         </div>
-        <div>
-          <label class="label" for="slackMargin">Tape Slack Margin (seconds)</label>
-          <input id="slackMargin" type="number" min="0" max="120" step="1" value="0">
-        </div>
-        <div>
+        <div class="input-section">
+          <h3 class="input-section-title">Tape planning</h3>
+          <div>
+            <label class="label" for="tapeSelect">Tape format</label>
+            <select id="tapeSelect"></select>
+          </div>
+          <div>
+            <label class="label" for="slackMargin">Tape Slack Margin (seconds)</label>
+            <input id="slackMargin" type="number" min="0" max="120" step="1" value="0">
+          </div>
           <span class="label">Tapes you have</span>
           <div class="tape-inventory" id="tapeInventory"></div>
         </div>
-        <div class="config-actions">
-          <button id="exportConfigBtn" type="button" disabled>Export Config</button>
-          <button id="importConfigBtn" type="button">Import Config</button>
-          <input id="importConfigFile" type="file" accept="application/json,.json" hidden>
-          <button id="exportProfilesBtn" type="button">Export profiles</button>
-          <button id="importProfilesBtn" type="button">Import profiles</button>
-          <input id="importProfilesFile" type="file" accept="application/json,.json" hidden>
-          <button id="exportProfileFolderBtn" type="button">Export profile folder</button>
-          <button id="importProfileFolderBtn" type="button">Import profile folder</button>
+        <div class="input-section">
+          <h3 class="input-section-title">Files</h3>
+          <div class="config-actions">
+            <button id="exportConfigBtn" type="button" disabled>Export Config</button>
+            <button id="importConfigBtn" type="button">Import Config</button>
+            <input id="importConfigFile" type="file" accept="application/json,.json" hidden>
+            <button id="exportProfilesBtn" type="button">Export profiles</button>
+            <button id="importProfilesBtn" type="button">Import profiles</button>
+            <input id="importProfilesFile" type="file" accept="application/json,.json" hidden>
+            <button id="exportProfileFolderBtn" type="button">Export profile folder</button>
+            <button id="importProfileFolderBtn" type="button">Import profile folder</button>
+          </div>
         </div>
         <div class="small" id="profileStatus" aria-live="polite"></div>
         <button id="applyBtn" class="warn" disabled>Apply to Spotify</button>

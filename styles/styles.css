@@ -149,6 +149,23 @@
       gap: 12px;
     }
 
+    .input-section {
+      display: grid;
+      gap: 12px;
+      padding-top: 2px;
+    }
+
+    .input-section + .input-section {
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+
+    .input-section-title {
+      color: var(--amber);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
     .profile-toolbar {
       padding-bottom: 4px;
     }
