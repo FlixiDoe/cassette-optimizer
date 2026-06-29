@@ -572,12 +572,16 @@
     function uniqueProfileId(prefix, profiles) {
       const existing = new Set(profiles.map(profile => profile.id));
       let index = profiles.length + 1;
-      let id = `${prefix}_${Date.now()}`;
+      let id = `${prefix}_${randomProfileIdSuffix()}`;
       while (existing.has(id)) {
-        id = `${prefix}_${Date.now()}_${index}`;
+        id = `${prefix}_${randomProfileIdSuffix()}_${index}`;
         index += 1;
       }
       return id;
+    }
+
+    function randomProfileIdSuffix() {
+      return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     }
 
     function optionalSeconds(value, min, max) {
