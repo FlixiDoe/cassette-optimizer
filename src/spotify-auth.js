@@ -127,6 +127,23 @@ export function clearSpotifyAuthStorage(localStorage, sessionStorage) {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   // Delete `spotify_device_id` because the selected device belongs to the expired Spotify session.
   localStorage.removeItem(DEVICE_STORAGE_KEY);
+  clearSpotifyPkceStorage(sessionStorage);
+}
+
+/**
+ * Clears one-time PKCE verifier and OAuth state values.
+ *
+ * The verifier and state are needed only between `login()` and a successful or
+ * rejected callback. Keeping them after a successful exchange makes a stale
+ * callback easier to replay accidentally in the same tab.
+ *
+ * @param {Storage} sessionStorage - Browser sessionStorage object containing transient PKCE keys.
+ * @returns {void}
+ * @throws {DOMException} May throw if browser storage cleanup fails.
+ *
+ * Side effects: Deletes `pkce_verifier` and `oauth_state`.
+ */
+export function clearSpotifyPkceStorage(sessionStorage) {
   // Delete `pkce_verifier` so a stale authorization code cannot be exchanged after logout or expiry.
   sessionStorage.removeItem(PKCE_VERIFIER_KEY);
   // Delete `oauth_state` so the next PKCE login must generate a fresh CSRF token.

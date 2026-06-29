@@ -4,7 +4,7 @@
     import { validateRecordingSide, summarizePreflightIssues } from "./recording-preflight.js";
     import { RECORD_CUE_SECONDS, getExpectedTrackAtElapsed } from "./recording.js";
     import { SpotifyApiError, base64Url, parsePlaylistId, pickPlaylistCover, randomBytes, sha256Base64Url } from "./spotify.js";
-    import { SpotifyAccountsError, buildTokenState, clearSpotifyAuthStorage, expireSpotifySession, isInvalidGrantError } from "./spotify-auth.js";
+    import { SpotifyAccountsError, buildTokenState, clearSpotifyAuthStorage, clearSpotifyPkceStorage, expireSpotifySession, isInvalidGrantError } from "./spotify-auth.js";
     import { TAPE_FORMATS, analyzeTapeFitForTracks, duration, formatLongTime, formatTime, splitTracksForSide, splitTracksIntoTapes, splitTracksIntoTapesByFormats } from "./tape.js";
 
     const DEFAULT_SPOTIFY_CLIENT_ID = "";
@@ -890,7 +890,7 @@
      * @returns {Promise<void>} Resolves after the callback is ignored, rejected, stored, or logged as failed.
      * @throws {Error} Does not intentionally throw; token exchange errors are caught and logged.
      *
-     * Side effects: Reads `pkce_verifier` and `oauth_state`, fetches `POST https://accounts.spotify.com/api/token`, writes `spotify_token`, mutates history, and logs status.
+     * Side effects: Reads and clears `pkce_verifier` and `oauth_state`, fetches `POST https://accounts.spotify.com/api/token`, writes `spotify_token`, mutates history, and logs status.
      */
     async function handleCallback() {
       // Ignore normal app loads; only `/callback` or a callback query should attempt token exchange.
@@ -927,6 +927,8 @@
         const data = await fetchAccounts(body);
         // Initial authorization writes a fresh `authorizedAt`; refreshes preserve that timestamp.
         saveToken(data, { initialAuthorization: true });
+        // The verifier and OAuth state are one-time callback material and should not survive a successful exchange.
+        clearSpotifyPkceStorage(sessionStorage);
         // Remove the one-time OAuth query parameters from the address bar after the token has been stored.
         history.replaceState({}, "", new URL(APP_BASE_URL).pathname);
         log("Spotify connected.");

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   SpotifyAccountsError,
   buildTokenState,
+  clearSpotifyPkceStorage,
   expireSpotifySession,
   isInvalidGrantError
 } from "../src/spotify-auth.js";
@@ -89,4 +90,18 @@ test("expired Spotify sessions clear tokens, auth session data, device state, an
   assert.equal(sessionStorage.getItem("pkce_verifier"), null);
   assert.equal(sessionStorage.getItem("oauth_state"), null);
   assert.equal(redirectCount, 1);
+});
+
+test("PKCE cleanup removes one-time callback state only", () => {
+  const sessionStorage = memoryStorage({
+    pkce_verifier: "verifier",
+    oauth_state: "state",
+    unrelated: "keep"
+  });
+
+  clearSpotifyPkceStorage(sessionStorage);
+
+  assert.equal(sessionStorage.getItem("pkce_verifier"), null);
+  assert.equal(sessionStorage.getItem("oauth_state"), null);
+  assert.equal(sessionStorage.getItem("unrelated"), "keep");
 });
