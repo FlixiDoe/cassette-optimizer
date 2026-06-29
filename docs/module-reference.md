@@ -89,6 +89,8 @@ getClientSecret()
 
 `spotifyFetch()` is the only function new Spotify Web API calls should normally use. It refreshes tokens, converts common player/device failures into clearer errors, and sets recovery copy for the Recording Readiness panel.
 
+401 responses trigger at most one access-token refresh retry. A second 401 is surfaced as an expired-login condition instead of looping.
+
 `spotifyFetch()` also owns Spotify Web API 429 handling. It reads `Retry-After` with a 5-second fallback, retries non-recording requests once, buffers active-recording playback commands for replay while the same side is still active, and never applies this logic to Spotify Accounts token requests because those use `fetchAccounts()`.
 
 ### Playlist functions
@@ -210,6 +212,8 @@ getRecordingLockedControls()
 
 Use these shared helpers instead of adding ad hoc `confirm(...)` calls or disabling controls in only one place. `Export Backup` paths intentionally stop after downloading JSON.
 
+Confirmation overlays resolve any pending older confirmation with `false` before showing a replacement, so rapid repeated actions do not leave unresolved promises. `Apply to Spotify` adds a large-playlist warning when the reorder must be written in more than one Spotify API batch.
+
 `isChecklistComplete()` is the deck checklist gate for Start Side A/B and recording preflight. It returns true only when every deck checklist item is checked or the explicit skip checklist toggle is active.
 
 `syncAutomaticDeckChecklistItems()` turns checklist items on when the app can verify them itself. Currently the Spotify device checklist row is checked automatically after a selected or active Spotify device is detected; physical deck setup rows remain manual.
@@ -272,6 +276,8 @@ completeSideB()
 
 `handleRateLimit(...)` is the centralized Spotify 429 path. During active recording it keeps the tape timer running, shows a non-blocking warning, and stores playback commands for replay after Retry-After only if the same side is still recording.
 
+Timer ticks run through a guard so async side-completion work cannot overlap across 250 ms interval ticks.
+
 ### Spotify monitoring functions
 
 ```text
@@ -288,6 +294,8 @@ getProjectedRecordElapsed()
 ```
 
 The local timer is the primary timeline. Spotify playback is used to correct drift and wrong-track jumps, not as the only clock.
+
+Spotify progress is trusted only inside the shared 5-second drift tolerance used by the Recording Readiness status.
 
 `setPlaybackRecovery(...)` updates the Recording Readiness panel with actionable recovery text.
 
@@ -426,6 +434,8 @@ migrateImportedConfig(payload)
 
 It accepts legacy, current, and future JSON payloads and returns a normalized current-version payload before `src/app.js` performs app-specific import normalization. It supplies defaults for fields such as calibration, tape inventory, `slackMarginSeconds`, and `jCardOverrides`.
 
+Future config versions emit a console warning before being normalized to the current schema. Track normalization drops zero-length imported tracks.
+
 ## src/jcard.js
 
 Pure J-card markup renderer.
@@ -451,7 +461,7 @@ The returned object is:
 
 `densityClass` helps CSS compact large tracklists.
 
-`cleanJCardTrackTitle(...)` removes common print-unfriendly suffixes such as remaster, live, deluxe edition, and bonus-track labels. Manual overrides take precedence in rendered markup.
+`cleanJCardTrackTitle(...)` removes common print-unfriendly suffixes such as remaster, parenthesized/bracketed live labels, deluxe edition, and bonus-track labels. Dash-separated live titles are preserved. Manual overrides take precedence in rendered markup.
 
 ## src/export.js
 
@@ -477,6 +487,8 @@ GET /api/health reports server status and LAN URLs
 ```
 
 The server stores status in memory only. It does not store Spotify tokens and does not call Spotify.
+
+Invalid JSON sent to `POST /api/status` returns `400` with `Invalid JSON body`.
 
 The server is ES module code and accepts cross-platform CLI options:
 
@@ -584,4 +596,4 @@ profiles/
   manifest.json
 ```
 
-`importProfileFolder()` reads the same tree, merges deck/cassette profile files by id, restores owned cassette collection and unprofiled inventory JSON, and imports the first playlist profile as the active project when present.
+`importProfileFolder()` reads the same tree, merges deck/cassette profile files by id, restores owned cassette collection and unprofiled inventory JSON, and imports the first playlist profile as the active project when present. Individual unreadable JSON files are skipped and logged so one corrupt file does not abort the full folder import.

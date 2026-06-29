@@ -39,7 +39,7 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Supports deck profiles, cassette model profiles, exact per-tape cassette model selection, and owned tape inventory quantities.
 - Blocks recording when `Tapes you have` cannot satisfy the current plan or any planned side is too long for its cassette format.
 - Exports/imports cassette projects as JSON.
-- Exports/imports profile folders with deck profiles, cassette profiles, playlist profiles, and tape collection JSON separated into subfolders.
+- Exports/imports profile folders with deck profiles, cassette profiles, playlist profiles, and tape collection JSON separated into subfolders; unreadable JSON files are skipped with a log entry.
 - Migrates older cassette project JSON during import.
 - Controls Spotify playback for Side A / Side B recording with preflight safety checks.
 - Locks planning controls while cueing, recording, pausing, or waiting for a flip.
@@ -53,6 +53,8 @@ For the safest use, record only music you own, created yourself, or are otherwis
 For implementation details, read [docs/code-overview.md](docs/code-overview.md) and [docs/module-reference.md](docs/module-reference.md).
 
 ## Local Setup
+
+Use Node.js 18 or newer for the local server and automated tests.
 
 Create or open a Spotify app in the Spotify Developer Dashboard and add this redirect URI:
 
@@ -202,7 +204,7 @@ Ready     All rows above are green
 
 Start Side A/B is disabled, and the click handler also blocks, unless every Recording Readiness row is green.
 
-`Apply to Spotify` always asks for confirmation before changing the remote playlist order. `Export Backup` downloads the project JSON and does not continue with the Spotify reorder.
+`Apply to Spotify` always asks for confirmation before changing the remote playlist order. `Export Backup` downloads the project JSON and does not continue with the Spotify reorder. Playlists above 100 tracks show an extra warning because Spotify receives the update in batches.
 
 ## Deck and Audio Setup
 

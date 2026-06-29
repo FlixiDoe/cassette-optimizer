@@ -18,6 +18,14 @@ Feature release for the current recording-readiness and cassette-planning workfl
 - Print J-cards with playlist art, title cleanup, cover-derived theming, and manual print-only title overrides.
 - Export and import cassette project JSON, including multi-tape state, inventory, calibration, slack margin, and J-card overrides.
 
+### Maintenance
+
+- Harden Spotify auth and playback timing by limiting 401 refresh retries, aligning progress drift tolerance, and guarding recording timer ticks.
+- Improve import resilience by dropping zero-length imported tracks, warning on future config versions, and skipping unreadable profile-folder JSON files.
+- Improve confirmation flows for overlapping dialogs and batched Spotify playlist writes.
+- Keep J-card cleanup from stripping dash-separated live titles.
+- Document Node.js `>=18` as the supported runtime.
+
 ### Validation
 
-- `npm test` passes: 24/24 tests.
+- `npm test` passes: 26/26 tests.
