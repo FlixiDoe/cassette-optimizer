@@ -12,6 +12,7 @@
     const REDIRECT_URI = `${APP_BASE_URL}callback`;
     const REQUIRED_SCOPES = [
       "playlist-read-private",
+      "playlist-read-collaborative",
       "playlist-modify-private",
       "playlist-modify-public",
       "user-read-playback-state",
@@ -1606,19 +1607,25 @@
     }
 
     function selectUserPlaylist() {
+
       if (blockIfRecordingLocked("Playlist selection")) {
+
         renderPlaylistOptions();
+
         return;
+
       }
+
       const selected = state.playlists.find(playlist => playlist.id === el.playlistSelect.value);
+
       if (!selected) return;
-      state.playlistId = selected.id;
-      state.playlistName = selected.name;
-      state.playlistCoverUrl = selected.coverUrl || "";
+
       el.playlistInput.value = selected.id;
-      el.playlistTitle.textContent = selected.name;
+
       log(`Selected playlist: ${selected.name}. Click Load playlist to fetch tracks.`);
+
     }
+
 
     function createMixtapeProject({ projectTitle, playlistId, playlistName, coverUrl, tracks, tapeMinutes, selectedTapeIndex = 0 }) {
       const now = new Date().toISOString();
@@ -1719,7 +1726,7 @@
 
     async function fetchAllTracks(playlistId) {
       const tracks = [];
-      let url = `/playlists/${playlistId}/tracks?limit=100&fields=items(track(id,uri,name,duration_ms,artists(name),is_local)),next,total`;
+      let url = `/playlists/${playlistId}/tracks?limit=50&fields=items(track(id,uri,name,duration_ms,artists(name),is_local)),next,total`;
       while (url) {
         let page;
         try {
@@ -1738,20 +1745,35 @@
     }
 
     async function fetchAllTracksFromPlaylistItems(playlistId) {
+
       const tracks = [];
-      let url = `/playlists/${playlistId}?fields=items(total,next,items(item(id,uri,name,duration_ms,artists(name),is_local)))`;
+
+      let url = `/playlists/${playlistId}?fields=tracks(total,next,items(track(id,uri,name,duration_ms,artists(name),is_local)))`;
+
       while (url) {
+
         const page = await spotifyFetch(url);
-        const container = page.items || page;
+
+        const container = page.tracks || page.items || page;
+
         const items = Array.isArray(container.items) ? container.items : [];
+
         for (const item of items) {
+
           const track = normalizePlaylistTrackItem(item);
+
           if (track) tracks.push(track);
+
         }
+
         url = container.next ? container.next.replace("https://api.spotify.com/v1", "") : "";
+
       }
+
       return tracks;
+
     }
+
 
     function normalizePlaylistTrackItem(item) {
       const track = item?.track || item?.item;
