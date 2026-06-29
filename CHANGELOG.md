@@ -21,11 +21,16 @@ Feature release for the current recording-readiness and cassette-planning workfl
 ### Maintenance
 
 - Harden Spotify auth and playback timing by limiting 401 refresh retries, aligning progress drift tolerance, and guarding recording timer ticks.
+- Clear one-time PKCE verifier/state after successful OAuth callbacks.
+- Keep rate-limit countdown completion from leaving controls disabled while preserving buffered playback replay.
+- Resolve cancelled record-cue promises cleanly when recording is aborted during cue.
+- Debounce heavy timing/profile input updates while keeping state reads current.
 - Improve import resilience by dropping zero-length imported tracks, warning on future config versions, and skipping unreadable profile-folder JSON files.
+- Require localhost or `STATUS_WRITE_TOKEN` for status API writes while keeping LAN status reads available.
 - Improve confirmation flows for overlapping dialogs and batched Spotify playlist writes.
 - Keep J-card cleanup from stripping dash-separated live titles.
 - Document Node.js `>=18` as the supported runtime.
 
 ### Validation
 
-- `npm test` passes: 26/26 tests.
+- `npm test` passes: 27/27 tests.

@@ -188,6 +188,8 @@ Deck profiles store recorder-specific timing and capability fields: name, manufa
 
 Cassette profiles store reusable cassette model fields: name, manufacturer, model, type, length, optional year, condition flags, leader offset, and slack override. Cassette profiles are model definitions only. Use the plus/minus controls under `Tapes you have` to add or remove the physical cassette copies you actually own.
 
+Fast edits to timing, deck profile, and cassette profile inputs are batched for rendering and storage; the current in-memory timing state still updates immediately.
+
 When a plan uses multiple physical tapes, each tape can select an exact owned cassette model from the dropdown. The dropdown only offers models that match the selected tape length and available owned copies.
 
 Use `Export profiles` / `Import profiles` for a single JSON profile bundle. Use `Export profile folder` / `Import profile folder` to keep all local config surfaces split into JSON files under `profiles/deck-profiles`, `profiles/cassette-profiles`, `profiles/playlist-profiles`, and `profiles/tape-collection`.
@@ -241,6 +243,8 @@ Before a real recording run:
 Dry Run simulates the recording flow without Spotify playback API calls. The cue countdown, leader/motor delays, side timers, flip prompt, and completion state still run at real speed. A visible DRY RUN banner and log show the playback commands that would have been sent.
 
 Spotify Web API 429 responses are handled centrally. Outside recording, the app waits for `Retry-After` and retries once. During active recording, playback commands are buffered and replayed only if the same side is still active after the wait; the tape countdown is not interrupted.
+
+When the Retry-After countdown ends or a replay fails, the app clears the active rate-limit state so controls do not stay disabled indefinitely.
 
 ## Regression Tests
 

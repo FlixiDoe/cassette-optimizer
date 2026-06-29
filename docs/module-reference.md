@@ -93,6 +93,8 @@ getClientSecret()
 
 `spotifyFetch()` also owns Spotify Web API 429 handling. It reads `Retry-After` with a 5-second fallback, retries non-recording requests once, buffers active-recording playback commands for replay while the same side is still active, and never applies this logic to Spotify Accounts token requests because those use `fetchAccounts()`.
 
+After a successful authorization-code exchange, `handleCallback()` clears `pkce_verifier` and `oauth_state` from `sessionStorage`; only the durable token bundle remains.
+
 ### Playlist functions
 
 ```text
@@ -275,6 +277,10 @@ completeSideB()
 `simulateDryRunAction(...)` is the recording-flow Dry Run boundary. It logs would-be playback commands to the console and visible Dry Run log without calling Spotify, while the cue countdown, timers, flip prompt, and completion transitions continue at real speed.
 
 `handleRateLimit(...)` is the centralized Spotify 429 path. During active recording it keeps the tape timer running, shows a non-blocking warning, and stores playback commands for replay after Retry-After only if the same side is still recording.
+
+Rate-limit countdown completion sets `state.rateLimit.active` back to false. Buffered playback replay keeps its stored call until the replay timer fires, and failures clear active state before showing the error.
+
+`runRecordCue(...)` resolves `true` when cue completes and `false` when `clearRecordCue()` cancels it. `startSideA()` and `startSideB()` return without starting playback when a cue is cancelled by abort or replacement.
 
 Timer ticks run through a guard so async side-completion work cannot overlap across 250 ms interval ticks.
 
@@ -556,6 +562,8 @@ importSingleProfile(file, "cassette")
 Cassette profiles are stored in `localStorage.cassetteProfiles`; the selected cassette id is stored separately in `localStorage.activeCassetteId`. First-run cassette profile storage is empty. New profiles start as user-owned records with manufacturer, model, optional year, condition flags, type, length, leader offset, and slack override fields.
 
 The Deck and Cassette profile editor controls expose explicit Save buttons (`saveDeckProfileBtn`, `saveCassetteProfileBtn`) that call the same update functions used by field change handlers. Delete and Delete all remain confirmation-gated cleanup actions. The selected deck or cassette profile can also be exported as an individual JSON file and imported independently from the all-profiles export.
+
+Timing-sensitive `input` events for calibration, deck profile, cassette profile, and slack controls update the pending in-memory profile state immediately, then batch localStorage writes, split/render work, and log messages through `scheduleTimingDependentViews()`. `change` and button-driven saves still flush synchronously.
 
 Deleting one or all cassette profiles also removes matching owned cassette copies from `tapeCollection` and clears exact-model selections from planned tapes.
 
