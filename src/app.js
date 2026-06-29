@@ -1526,7 +1526,6 @@
         const playlistName = playlist.name || playlistId;
         const coverUrl = pickPlaylistCover(playlist.images || []);
         const tracks = await fetchAllTracks(playlistId);
-        if (!tracks.length) throw new Error("Playlist has no usable Spotify tracks.");
         state.importError = "";
         setProject(createMixtapeProject({
           projectTitle: playlistName,
@@ -1538,7 +1537,10 @@
           selectedTapeIndex: 0
         }));
         renderSplit();
-        log(`Loaded ${tracks.length} tracks from ${playlistName}.`);
+        log(tracks.length
+          ? `Loaded ${tracks.length} tracks from ${playlistName}.`
+          : `Loaded playlist metadata for ${playlistName}, but Spotify returned no usable track items.`
+        );
       } catch (error) {
         log(error.message);
         renderEmptyStates();
@@ -1716,11 +1718,19 @@
 
     async function fetchAllTracks(playlistId) {
       const tracks = [];
+      let blockedBySpotify = false;
       let url = `/playlists/${playlistId}/tracks?limit=50&additional_types=track`;
       let receivedItems = 0;
 
       while (url) {
-        const page = await spotifyFetch(url);
+        let page;
+        try {
+          page = await spotifyFetch(url);
+        } catch (error) {
+          if (tracks.length || !(error instanceof SpotifyApiError) || error.status !== 403) throw error;
+          blockedBySpotify = true;
+          break;
+        }
         const items = Array.isArray(page.items) ? page.items : [];
         receivedItems += items.length;
 
@@ -1737,6 +1747,8 @@
       const fallbackTracks = await fetchAllTracksFromPlaylistItems(playlistId);
       if (fallbackTracks.length) return fallbackTracks;
 
+      if (blockedBySpotify) return tracks;
+
       if (receivedItems > 0) {
         throw new Error(`Spotify returned ${receivedItems} playlist items, but none were usable Spotify tracks.`);
       }
@@ -1745,11 +1757,31 @@
     }
 
     async function fetchAllTracksFromPlaylistItems(playlistId) {
+      const fallbackUrls = [
+        `/playlists/${playlistId}?fields=tracks(total,next,items(track(id,uri,name,duration_ms,artists(name),is_local,type)))`,
+        `/playlists/${playlistId}?fields=items(total,next,items(item(id,uri,name,duration_ms,artists(name),is_local,type)))`
+      ];
+
+      for (const url of fallbackUrls) {
+        const tracks = await fetchTracksFromPlaylistContainer(url);
+        if (tracks.length) return tracks;
+      }
+
+      return [];
+    }
+
+    async function fetchTracksFromPlaylistContainer(startUrl) {
       const tracks = [];
-      let url = `/playlists/${playlistId}?fields=tracks`;
+      let url = startUrl;
 
       while (url) {
-        const page = await spotifyFetch(url);
+        let page;
+        try {
+          page = await spotifyFetch(url);
+        } catch (error) {
+          if (!(error instanceof SpotifyApiError) || error.status !== 403) throw error;
+          return tracks;
+        }
         const container = page.tracks || page.items || page;
         const items = Array.isArray(container.items) ? container.items : [];
 
@@ -2960,8 +2992,9 @@
       const selectedDeviceReady = isSpotifyDeviceReady();
       const selectedDeviceLabel = selectedDevice?.name || state.playbackStatus.deviceName || (state.selectedDeviceId ? "Selected" : "");
       const tokenValid = Boolean(state.token && Date.now() <= state.expiresAt);
+      const playlistLoaded = Boolean(state.project);
       const playlistReady = projectTracks().length >= 1;
-      const tapeStatus = getTapeReadinessStatus(playlistReady);
+      const tapeStatus = getTapeReadinessStatus(playlistLoaded, playlistReady);
       // The API row is warning during Retry-After countdowns, red after non-retryable errors, and green otherwise.
       const apiState = state.rateLimit.error ? "bad" : state.rateLimit.active ? "warn" : "ok";
       const statuses = [
@@ -2981,7 +3014,9 @@
           label: "Playlist",
           state: playlistReady ? "ok" : "bad",
           icon: playlistReady ? "✅" : "❌",
-          value: playlistReady ? `${projectTracks().length} track${projectTracks().length === 1 ? "" : "s"} loaded` : "No playlist loaded"
+          value: playlistReady
+            ? `${projectTracks().length} track${projectTracks().length === 1 ? "" : "s"} loaded`
+            : playlistLoaded ? "Playlist loaded, no readable tracks" : "No playlist loaded"
         },
         {
           label: "Tape",
@@ -3020,15 +3055,17 @@
      * format, and no side overflow across the full tape plan. The returned
      * message is shown in the Recording Readiness Tape row.
      *
+     * @param {boolean} playlistLoaded - Whether playlist metadata or an imported project is loaded.
      * @param {boolean} playlistReady - Whether at least one playlist track is loaded.
      * @returns {{ready: boolean, message: string, warning: string}} Tape readiness state and user-facing detail.
      * @throws {Error} Does not throw directly.
      *
      * Side effects: None.
      */
-    function getTapeReadinessStatus(playlistReady) {
+    function getTapeReadinessStatus(playlistLoaded, playlistReady) {
       const selectedLayout = selectedTapeLayout();
-      if (!playlistReady) return { ready: false, message: "No playlist loaded", warning: "" };
+      if (!playlistLoaded) return { ready: false, message: "No playlist loaded", warning: "" };
+      if (!playlistReady) return { ready: false, message: "No readable tracks", warning: "Spotify did not allow this token to read the playlist track items." };
       if (!selectedLayout || !selectedTapeMinutes()) return { ready: false, message: "No tape selected", warning: "Select a tape format before recording." };
       const inventory = getTapeInventory();
       if (!Object.values(inventory).some(quantity => quantity > 0)) {
@@ -3741,7 +3778,10 @@
 
     function renderTapeRecommendation(totalMs) {
       if (!projectTracks().length) {
-        el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>Load a playlist to compare the cassette formats you marked as available.</span>`;
+        const message = state.project
+          ? "Spotify did not return readable track durations for this playlist."
+          : "Load a playlist to compare the cassette formats you marked as available.";
+        el.tapeRecommendation.innerHTML = `<b>Tape recommendation pending</b><span>${escapeHtml(message)}</span>`;
         return;
       }
 
@@ -3772,7 +3812,10 @@
     function renderSplitExplanation(sideATracks, sideLengthMs) {
       const layout = selectedTapeLayout();
       if (!projectTracks().length || !layout) {
-        el.splitExplanation.innerHTML = `<b>Why this split?</b><span>Load a playlist to see the split decision.</span>`;
+        const message = state.project
+          ? "No split can be calculated because Spotify did not return readable track items for this playlist."
+          : "Load a playlist to see the split decision.";
+        el.splitExplanation.innerHTML = `<b>Why this split?</b><span>${escapeHtml(message)}</span>`;
         return;
       }
 
@@ -3798,7 +3841,7 @@
       el.resetSplitBtn.disabled = locked || !hasProject || layout.splitMode !== "manual";
       el.manualSplitTrack.disabled = locked || !hasProject;
       if (!hasProject) {
-        el.manualSplitTrack.innerHTML = `<option value="">Load a playlist first</option>`;
+        el.manualSplitTrack.innerHTML = `<option value="">${state.project ? "No readable tracks" : "Load a playlist first"}</option>`;
         el.manualSplitWarning.textContent = "";
         return;
       }
@@ -4557,7 +4600,7 @@
 
     function renderTapePlanSelector(totalMs) {
       if (!projectTracks().length || !state.tapeLayouts.length) {
-        el.tapePlanSelect.innerHTML = `<option value="0">Load a playlist first</option>`;
+        el.tapePlanSelect.innerHTML = `<option value="0">${state.project ? "No readable tracks" : "Load a playlist first"}</option>`;
         el.tapePlanSelect.disabled = true;
         el.tapeFormatList.hidden = true;
         el.tapeFormatList.innerHTML = "";
@@ -4850,7 +4893,8 @@
 
     function renderTracks(container, tracks, offset) {
       if (!tracks.length) {
-        container.innerHTML = `<p class="small">Load a playlist to calculate this side.</p>`;
+        const message = state.project ? "No readable tracks for this side." : "Load a playlist to calculate this side.";
+        container.innerHTML = `<p class="small">${escapeHtml(message)}</p>`;
         return;
       }
       let running = 0;
@@ -4992,12 +5036,15 @@
 
       if (state.importError) {
         inputMessages.push(["Imported config is invalid", state.importError]);
-      } else if (!tracks.length) {
+      } else if (!state.project && !tracks.length) {
         inputMessages.push(["No playlist loaded", state.token ? "Paste a playlist URL or choose one from your Spotify playlists, then load it." : "Connect Spotify or import a saved cassette config."]);
       }
 
       if (!tracks.length) {
-        splitMessages.push(["No usable tracks", "The split view will update after a playlist or config with playable track durations is loaded."]);
+        splitMessages.push(state.project
+          ? ["No readable tracks", "Spotify did not allow this token to read track items for the loaded playlist."]
+          : ["No usable tracks", "The split view will update after a playlist or config with playable track durations is loaded."]
+        );
       } else if (!sideA().length && !sideB().length) {
         splitMessages.push(["Playlist has no usable tracks", "Spotify local files or unavailable items were skipped."]);
       }
