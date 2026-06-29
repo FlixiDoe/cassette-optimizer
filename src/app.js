@@ -1710,9 +1710,9 @@
       try {
         if (blockIfRecordingLocked("Apply to Spotify")) return;
         if (!projectTracks().length) throw new Error("Load a playlist first.");
-        const confirmed = await confirmPlaylistReorder();
-        if (!confirmed) return;
         const uris = plannedRecordingTracks().map(track => track.uri);
+        const confirmed = await confirmPlaylistReorder(uris.length);
+        if (!confirmed) return;
         await spotifyFetch(`/playlists/${state.playlistId}/tracks`, {
           method: "PUT",
           body: JSON.stringify({ uris: uris.slice(0, 100) })
@@ -1729,12 +1729,13 @@
       }
     }
 
-    function confirmPlaylistReorder() {
+    function confirmPlaylistReorder(trackCount = 0) {
       return showConfirmOverlay(
         `
           <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="applyConfirmTitle">
             <h3 id="applyConfirmTitle">Apply cassette order to Spotify?</h3>
             <p>This will replace the remote playlist sequence with the current full multi-tape plan.</p>
+            ${trackCount > 100 ? "<p>Large playlists are written to Spotify in batches; keep a backup in case a later batch fails.</p>" : ""}
             <div class="confirm-actions">
               <button type="button" data-confirm-action="cancel">Cancel</button>
               <button type="button" data-confirm-action="backup">Export Backup</button>
