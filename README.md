@@ -26,9 +26,10 @@ Cassette Optimizer keeps a Spotify playlist in order, plans it across one or mor
 
 This project is a cassette workflow tool, not a music ripping or redistribution tool.
 
-You are responsible for complying with Spotify's terms, copyright law, and the rules that apply in your country. Do not use this project to bypass DRM, copy-protection, access controls, or licensing restrictions. Do not distribute recordings unless you have the rights to do so.
-
-For the safest use, record only music you own, created yourself, or are otherwise licensed to copy.
+> [!WARNING]
+> You are responsible for complying with Spotify's terms, copyright law, and the rules that apply in your country. Do not use this project to bypass DRM, copy-protection, access controls, or licensing restrictions. Do not distribute recordings unless you have the rights to do so.
+>
+> For the safest use, record only music you own, created yourself, or are otherwise licensed to copy.
 
 ## What it does
 
@@ -138,7 +139,8 @@ LAN clients are monitor-only. Spotify OAuth and playback control must be done fr
 
 `GET /api/status` stays readable on LAN for monitor devices. `POST /api/status` is accepted from localhost automatically; non-local writers must send `x-status-write-token` matching the optional `STATUS_WRITE_TOKEN` environment variable, otherwise the server returns `403`.
 
-Keep the LAN server on a trusted private network only. Do not expose it directly to the public internet.
+> [!WARNING]
+> Keep the LAN server on a trusted private network only. Do not expose it directly to the public internet.
 
 ## Tailscale Serve Control Mode
 

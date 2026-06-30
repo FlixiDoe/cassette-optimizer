@@ -2,7 +2,8 @@
 
 The repository is currently private and hosted deployment is disabled.
 
-Do not make the repository public until this checklist is reviewed.
+> [!WARNING]
+> Do not make the repository public until this checklist is reviewed.
 
 ## Current State
 
