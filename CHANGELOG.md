@@ -1,5 +1,28 @@
 # Changelog
 
+## Cassette Optimizer 1.3.0
+
+Stability release for reload- and close-resistant recording sessions.
+
+### Highlights
+
+- Restore the active cassette project after reload or browser close, including playlist metadata, tape plan, selected tape, split layout, and J-card data.
+- Persist in-progress recording state with the active side, record mode, elapsed time, Spotify progress anchor, tape minutes, and selected tape index.
+- Resume running recording timers after reload by accounting for elapsed wall-clock time since the last saved recording snapshot.
+- Restore the selected playlist into the playlist input and dropdown so the loaded project remains visible after refresh.
+- Restore the selected Spotify device from a saved snapshot so playback controls and Device readiness stay usable before Spotify device refresh returns.
+
+### Fixes
+
+- Keep recording controls from losing the loaded playlist after a reload.
+- Keep Device readiness green for the previously selected Spotify device when the recording session is restored.
+- Clear persisted recording state on abort, new project load, and completed Side B so stale recording state cannot reappear later.
+
+### Validation
+
+- `npm test` passes: 27/27 tests.
+- Browser check on `http://127.0.0.1:8788/`: simulated saved project, Spotify token, playlist, and selected device restore into the playlist input, playlist dropdown, device dropdown, and Recording Readiness without console errors.
+
 ## Cassette Optimizer 1.2.3
 
 Bugfix release for clearer Spotify setup feedback.
