@@ -179,7 +179,7 @@ Playlist loading uses Spotify's current playlist items API and follows paging be
 
 ## Profiles and Tape Collection
 
-Deck profiles store recorder-specific timing and capability fields: name, manufacturer, model, leader delay, motor latency, safety margin, default slack margin, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes.
+Deck profiles store recorder-specific timing and capability fields: name, manufacturer, model, recording delay calibration (`leaderTapeDelay`, `motorLatency`, `safetyMargin`), default slack margin, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes. Deck profile JSON keeps those delay values both as top-level fields and inside `recordingDelayCalibration` for readable exports.
 
 Cassette profiles store reusable cassette model fields: name, manufacturer, model, type, length, optional year, condition flags, leader offset, and slack override. Cassette profiles are model definitions only. Use the plus/minus controls under `Tapes you have` to add or remove the physical cassette copies you actually own.
 
@@ -193,7 +193,7 @@ Recording Readiness has seven rows:
 
 ```text
 Spotify   Token valid
-Device    Spotify device selected or Dry Run active
+Device    Explicit Spotify device selected or Dry Run active
 Playlist  At least one track loaded
 Tape      Inventory and plan are valid
 Checklist All deck checklist items complete or skipped

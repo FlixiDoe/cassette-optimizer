@@ -485,6 +485,16 @@ deckTypeIVSupport -> active deck typeIVSupport
 deckNotes       -> active deck notes
 ```
 
+Deck profile JSON exports also include:
+
+```text
+recordingDelayCalibration.leaderTapeDelay -> active deck leaderTapeDelay
+recordingDelayCalibration.motorLatency    -> active deck motorLatency
+recordingDelayCalibration.safetyMargin    -> active deck safetyMargin
+```
+
+The top-level fields remain in the JSON for backward compatibility, and imports normalize the nested object back into those fields before validation.
+
 Cassette-specific fields edit the active cassette profile:
 
 ```text

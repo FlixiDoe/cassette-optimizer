@@ -269,7 +269,7 @@ Documentation updates are part of the change, not a follow-up. When behavior, se
 
 Recording timing is now modeled as two local-first profile layers.
 
-The deck profile is the primary timing source. It stores the deck name, manufacturer, model, leader tape delay, motor latency, safety margin, default slack margin, optional automatic recording level, Dolby NR support, Type II support, Type IV support, and notes. Deck data lives in `localStorage.deckProfiles`, while `localStorage.activeDeckId` stores the selected id.
+The deck profile is the primary timing source. It stores the deck name, manufacturer, model, recording delay calibration (`leaderTapeDelay`, `motorLatency`, `safetyMargin`), default slack margin, optional automatic recording level, Dolby NR support, Type II support, Type IV support, and notes. Deck data lives in `localStorage.deckProfiles`, while `localStorage.activeDeckId` stores the selected id.
 
 The cassette profile is the secondary timing source. It stores the cassette name, manufacturer, model, type (`I` or `II`), length in minutes, optional year, condition flags (`new`, `used`, `testTape`), optional tape-specific slack, and optional leader-length offset. Cassette data lives in `localStorage.cassetteProfiles`, while `localStorage.activeCassetteId` stores the selected id.
 
@@ -286,7 +286,7 @@ slackMargin     = cassette.slackMargin ?? deck.defaultSlackMargin
 
 The existing Leader Tape Delay, Motor Latency, Safety Margin, and Tape Slack Margin inputs remain in the UI and now act as live editors for the active profile values. Planning, cue timing, and warning calculations use `getEffectiveTimingSettings()` rather than reading those inputs directly, with an HTML-input fallback when profile storage is empty.
 
-Profiles can be exported and imported independently of project config. The profile export format is a versioned JSON object with `deckProfiles` and `cassetteProfiles` arrays. Imports merge by `id`: matching ids are overwritten, new ids are added, and local profiles absent from the import remain untouched.
+Profiles can be exported and imported independently of project config. The profile export format is a versioned JSON object with `deckProfiles` and `cassetteProfiles` arrays. Deck profile JSON includes the recording delay calibration both as the legacy top-level fields and as `recordingDelayCalibration` for readable single-profile and folder exports. Imports merge by `id`: matching ids are overwritten, new ids are added, and local profiles absent from the import remain untouched.
 
 The playlist input UI is grouped separately from profile editing. `playlistInput`, `loadBtn`, `playlistSelect`, and `loadPlaylistsBtn` live in one playlist panel so loading by pasted URL/ID and loading from the user's Spotify playlist list use the same visual area.
 

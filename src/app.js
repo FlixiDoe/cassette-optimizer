@@ -499,6 +499,7 @@
         typeIVSupport: el.deckTypeIVSupport.checked,
         notes: el.deckNotes.value.trim()
       };
+      updated.recordingDelayCalibration = buildRecordingDelayCalibration(updated);
       // Keep the edited deck profile visible to timing reads immediately; input events persist and render through a short batch.
       saveDeckProfiles(profiles.map(profile => profile.id === updated.id ? updated : profile), { defer });
       if (defer) {
@@ -557,6 +558,11 @@
         leaderTapeDelay: 0,
         motorLatency: 0,
         safetyMargin: 0,
+        recordingDelayCalibration: {
+          leaderTapeDelay: 0,
+          motorLatency: 0,
+          safetyMargin: 0
+        },
         defaultSlackMargin: 0,
         autoRecordingLevel: null,
         dolbyNR: false,
@@ -1568,8 +1574,7 @@
         const data = await spotifyFetch("/me/player/devices");
         state.devices = (data.devices || []).filter(device => device && device.id);
         if (!state.devices.some(device => device.id === state.selectedDeviceId)) {
-          const active = state.devices.find(device => device.is_active);
-          state.selectedDeviceId = active?.id || "";
+          state.selectedDeviceId = "";
         }
         persistSelectedDevice();
         const checklistChanged = syncAutomaticDeckChecklistItems();
@@ -1698,7 +1703,9 @@
       setPlaybackRecovery("");
       const checklistChanged = syncAutomaticDeckChecklistItems();
       if (checklistChanged) renderRecordMode();
-      log(selected ? `Selected Spotify device: ${selected.name}.` : "Using Spotify default active device.");
+      renderReadiness();
+      renderRecordMode();
+      log(selected ? `Selected Spotify device: ${selected.name}.` : "No Spotify device selected.");
     }
 
     function persistSelectedDevice() {
@@ -2165,9 +2172,7 @@
 
     function isSpotifyDeviceReady() {
       if (state.dryRun) return true;
-      if (state.selectedDeviceId) return true;
-      if (state.playbackStatus.deviceActive || state.playbackStatus.deviceName) return true;
-      return state.devices.some(device => device.is_active);
+      return Boolean(state.selectedDeviceId && state.devices.some(device => device.id === state.selectedDeviceId));
     }
 
     function showRecordCue(side, remaining) {
@@ -2900,8 +2905,8 @@
     /**
      * Applies checklist items that the app can verify from its own state.
      *
-     * It currently checks the Spotify device checklist item when a selected or
-     * active Spotify device is known. It only turns automatic items on, never
+     * It currently checks the Spotify device checklist item when the operator
+     * has selected a current Spotify device. It only turns automatic items on, never
      * clears manually checked items, because physical setup confirmations still
      * belong to the operator.
      *
@@ -2914,9 +2919,9 @@
      */
     function syncAutomaticDeckChecklistItems({ persist = true } = {}) {
       let changed = false;
-      const spotifyDeviceKnown = Boolean(state.selectedDeviceId || state.playbackStatus.deviceName || state.devices.some(device => device.is_active));
+      const spotifyDeviceKnown = isSpotifyDeviceReady();
       if (spotifyDeviceKnown && DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX >= 0 && !state.deckChecklistDone[DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX]) {
-        // The Spotify device row can be checked automatically because selecting or detecting an active Spotify device is observable app state.
+        // The Spotify device row can be checked automatically because an explicit Spotify device selection is observable app state.
         state.deckChecklistDone[DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX] = true;
         const input = el.deckChecklistItems?.querySelector(`input[value="${DECK_CHECKLIST_SPOTIFY_DEVICE_INDEX}"]`);
         if (input) input.checked = true;
@@ -2971,7 +2976,7 @@
       const checklistReady = isAudioChecklistConfirmed();
       const selectedDevice = state.devices.find(device => device.id === state.selectedDeviceId);
       const selectedDeviceReady = isSpotifyDeviceReady();
-      const selectedDeviceLabel = selectedDevice?.name || state.playbackStatus.deviceName || (state.selectedDeviceId ? "Selected" : "");
+      const selectedDeviceLabel = selectedDevice?.name || "";
       const tokenValid = Boolean(state.token && Date.now() <= state.expiresAt);
       const playlistLoaded = Boolean(state.project);
       const playlistReady = projectTracks().length >= 1;
@@ -4000,7 +4005,7 @@
         app: "cassette-optimizer",
         version: 1,
         exportedAt: new Date().toISOString(),
-        deckProfiles: loadDeckProfiles(),
+        deckProfiles: loadDeckProfiles().map(serializeDeckProfile),
         cassetteProfiles: loadCassetteProfiles()
       };
       // The date suffix makes it easy to identify the most recent export when multiple files accumulate in the downloads folder.
@@ -4037,7 +4042,37 @@
         version: 1,
         profileType,
         exportedAt: new Date().toISOString(),
-        profile
+        profile: profileType === "deck" ? serializeDeckProfile(profile) : profile
+      };
+    }
+
+    function serializeDeckProfile(profile) {
+      return {
+        ...profile,
+        recordingDelayCalibration: buildRecordingDelayCalibration(profile)
+      };
+    }
+
+    function normalizeDeckProfile(profile) {
+      if (!profile || typeof profile !== "object") return profile;
+      const calibration = profile.recordingDelayCalibration && typeof profile.recordingDelayCalibration === "object"
+        ? profile.recordingDelayCalibration
+        : null;
+      const normalized = {
+        ...profile,
+        leaderTapeDelay: typeof profile.leaderTapeDelay === "number" ? profile.leaderTapeDelay : calibration?.leaderTapeDelay,
+        motorLatency: typeof profile.motorLatency === "number" ? profile.motorLatency : calibration?.motorLatency,
+        safetyMargin: typeof profile.safetyMargin === "number" ? profile.safetyMargin : calibration?.safetyMargin
+      };
+      normalized.recordingDelayCalibration = buildRecordingDelayCalibration(normalized);
+      return normalized;
+    }
+
+    function buildRecordingDelayCalibration(profile) {
+      return {
+        leaderTapeDelay: clampNumber(profile?.leaderTapeDelay, 0, 120),
+        motorLatency: clampNumber(profile?.motorLatency, 0, 30),
+        safetyMargin: clampSeconds(profile?.safetyMargin, 0, 300)
       };
     }
 
@@ -4070,7 +4105,7 @@
         const collectionDir = await getOrCreateDirectory(profilesDir, "tape-collection");
         const exportedAt = new Date().toISOString();
         for (const profile of loadDeckProfiles()) {
-          await writeJsonFile(deckDir, `${profileFilename(profile.name, profile.id)}.json`, { version: 1, exportedAt, profile });
+          await writeJsonFile(deckDir, `${profileFilename(profile.name, profile.id)}.json`, { version: 1, exportedAt, profile: serializeDeckProfile(profile) });
         }
         for (const profile of loadCassetteProfiles()) {
           await writeJsonFile(cassetteDir, `${profileFilename(profile.name, profile.id)}.json`, { version: 1, exportedAt, profile });
@@ -4346,7 +4381,9 @@
       if (profileType === "cassette" && Array.isArray(payload?.cassetteProfiles)) candidates.push(...payload.cassetteProfiles);
       if (!candidates.length) candidates.push(payload);
       const validator = profileType === "deck" ? isValidDeckProfile : isValidCassetteProfile;
-      return candidates.filter(validator);
+      return candidates
+        .map(profile => profileType === "deck" ? normalizeDeckProfile(profile) : profile)
+        .filter(validator);
     }
 
     function isValidDeckProfile(profile) {
@@ -4358,6 +4395,7 @@
         && typeof profile.leaderTapeDelay === "number"
         && typeof profile.motorLatency === "number"
         && typeof profile.safetyMargin === "number"
+        && (profile.recordingDelayCalibration === undefined || profile.recordingDelayCalibration === null || typeof profile.recordingDelayCalibration === "object")
         && typeof profile.defaultSlackMargin === "number"
         && (profile.autoRecordingLevel === undefined || profile.autoRecordingLevel === null || typeof profile.autoRecordingLevel === "number")
         && (profile.typeIVSupport === undefined || typeof profile.typeIVSupport === "boolean")
@@ -4853,14 +4891,14 @@
       }
       el.loadDevicesBtn.disabled = false;
       if (!state.devices.length) {
-        el.deviceSelect.innerHTML = `<option value="">Default active device</option>`;
+        el.deviceSelect.innerHTML = `<option value="">Select a device</option>`;
         el.deviceSelect.disabled = true;
         renderEmptyStates();
         // Device refresh found no active devices, so Recording Readiness must show the device row as blocked.
         renderReadiness();
         return;
       }
-      el.deviceSelect.innerHTML = `<option value="">Default active device</option>` + state.devices.map(device => {
+      el.deviceSelect.innerHTML = `<option value="">Select a device</option>` + state.devices.map(device => {
         const tags = [
           device.type || "Device",
           device.is_active ? "active" : "",
@@ -4949,7 +4987,7 @@
           messages.push(`Inventory only has ${available}x C${minutes}, but the current plan needs ${used}.`);
         }
       }
-      if (state.token && !state.dryRun && !state.selectedDeviceId && !state.playbackStatus.deviceName) {
+      if (state.token && !state.dryRun && !isSpotifyDeviceReady()) {
         messages.push("Spotify device missing. Refresh devices, select one, and make sure Spotify is open.");
       }
       if (missingUris) {
@@ -5036,7 +5074,7 @@
 
       if (!state.token && !state.dryRun) {
         playbackMessages.push(["Spotify not connected", "Connect Spotify before controlling playback, or enable Dry Run to test timing only."]);
-      } else if (state.token && !state.devices.length && !state.selectedDeviceId && !state.playbackStatus.deviceName) {
+      } else if (state.token && !state.devices.length && !isSpotifyDeviceReady()) {
         playbackMessages.push(["No active device", "Open Spotify on the target device, then refresh devices."]);
       }
 

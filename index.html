@@ -89,6 +89,23 @@
               <input id="deckModel" autocomplete="off">
             </label>
           </div>
+          <div class="calibration-panel" id="calibrationPanel">
+            <h4>Recording delay calibration</h4>
+            <div class="calibration-grid">
+              <label>
+                <span class="label" for="leadInDelay">Leader Tape Delay</span>
+                <input id="leadInDelay" type="number" min="0" max="120" step="1" value="0">
+              </label>
+              <label>
+                <span class="label" for="motorLatency">Motor latency</span>
+                <input id="motorLatency" type="number" min="0" max="30" step="1" value="0">
+              </label>
+              <label>
+                <span class="label" for="safetyMargin">Safety margin</span>
+                <input id="safetyMargin" type="number" min="0" max="300" step="1" value="0">
+              </label>
+            </div>
+          </div>
           <label>
             <span class="label" for="deckAutoRecordingLevel">Auto Recording Level</span>
             <input id="deckAutoRecordingLevel" type="number" min="0" max="100" step="1" placeholder="Not measured">
@@ -303,7 +320,7 @@
           <label class="label" for="deviceSelect">Spotify device</label>
           <div class="row">
             <select id="deviceSelect" disabled>
-              <option value="">Default active device</option>
+              <option value="">Select a device</option>
             </select>
             <button id="loadDevicesBtn" type="button" disabled>Refresh</button>
           </div>
@@ -322,23 +339,6 @@
           <div class="status-chips" id="spotifyStatusItems"></div>
           <p class="small" id="spotifyStatusWarning"></p>
         </div>
-        <details class="calibration-panel" id="calibrationPanel">
-          <summary>Recording delay calibration</summary>
-          <div class="calibration-grid">
-            <label>
-              <span class="label" for="leadInDelay">Leader Tape Delay</span>
-              <input id="leadInDelay" type="number" min="0" max="120" step="1" value="0">
-            </label>
-            <label>
-              <span class="label" for="motorLatency">Motor latency</span>
-              <input id="motorLatency" type="number" min="0" max="30" step="1" value="0">
-            </label>
-            <label>
-              <span class="label" for="safetyMargin">Safety margin</span>
-              <input id="safetyMargin" type="number" min="0" max="300" step="1" value="0">
-            </label>
-          </div>
-        </details>
         <div class="record-mode" id="recordModePanel">
           <div class="record-row"><span>Record mode</span><b id="recordModeStatus">Idle</b></div>
           <div class="record-row"><span>Active side</span><b id="recordSide">-</b></div>

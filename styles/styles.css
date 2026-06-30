@@ -742,11 +742,17 @@
       padding: 10px;
     }
 
+    .calibration-panel h4,
     .calibration-panel summary {
       color: var(--amber);
-      cursor: pointer;
       font-weight: 700;
+      font-size: 12px;
+      margin: 0;
       text-transform: uppercase;
+    }
+
+    .calibration-panel summary {
+      cursor: pointer;
     }
 
     .calibration-grid {

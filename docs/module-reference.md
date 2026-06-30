@@ -548,7 +548,7 @@ exportActiveDeckProfile()
 importSingleProfile(file, "deck")
 ```
 
-Deck profiles are stored in `localStorage.deckProfiles`; the selected deck id is stored separately in `localStorage.activeDeckId`. First-run deck profile storage is empty. New profiles start as blank user-owned records with timing values at zero, plus manufacturer, model, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes fields.
+Deck profiles are stored in `localStorage.deckProfiles`; the selected deck id is stored separately in `localStorage.activeDeckId`. First-run deck profile storage is empty. New profiles start as blank user-owned records with timing values at zero, plus manufacturer, model, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes fields. Deck profile JSON also carries `recordingDelayCalibration` with `leaderTapeDelay`, `motorLatency`, and `safetyMargin` so the delay calibration is visible in single-profile and folder exports.
 
 Cassette profile functions:
 
@@ -583,7 +583,7 @@ importProfiles(file)
 
 `getEffectiveTimingSettings()` returns `{ leaderTapeDelay, motorLatency, safetyMargin, slackMargin }`. It uses deck values as the base, adds `cassette.leaderLength` as an optional leader offset, uses cassette slack when measured, and otherwise falls back to the deck default slack margin. If no active deck exists, it reads the legacy HTML inputs directly.
 
-`exportProfiles()` downloads `cassette-profiles-YYYY-MM-DD.json` with `version: 1`, all deck profiles, and all cassette profiles. `importProfiles(file)` validates the JSON structure, skips malformed individual profiles with `console.warn`, merges imported profiles by id, writes localStorage, and re-renders the selectors and timing-dependent planning UI.
+`exportProfiles()` downloads `cassette-profiles-YYYY-MM-DD.json` with `version: 1`, all deck profiles, and all cassette profiles. Exported deck profiles include both the top-level timing fields and a `recordingDelayCalibration` object; imports normalize that object back into `leaderTapeDelay`, `motorLatency`, and `safetyMargin` before validation. `importProfiles(file)` validates the JSON structure, skips malformed individual profiles with `console.warn`, merges imported profiles by id, writes localStorage, and re-renders the selectors and timing-dependent planning UI.
 
 Tape collection and folder profile functions:
 
