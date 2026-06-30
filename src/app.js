@@ -42,6 +42,21 @@
     const ACTIVE_CASSETTE_ID_KEY = "activeCassetteId";
     // `tapeCollection` stores owned physical cassette entries linked to cassette profiles, while legacy `tape_inventory` keeps unprofiled C-length quantities.
     const TAPE_COLLECTION_KEY = "tapeCollection";
+    const CURRENT_PROJECT_KEY = "cassetteOptimizerCurrentProject";
+    const RECORDING_STATE_KEY = "cassetteOptimizerRecordingState";
+    const SELECTED_DEVICE_KEY = "spotify_selected_device";
+    const RECORDING_STATE_VERSION = 1;
+
+    function loadSavedSelectedDevice() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(SELECTED_DEVICE_KEY) || "null");
+        return saved && typeof saved === "object" && typeof saved.id === "string" ? saved : null;
+      } catch {
+        localStorage.removeItem(SELECTED_DEVICE_KEY);
+        return null;
+      }
+    }
+
     const state = {
       token: null,
       refreshToken: null,
@@ -59,6 +74,7 @@
       playlists: [],
       devices: [],
       selectedDeviceId: localStorage.getItem("spotify_device_id") || "",
+      selectedDeviceSnapshot: loadSavedSelectedDevice(),
       tapeMinutes: 90,
       availableTapeFormats: [60, 90],
       tapeInventory: {},
@@ -89,6 +105,7 @@
       lastPlaybackCorrectionAt: 0,
       lastPlaybackCommandAt: 0,
       lastStatusPushAt: 0,
+      lastRecordingStateSaveAt: 0,
       statusPollId: null,
       statusApiAvailable: false,
       lastImportMissingUriCount: 0,
@@ -142,9 +159,11 @@
       restoreToken();
       handleCallback();
       bindEvents();
+      restoreSavedProject();
       renderProfileControls();
       renderAuth();
       renderSplit();
+      restoreRecordingState();
       renderRecordMode();
       warnIfFileProtocol();
     }
@@ -880,6 +899,7 @@
       el.stopLevelToneBtn.addEventListener("click", stopLevelTone);
       window.addEventListener("beforeunload", flushTimingDependentViews);
       window.addEventListener("beforeunload", persistToken);
+      window.addEventListener("beforeunload", persistRecordingState);
       startSharedStatusPolling();
       restoreTapeInventory();
       restoreDeckChecklist();
@@ -1582,7 +1602,12 @@
         const data = await spotifyFetch("/me/player/devices");
         state.devices = (data.devices || []).filter(device => device && device.id);
         if (!state.devices.some(device => device.id === state.selectedDeviceId)) {
-          state.selectedDeviceId = "";
+          if (state.selectedDeviceSnapshot?.id === state.selectedDeviceId) {
+            state.devices = mergeSelectedDeviceSnapshot(state.devices);
+          } else {
+            state.selectedDeviceId = "";
+            state.selectedDeviceSnapshot = null;
+          }
         }
         persistSelectedDevice();
         const checklistChanged = syncAutomaticDeckChecklistItems();
@@ -1674,10 +1699,12 @@
       }));
     }
 
-    function setProject(project) {
+    function setProject(project, { preserveRecordingState = false } = {}) {
       state.project = project;
       syncStateFromProject();
-      resetRecordingProgress();
+      if (!preserveRecordingState) resetRecordingProgress();
+      persistCurrentProject();
+      if (!preserveRecordingState) clearPersistedRecordingState();
       state.projectDirty = false;
     }
 
@@ -1688,6 +1715,7 @@
       state.playlistName = state.project.sourcePlaylistName || state.project.projectTitle;
       state.playlistCoverUrl = state.project.coverUrl;
       state.tracks = [...state.project.sourceTracks];
+      syncPlaylistControlsFromProject();
       state.selectedTapeIndex = clampTapeIndex(state.project.selectedTapeIndex, state.project.tapes.length);
       state.project.selectedTapeIndex = state.selectedTapeIndex;
       state.tapeLayouts = state.project.tapes;
@@ -1698,6 +1726,176 @@
       state.project.jCardOverrides = state.project.jCardOverrides || {};
     }
 
+    function syncPlaylistControlsFromProject() {
+      if (!state.playlistId) return;
+      el.playlistInput.value = state.playlistId;
+      if (!state.playlists.some(playlist => playlist.id === state.playlistId)) {
+        state.playlists = [{
+          id: state.playlistId,
+          name: state.playlistName || state.project?.projectTitle || state.playlistId,
+          coverUrl: state.playlistCoverUrl || "",
+          owner: "restored",
+          tracks: projectTracks().length,
+          public: false,
+          restored: true
+        }, ...state.playlists];
+      }
+    }
+
+    function persistCurrentProject() {
+      if (!state.project) {
+        localStorage.removeItem(CURRENT_PROJECT_KEY);
+        return;
+      }
+      try {
+        localStorage.setItem(CURRENT_PROJECT_KEY, JSON.stringify(buildPlaylistProfilePayload(new Date().toISOString())));
+      } catch (error) {
+        log(`Project autosave failed: ${error.message}`);
+      }
+    }
+
+    function restoreSavedProject() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(CURRENT_PROJECT_KEY) || "null");
+        if (!saved) return;
+        const project = normalizeImportedConfig(migrateImportedConfig(saved));
+        state.importError = "";
+        state.lastImportMissingUriCount = countMissingTrackUris(project);
+        state.tapeMinutes = project.tapes[project.selectedTapeIndex]?.tapeFormat || state.availableTapeFormats[0] || 90;
+        setProject(project, { preserveRecordingState: true });
+        log(`Restored saved project "${project.projectTitle}".`);
+      } catch (error) {
+        localStorage.removeItem(CURRENT_PROJECT_KEY);
+        localStorage.removeItem(RECORDING_STATE_KEY);
+        log(`Saved project restore failed: ${error.message}`);
+      }
+    }
+
+    function persistRecordingState({ force = false } = {}) {
+      if (!isRecordingLockActive()) {
+        clearPersistedRecordingState();
+        return;
+      }
+      try {
+        const now = Date.now();
+        if (!force && now - state.lastRecordingStateSaveAt < 2000) return;
+        const elapsedMs = getProjectedRecordElapsed();
+        const localElapsedMs = getLocalRecordElapsed();
+        const payload = {
+          version: RECORDING_STATE_VERSION,
+          savedAt: new Date(now).toISOString(),
+          savedAtMs: now,
+          projectId: getProjectPersistenceId(),
+          playlistId: state.playlistId || "",
+          playlistName: state.playlistName || "",
+          selectedTapeIndex: state.selectedTapeIndex,
+          tapeMinutes: selectedTapeMinutes(),
+          activeRecordSide: state.activeRecordSide,
+          recordMode: state.recordMode,
+          elapsedMs,
+          localElapsedMs,
+          spotifySideElapsedMs: state.spotifySideElapsedMs,
+          lastSideProgressMs: state.lastSideProgressMs,
+          lastProgressUpdatedAt: state.lastProgressUpdatedAt,
+          autoPauseDone: state.autoPauseDone,
+          dryRun: state.dryRun,
+          sideLengthMs: selectedSideLengthMs(),
+          sideDurationMs: duration(state.activeRecordSide === "B" ? sideB() : sideA()),
+          tracksFingerprint: getProjectTracksFingerprint()
+        };
+        localStorage.setItem(RECORDING_STATE_KEY, JSON.stringify(payload));
+        state.lastRecordingStateSaveAt = now;
+      } catch (error) {
+        log(`Recording state autosave failed: ${error.message}`);
+      }
+    }
+
+    function restoreRecordingState() {
+      const saved = loadPersistedRecordingState();
+      if (!saved) return;
+      if (!canRestoreRecordingState(saved)) {
+        clearPersistedRecordingState();
+        return;
+      }
+      state.selectedTapeIndex = clampTapeIndex(saved.selectedTapeIndex, state.tapeLayouts.length);
+      if (state.project) state.project.selectedTapeIndex = state.selectedTapeIndex;
+      state.tapeMinutes = selectedTapeMinutes();
+      state.activeRecordSide = saved.activeRecordSide === "B" ? "B" : "A";
+      const wasRecording = saved.recordMode === "recording_a" || saved.recordMode === "recording_b";
+      const closedElapsedMs = wasRecording ? Math.max(0, Date.now() - Number(saved.savedAtMs || Date.now())) : 0;
+      const restoredElapsedMs = clampElapsedMs(Number(saved.elapsedMs || 0) + closedElapsedMs, saved.sideDurationMs);
+      state.recordMode = saved.recordMode === "flip" || wasRecording ? saved.recordMode : "paused";
+      state.sideAStartedAt = wasRecording ? Date.now() : 0;
+      state.sideAElapsedBeforePause = restoredElapsedMs;
+      state.spotifySideElapsedMs = clampElapsedMs(saved.spotifySideElapsedMs, saved.sideDurationMs);
+      state.lastSideProgressMs = clampElapsedMs(Math.max(saved.lastSideProgressMs || 0, restoredElapsedMs), saved.sideDurationMs);
+      state.lastProgressUpdatedAt = Date.now();
+      state.autoPauseDone = Boolean(saved.autoPauseDone);
+      el.flipBanner.classList.toggle("show", state.recordMode === "flip");
+      el.recordCue.classList.remove("show");
+      el.currentTrack.textContent = wasRecording
+        ? `Restored running Side ${state.activeRecordSide} at ${formatTime(restoredElapsedMs)}.`
+        : `Restored Side ${state.activeRecordSide} at ${formatTime(restoredElapsedMs)}. Resume when the deck and Spotify are ready.`;
+      runTimerTick();
+      if (wasRecording) startTimer();
+      renderRecordMode("Restored");
+      if (!state.dryRun) startPollingPlayback();
+      log(`Restored recording state for Side ${state.activeRecordSide} at ${formatTime(restoredElapsedMs)}.`);
+    }
+
+    function loadPersistedRecordingState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(RECORDING_STATE_KEY) || "null");
+        if (!saved || saved.version !== RECORDING_STATE_VERSION) return null;
+        return saved;
+      } catch {
+        localStorage.removeItem(RECORDING_STATE_KEY);
+        return null;
+      }
+    }
+
+    function canRestoreRecordingState(saved) {
+      if (!state.project || !state.tapeLayouts.length) return false;
+      if (!["cue_a", "cue_b", "recording_a", "recording_b", "paused", "flip"].includes(saved.recordMode)) return false;
+      if (saved.activeRecordSide !== "A" && saved.activeRecordSide !== "B") return false;
+      if (saved.projectId !== getProjectPersistenceId()) return false;
+      if (saved.tracksFingerprint !== getProjectTracksFingerprint()) return false;
+      const layout = state.tapeLayouts[clampTapeIndex(saved.selectedTapeIndex, state.tapeLayouts.length)];
+      if (!layout) return false;
+      const restoredMinutes = layout.tapeFormat || layout.tapeMinutes;
+      return Number(saved.tapeMinutes) === Number(restoredMinutes);
+    }
+
+    function clearPersistedRecordingState() {
+      localStorage.removeItem(RECORDING_STATE_KEY);
+      state.lastRecordingStateSaveAt = 0;
+    }
+
+    function getProjectPersistenceId() {
+      const project = state.project;
+      if (!project) return "";
+      return [
+        project.configVersion || TAPE_CONFIG_VERSION,
+        project.sourcePlaylistId || "",
+        project.projectTitle || "",
+        project.createdAt || ""
+      ].join("|");
+    }
+
+    function getProjectTracksFingerprint() {
+      return projectTracks().map(track => [
+        track.uri || track.id || track.name || "",
+        track.duration_ms || 0
+      ].join("@")).join("|");
+    }
+
+    function clampElapsedMs(value, totalMs = Infinity) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return 0;
+      const max = Number.isFinite(totalMs) && totalMs > 0 ? totalMs : Infinity;
+      return Math.max(0, Math.min(max, Math.round(number)));
+    }
+
     function clampTapeIndex(index, tapeCount) {
       if (!tapeCount) return 0;
       const number = Number(index);
@@ -1706,6 +1904,7 @@
 
     function selectDevice() {
       state.selectedDeviceId = el.deviceSelect.value;
+      state.selectedDeviceSnapshot = state.devices.find(device => device.id === state.selectedDeviceId) || null;
       persistSelectedDevice();
       const selected = state.devices.find(device => device.id === state.selectedDeviceId);
       setPlaybackRecovery("");
@@ -1719,14 +1918,35 @@
     function persistSelectedDevice() {
       if (state.selectedDeviceId) {
         localStorage.setItem("spotify_device_id", state.selectedDeviceId);
+        if (state.selectedDeviceSnapshot) {
+          localStorage.setItem(SELECTED_DEVICE_KEY, JSON.stringify(sanitizeDeviceSnapshot(state.selectedDeviceSnapshot)));
+        }
       } else {
         localStorage.removeItem("spotify_device_id");
+        localStorage.removeItem(SELECTED_DEVICE_KEY);
       }
+    }
+
+    function mergeSelectedDeviceSnapshot(devices) {
+      const snapshot = state.selectedDeviceSnapshot;
+      if (!snapshot?.id || devices.some(device => device.id === snapshot.id)) return devices;
+      return [snapshot, ...devices];
+    }
+
+    function sanitizeDeviceSnapshot(device) {
+      return {
+        id: String(device.id || ""),
+        name: String(device.name || device.id || "Saved Spotify device"),
+        type: String(device.type || "Device"),
+        is_active: Boolean(device.is_active),
+        is_restricted: Boolean(device.is_restricted)
+      };
     }
 
     function resetDevices() {
       state.devices = [];
       state.selectedDeviceId = "";
+      state.selectedDeviceSnapshot = null;
       persistSelectedDevice();
       renderDeviceOptions();
     }
@@ -1977,7 +2197,9 @@
     }
 
     function markProjectDirty() {
-      if (state.project) state.projectDirty = true;
+      if (!state.project) return;
+      state.projectDirty = true;
+      persistCurrentProject();
     }
 
     /**
@@ -2005,6 +2227,7 @@
         el.flipBanner.classList.remove("show");
         state.recordMode = "cue_a";
         state.activeRecordSide = "A";
+        persistRecordingState({ force: true });
         if (!resuming) {
           // Fresh starts reset elapsed tracking; resumes keep elapsed time accumulated before pause.
           state.sideAElapsedBeforePause = 0;
@@ -2017,6 +2240,7 @@
         state.recordMode = "recording_a";
         state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
+        persistRecordingState({ force: true });
       el.currentTrack.textContent = state.dryRun
         ? (resuming ? "Dry Run: resuming Side A timer." : "Dry Run: Side A timer started.")
         : (resuming ? "Resuming Side A..." : "Starting Side A from track 1...");
@@ -2039,6 +2263,7 @@
         stopTimer();
         state.recordMode = resuming ? "paused" : "idle";
         state.activeRecordSide = resuming ? "A" : null;
+        persistRecordingState({ force: true });
         renderRecordMode("Start failed");
         log(error.message);
       }
@@ -2069,6 +2294,7 @@
         el.flipBanner.classList.remove("show");
         state.recordMode = "cue_b";
         state.activeRecordSide = "B";
+        persistRecordingState({ force: true });
         if (!resuming) {
           // Side B gets its own elapsed baseline because the flip physically starts a new cassette side.
           state.spotifySideElapsedMs = 0;
@@ -2080,6 +2306,7 @@
         state.recordMode = "recording_b";
         state.lastProgressUpdatedAt = Date.now();
         state.sideAStartedAt = Date.now();
+        persistRecordingState({ force: true });
       el.currentTrack.textContent = state.dryRun
         ? (resuming ? "Dry Run: resuming Side B timer." : "Dry Run: Side B timer started.")
         : (resuming ? "Resuming Side B..." : `Starting Side B from track ${sideBStartNumber()}...`);
@@ -2101,6 +2328,7 @@
         stopTimer();
         state.recordMode = resuming ? "paused" : "flip";
         state.activeRecordSide = resuming ? "B" : "A";
+        persistRecordingState({ force: true });
         renderRecordMode("Start failed");
         log(error.message);
       }
@@ -2180,7 +2408,10 @@
 
     function isSpotifyDeviceReady() {
       if (state.dryRun) return true;
-      return Boolean(state.selectedDeviceId && state.devices.some(device => device.id === state.selectedDeviceId));
+      return Boolean(state.selectedDeviceId && (
+        state.devices.some(device => device.id === state.selectedDeviceId)
+        || state.selectedDeviceSnapshot?.id === state.selectedDeviceId
+      ));
     }
 
     function showRecordCue(side, remaining) {
@@ -2276,6 +2507,7 @@
         state.lastProgressUpdatedAt = Date.now();
         state.recordMode = "paused";
         stopTimer();
+        persistRecordingState({ force: true });
         renderRecordMode();
         if (!state.dryRun) schedulePlaybackPoll(getPlaybackPollDelay());
         log(state.dryRun ? "Dry Run paused." : "Playback paused.");
@@ -2307,6 +2539,7 @@
         state.spotifySideElapsedMs = 0;
         state.lastSideProgressMs = 0;
         state.lastProgressUpdatedAt = 0;
+        clearPersistedRecordingState();
         el.flipBanner.classList.remove("show");
         el.recordCue.classList.remove("show");
         el.currentTrack.textContent = "Recording aborted.";
@@ -2364,6 +2597,7 @@
       el.playProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
       el.tapeProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
       updateReelVisual(elapsed, total);
+      persistRecordingState();
       if (state.recordMode === "recording_a" && total && remaining <= 0 && !state.autoPauseDone) {
         await completeSideA();
       } else if (state.recordMode === "recording_b" && total && remaining <= 0 && !state.autoPauseDone) {
@@ -2741,6 +2975,7 @@
         state.recordMode = "idle";
         state.activeRecordSide = null;
       }
+      persistRecordingState({ force: true });
       el.flipBanner.classList.toggle("show", state.recordMode !== "idle");
       el.startB.disabled = !sideB().length;
       renderRecordMode(state.recordMode === "idle" ? "Complete" : "Flip now");
@@ -2764,6 +2999,7 @@
       }
       state.recordMode = "idle";
       state.activeRecordSide = null;
+      clearPersistedRecordingState();
       renderRecordMode("Complete");
       if (!state.dryRun) schedulePlaybackPoll(getPlaybackPollDelay());
     }
@@ -2982,7 +3218,8 @@
      */
     function getRecordingReadinessStatus() {
       const checklistReady = isAudioChecklistConfirmed();
-      const selectedDevice = state.devices.find(device => device.id === state.selectedDeviceId);
+      const selectedDevice = state.devices.find(device => device.id === state.selectedDeviceId)
+        || (state.selectedDeviceSnapshot?.id === state.selectedDeviceId ? state.selectedDeviceSnapshot : null);
       const selectedDeviceReady = isSpotifyDeviceReady();
       const selectedDeviceLabel = selectedDevice?.name || "";
       const tokenValid = Boolean(state.token && Date.now() <= state.expiresAt);
@@ -3701,6 +3938,7 @@
       renderJCard(a, b, aMs, bMs, totalMs);
       renderWarnings(totalMs, tapeMs, halfMs);
       renderEmptyStates();
+      persistCurrentProject();
       pushSharedStatus(true);
     }
 
@@ -4881,9 +5119,11 @@
       el.playlistSelect.innerHTML = `<option value="">Choose a playlist...</option>` + state.playlists.map(playlist => {
         const visibility = playlist.public ? "public" : "private";
         const trackLabel = Number.isFinite(playlist.tracks) ? `${playlist.tracks} tracks` : "tracks unknown";
-        const label = `${playlist.name} - ${trackLabel} - ${visibility}`;
+        const source = playlist.restored ? "restored" : visibility;
+        const label = `${playlist.name} - ${trackLabel} - ${source}`;
         return `<option value="${escapeHtml(playlist.id)}">${escapeHtml(label)}</option>`;
       }).join("");
+      el.playlistSelect.value = state.playlists.some(playlist => playlist.id === state.playlistId) ? state.playlistId : "";
       el.playlistSelect.disabled = false;
     }
 
@@ -4898,6 +5138,7 @@
         return;
       }
       el.loadDevicesBtn.disabled = false;
+      state.devices = mergeSelectedDeviceSnapshot(state.devices);
       if (!state.devices.length) {
         el.deviceSelect.innerHTML = `<option value="">Select a device</option>`;
         el.deviceSelect.disabled = true;
