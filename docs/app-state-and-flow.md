@@ -54,6 +54,21 @@ New UI controls should follow the same pattern: keep the DOM element in `index.h
 
 The playlist controls are grouped together in the input panel: `playlistInput`, `loadBtn`, `playlistSelect`, and `loadPlaylistsBtn` sit in the same playlist block so loading by URL/ID and loading from the user's Spotify playlists share one place in the UI.
 
+The input panel sections are collapsible `<details>` blocks. The wrappers may be opened or closed by the user, but the controls stay mounted in the DOM so existing id-based event bindings remain valid:
+
+```text
+credentialsPanel      -> Spotify section, open by default
+playlistPickerPanel   -> Playlist section, open by default
+Deck                  -> profile editor, collapsed by default
+Cassette              -> profile editor, collapsed by default
+Tape planning         -> tape format/inventory, open by default
+Files                 -> import/export actions, collapsed by default
+```
+
+The skip link points to `#recordingControls`, a focusable wrapper around the recording timer, progress, current-track label, Start/Pause/Abort buttons, cue/flip banners, and Start Side B. On smaller screens this wrapper is sticky near the viewport bottom so the operator does not need to scroll during a recording cue.
+
+The deck checklist is a `<details id="deckChecklist">` element. Checklist checkbox changes still bubble to the existing `deckChecklist` listener, and `updateDeckChecklistState()` owns the count shown in the summary row.
+
 ## Playlist loading flow
 
 `loadPlaylist()` is the real start of a cassette project.

@@ -205,6 +205,17 @@ renderRecordingLockState()
 
 The Tape readiness row also checks `Tapes you have`: recording is blocked when inventory is empty, when the plan needs more cassettes than entered, or when any planned side exceeds the selected cassette format.
 
+UI structure contracts:
+
+```text
+.skip-link                -> keyboard jump target for recording controls
+#recordingControls        -> focusable recording-control wrapper
+details.input-section     -> collapsible input workflow sections
+details#deckChecklist     -> collapsible deck checklist with summary count
+```
+
+The input workflow sections stay mounted even when collapsed, so code should continue binding controls by stable ids such as `playlistInput`, `deckProfileSelect`, and `tapeInventory`. The `#recordingControls` wrapper contains the timer, progress, current-track label, Start/Pause/Abort buttons, cue/flip banners, and Start Side B; responsive CSS makes this wrapper sticky on narrow screens.
+
 ### Safety and confirmation functions
 
 ```text
@@ -224,7 +235,7 @@ Confirmation overlays resolve any pending older confirmation with `false` before
 
 `isChecklistComplete()` is the deck checklist gate for Start Side A/B and recording preflight. It returns true only when every deck checklist item is checked or the explicit skip checklist toggle is active.
 
-`syncAutomaticDeckChecklistItems()` turns checklist items on when the app can verify them itself. Currently the Spotify device checklist row is checked automatically after a selected or active Spotify device is detected; physical deck setup rows remain manual.
+`syncAutomaticDeckChecklistItems()` turns checklist items on when the app can verify them itself. Currently the Spotify device checklist row is checked automatically only after an explicit current Spotify device selection; physical deck setup rows remain manual.
 
 ### J-card functions in src/app.js
 

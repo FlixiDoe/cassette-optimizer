@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- Document the collapsible input workflow sections, keyboard skip link, sticky mobile recording controls, and deck-checklist details behavior.
+- Clarify that Spotify device readiness and the automatic checklist row require an explicit current device selection, not only Spotify's default active device.
+
 ## Cassette Optimizer 1.2.1
 
 Bugfix release for Spotify playlist loading regressions after the 1.2.0 stability release.
@@ -48,7 +55,7 @@ Feature release for the current recording-readiness and cassette-planning workfl
 - Use `Tapes you have` as a real recording gate: recording is blocked when inventory is empty, when the plan needs more cassettes than entered, or when a planned side is too long for the selected cassette format.
 - Use the seven-row Recording Readiness panel for Spotify, Device, Playlist, Tape, Checklist, API, and Ready state.
 - Start Side A/B only when Recording Readiness is fully green; click handlers also block direct starts.
-- Auto-check the Spotify device deck-checklist item when the app detects a selected or active Spotify device.
+- Auto-check the Spotify device deck-checklist item after an explicit current Spotify device selection.
 - Use seven compact Level Check checkpoints plus browser-generated 400 Hz, 1 kHz, or pink-noise tones.
 - Rehearse the full recording flow in Dry Run mode with real-speed timers, visible DRY RUN banner, and simulated Spotify command log.
 - Handle Spotify HTTP 429 rate limits with a Retry-After countdown, single non-recording retry, and recording-safe buffered playback command replay.

@@ -167,7 +167,7 @@ user-modify-playback-state
 11. Review the physical tape plan, Side A, Side B, remaining blank tape, warnings, and J-card preview.
 12. Confirm the Tape row in Recording Readiness is green; it turns red if `Tapes you have` is empty, too small, or short of the formats the plan needs.
 13. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
-14. Refresh Spotify devices and choose the target device if needed.
+14. Refresh Spotify devices and explicitly choose the target device.
 15. Complete the recording checklist, or explicitly use `Skip checklist`.
 16. Use the seven Level Check checkpoints and `Level Check` tone only after turning the deck input gain down, then stop the tone before recording.
 17. Wait until all Recording Readiness rows are green.
@@ -203,6 +203,14 @@ Ready     All rows above are green
 
 Start Side A/B is disabled, and the click handler also blocks, unless every Recording Readiness row is green.
 
+## UI and Accessibility
+
+The Input panel is organized as collapsible workflow sections: Spotify, Playlist, Deck, Cassette, Tape planning, and Files. Spotify, Playlist, and Tape planning start open because they are the common setup path; Deck, Cassette, and Files can be opened when editing profiles or importing/exporting data.
+
+The page includes a keyboard skip link to jump directly to `Recording controls`. Interactive controls have visible focus rings, the deck checklist is collapsible, and the recording controls are grouped in one focusable region.
+
+On phone-sized screens the app tightens spacing, stacks form rows, uses larger tap targets, and keeps the recording controls sticky near the bottom of the viewport so Start, Pause, Abort, cue, flip, and Side B controls remain reachable during recording.
+
 `Apply to Spotify` always asks for confirmation before changing the remote playlist order. `Export Backup` downloads the project JSON and does not continue with the Spotify reorder. Playlists above 100 tracks show an extra warning because Spotify receives the update in batches.
 
 ## Deck and Audio Setup
@@ -228,7 +236,7 @@ Before a real recording run:
 - Adjust final recording level on the cassette deck input, not with OS mixer volume.
 - Disable notification sounds before recording.
 - Watch the deck meters and avoid clipping or distortion.
-- The deck checklist gates Start Side A/B unless all items are checked or `Skip checklist` is active. The Spotify device row can be checked automatically when the app detects a selected or active Spotify device.
+- The deck checklist gates Start Side A/B unless all items are checked or `Skip checklist` is active. The Spotify device row can be checked automatically only after an explicit current Spotify device selection.
 - If using `Leader Tape Delay`, the cue phase shows `Advancing past leader tape...` while the shared cue delay pipeline runs.
 - The Level Check section has seven informational checkpoints: Spotify Lossless/highest quality, Crossfade 0 s, Normalize off, EQ off, system volume 100 %, deck in record-pause, and peaks clean/no clipping.
 - The browser `Level Check` source can play 400 Hz, 1 kHz, or pink noise at `-12 dBFS`, `-6 dBFS`, or `0 dBFS`; it never auto-starts and must be stopped manually.

@@ -200,6 +200,14 @@ It also applies the recording lock and Start Side A/B readiness gate. Start butt
 
 `getRecordingReadinessStatus()` is the shared source for the panel and Start Side A/B gates. The Tape row checks the loaded plan, `Tapes you have`, cassette count by format, and side overflow. The Checklist row uses the deck checklist or skip toggle. The API row reflects active and non-retryable Spotify rate-limit state.
 
+## UI structure and responsive controls
+
+The main input column uses `<details class="input-section">` blocks for Spotify, Playlist, Deck, Cassette, Tape planning, and Files. Spotify, Playlist, and Tape planning are open by default; lower-frequency sections can stay collapsed without removing their DOM nodes. Event handlers still bind by id, so converting a section wrapper to `<details>` should not change handler ownership as long as ids remain stable.
+
+The page has a `.skip-link` targeting `#recordingControls`. The recording timer, progress, current track, Start/Pause/Abort buttons, cue banner, flip banner, and Start Side B button live inside `.record-controls`. On narrow viewports `.record-controls` becomes sticky at the bottom of the screen, so new recording controls should be added inside that container only when they belong in the always-reachable recording surface.
+
+The deck checklist is also a `<details>` element. Its `change` events still bubble to the same `deckChecklist` listener, while the summary row owns the visible checklist count. Keep checklist state updates in `renderDeckChecklist()` / `updateDeckChecklistState()` rather than writing summary text directly from unrelated code.
+
 Do not update many DOM nodes manually in new code if an existing render function already owns them. Mutate state first, then call the relevant render function.
 
 ## Spotify boundary
