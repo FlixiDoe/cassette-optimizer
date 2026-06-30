@@ -64,6 +64,10 @@ applyHostMode()
 bindEvents()
 restoreToken()
 persistToken()
+restoreSavedProject()
+restoreRecordingState()
+persistCurrentProject()
+persistRecordingState()
 ```
 
 `applyHostMode()` has three modes:
@@ -135,10 +139,17 @@ createMixtapeProject(...)
 buildProjectTapes(project, fallbackTapeMinutes, tapeFormats)
 setProject(project)
 syncStateFromProject()
+syncPlaylistControlsFromProject()
+persistCurrentProject()
+restoreSavedProject()
 clampTapeIndex(index, tapeCount)
 ```
 
 `buildProjectTapes()` is where pure tape split output becomes full project tape objects. It applies `state.slackMarginSeconds` when calling `splitTracksIntoTapesByFormats(...)`. If a tape needs a new persistent field, add it there and in import/export normalization.
+
+`persistCurrentProject()` autosaves the active project to `localStorage.cassetteOptimizerCurrentProject` using the same playlist-profile export payload used by profile-folder export. `restoreSavedProject()` reads it on startup, routes it through migration/import normalization, and preserves any pending recording snapshot while the project is restored.
+
+`syncPlaylistControlsFromProject()` writes the restored playlist id into `playlistInput` and inserts a restored playlist option when `state.playlists` is empty or has not been refreshed from Spotify yet.
 
 ### Tape planning functions
 
@@ -287,6 +298,9 @@ stopTimer()
 updateTimer()
 completeSideA()
 completeSideB()
+persistRecordingState(options)
+restoreRecordingState()
+clearPersistedRecordingState()
 ```
 
 `startSideA()` and `startSideB()` should stay symmetrical. If a recording safety check is added, add it to both sides or a shared helper.
@@ -302,6 +316,10 @@ Rate-limit countdown completion sets `state.rateLimit.active` back to false. Buf
 `runRecordCue(...)` resolves `true` when cue completes and `false` when `clearRecordCue()` cancels it. `startSideA()` and `startSideB()` return without starting playback when a cue is cancelled by abort or replacement.
 
 Timer ticks run through a guard so async side-completion work cannot overlap across 250 ms interval ticks.
+
+`persistRecordingState()` stores the active recording snapshot in `localStorage.cassetteOptimizerRecordingState` while `isRecordingLockActive()` is true. It is throttled during timer ticks and forced at cue/start/pause/flip transitions plus `beforeunload`. The snapshot includes record mode, active side, selected tape index, tape minutes, elapsed side time, Spotify side elapsed anchor, last progress floor, project identity, track fingerprint, and save timestamp.
+
+`restoreRecordingState()` validates project identity, track fingerprint, tape index, and tape minutes before applying a snapshot. Running `recording_a` or `recording_b` states add wall-clock time since the last save and restart the local timer. Cue states restore as paused rather than auto-starting playback. `abortRecording()`, fresh project loads, and `completeSideB()` clear the saved snapshot.
 
 ### Spotify monitoring functions
 
@@ -323,6 +341,8 @@ The local timer is the primary timeline. Spotify playback is used to correct dri
 Spotify progress is trusted only inside the shared 5-second drift tolerance used by the Recording Readiness status.
 
 `setPlaybackRecovery(...)` updates the Recording Readiness panel with actionable recovery text.
+
+Device recovery uses both `state.devices` and `state.selectedDeviceSnapshot`. The snapshot is stored in `localStorage.spotify_selected_device` when the user explicitly selects a Spotify device. `renderDeviceOptions()` merges it into the visible device dropdown when Spotify has not returned a fresh device list yet, and `getRecordingReadinessStatus()` can use it for the Device row.
 
 ### Export/import functions
 

@@ -8,18 +8,24 @@ This document explains how `src/app.js` moves data through the app. It is meant 
 
 ```text
 init()
+  initializeDeckProfiles()
+  initializeCassetteProfiles()
   restoreClientSecretPreference()
   applyHostMode()
   restoreToken()
   handleCallback()
   bindEvents()
+  restoreSavedProject()
   renderAuth()
   renderSplit()
+  restoreRecordingState()
   renderRecordMode()
   warnIfFileProtocol()
 ```
 
 Important detail: `handleCallback()` runs during startup so the same app can process the Spotify OAuth redirect at `/callback`.
+
+`restoreSavedProject()` runs before the first planning render so the last active project can repopulate playlist metadata, tape layouts, selected tape, track lists, J-card state, and playlist controls. `restoreRecordingState()` runs after `renderSplit()` so restored countdown/progress UI is not overwritten by the first project render.
 
 `applyHostMode()` leaves localhost in full-control mode, enables full PKCE control on HTTPS Tailscale hosts ending in `.ts.net`, and keeps plain LAN/IP hosts monitor-only. Tailscale control still hides the local-only Client Secret panel.
 
@@ -142,9 +148,43 @@ state.project.slackMarginSeconds
 state.project.jCardOverrides
 ```
 
+It also calls `syncPlaylistControlsFromProject()` so a restored project writes its playlist id into `playlistInput` and inserts a restored playlist option when the user's Spotify playlist list has not been fetched yet.
+
 This keeps older code paths working while the project model remains the source of truth.
 
 When changing project data directly, call `syncStateFromProject()` before rendering.
+
+## Autosave and restore flow
+
+The app keeps two separate local recovery records:
+
+```text
+cassetteOptimizerCurrentProject -> active project export payload
+cassetteOptimizerRecordingState -> active recording snapshot
+spotify_selected_device         -> sanitized selected Spotify device snapshot
+```
+
+`persistCurrentProject()` serializes the active project through the same playlist-profile payload used by folder export. It runs when a project is set, marked dirty, or rendered after planning changes. `restoreSavedProject()` reads that payload at startup, migrates/normalizes it through the import path, and calls `setProject(project, { preserveRecordingState: true })`.
+
+The device snapshot stores only non-secret Spotify Connect metadata needed for UI recovery: id, name, type, active flag, and restricted flag. `renderDeviceOptions()` merges that snapshot into `state.devices` when Spotify's device list is still empty after reload, so the Device readiness row and dropdown can stay aligned with the previous explicit selection.
+
+`persistRecordingState()` writes a throttled recording snapshot while the recording lock is active and also forces saves at cue/start/pause/flip transitions and before unload. The snapshot includes:
+
+```text
+recordMode
+activeRecordSide
+selectedTapeIndex
+tapeMinutes
+elapsedMs
+spotifySideElapsedMs
+lastSideProgressMs
+sideDurationMs
+tracksFingerprint
+projectId
+savedAtMs
+```
+
+`restoreRecordingState()` validates the project id, track fingerprint, selected tape, and tape minutes before applying a snapshot. Running `recording_a` / `recording_b` sessions add wall-clock time since `savedAtMs` and restart the local timer. Cue states restore as paused rather than auto-starting Spotify. Abort, loading/replacing a project, and Side B completion clear the saved recording snapshot.
 
 ## Tape recomputation flow
 
@@ -313,6 +353,8 @@ When Dry Run is active, recording-flow Spotify playback commands are routed thro
 Dry Run also simulates one Spotify 429 during the Side A countdown and routes it through the same visible rate-limit banner, countdown, button-disable, and Readiness API-row path used by real 429 handling.
 
 While `recordMode` is `cue_a`, `cue_b`, `recording_a`, `recording_b`, `paused`, or `flip`, `renderRecordingLockState()` disables dangerous planning controls and sets `body[data-recording-state="active"]`. Each dangerous handler also calls `blockIfRecordingLocked(...)`.
+
+Recording lock state is also the persistence boundary. When the lock is inactive, `persistRecordingState()` removes `cassetteOptimizerRecordingState`; while locked, timer ticks update the saved elapsed position at most every two seconds.
 
 ## Timer flow
 

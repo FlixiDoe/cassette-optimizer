@@ -40,6 +40,7 @@ For the safest use, record only music you own, created yourself, or are otherwis
 - Exports/imports cassette projects as JSON.
 - Exports/imports profile folders with deck profiles, cassette profiles, playlist profiles, and tape collection JSON separated into subfolders; unreadable JSON files are skipped with a log entry.
 - Migrates older cassette project JSON during import.
+- Restores the active project, selected playlist, selected Spotify device, and in-progress recording state after reload or browser close.
 - Controls Spotify playback for Side A / Side B recording with preflight safety checks.
 - Locks planning controls while cueing, recording, pausing, or waiting for a flip.
 - Provides a seven-row Recording Readiness panel and blocks Start Side A/B until all rows are green.
@@ -216,6 +217,14 @@ user-modify-playback-state
 
 Playlist loading uses Spotify's current playlist items API and follows paging beyond the first 100 items, so long owned or collaborative playlists can be planned as one project. If Spotify allows playlist metadata but blocks track items for a public playlist owned by another account, the app keeps the playlist title/art visible and shows `No readable tracks`; cassette planning and recording remain blocked because track durations and URIs are not available.
 
+## Reload and Close Recovery
+
+The app autosaves the active cassette project in browser storage after load/import and after project changes. Reloading or closing and reopening the same browser origin restores the playlist title, playlist input/dropdown selection, tracks, selected tape, split plan, tape minutes, J-card data, and selected Spotify device snapshot.
+
+If a recording was active, the app also restores the recording mode, active side, elapsed side time, Spotify progress anchor, selected tape index, and tape length. A running side resumes its local timer by adding the wall-clock time since the last saved snapshot. Paused, cue, and flip states restore into their corresponding safe UI state. Abort, loading a different project, and completed Side B clear the saved recording state so stale sessions do not reappear.
+
+This recovery is local to the browser and origin. It does not store Spotify client secrets by default, does not store audio, and does not persist anything on the LAN status server.
+
 ## Profiles and Tape Collection
 
 Deck profiles store recorder-specific timing and capability fields: name, manufacturer, model, recording delay calibration (`leaderTapeDelay`, `motorLatency`, `safetyMargin`), default slack margin, optional auto recording level, Dolby NR, Type II support, Type IV support, and notes. Deck profile JSON keeps those delay values both as top-level fields and inside `recordingDelayCalibration` for readable exports.
@@ -319,6 +328,7 @@ For manual checklists:
 - Spotify says the redirect URI is invalid: add `http://127.0.0.1:8787/callback` exactly to your Spotify app settings, save the Spotify app, then click `Connect Spotify` again.
 - `ERR_CONNECTION_REFUSED` after Spotify login: start `npm run start:local` and reload the callback URL.
 - `OAuth callback rejected`: start from `http://127.0.0.1:8787/` and connect again.
+- Reload restored the project but Device is red: open Spotify on the target device, click `Refresh` under `Spotify device`, and reselect it if the saved device snapshot no longer matches a current Spotify Connect device.
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
 - Wrong target device: click `Refresh` under `Spotify device`, select the intended Spotify Connect device, then retry.
 - Recording Readiness Tape row is red: add the missing cassette quantity under `Tapes you have`, choose a larger format, or adjust the plan so every side fits.

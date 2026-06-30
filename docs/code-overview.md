@@ -56,7 +56,7 @@ Browser loads index.html
         ↓
 src/app.js init()
         ↓
-restore local settings and token
+restore local settings, token, saved project, and recording snapshot
         ↓
 bind DOM events
         ↓
@@ -79,7 +79,8 @@ Record Mode starts one selected side through Spotify or Dry Run
 
 ```text
 Spotify session:
-  token, refreshToken, expiresAt, selectedDeviceId, devices
+  token, refreshToken, expiresAt, selectedDeviceId,
+  selectedDeviceSnapshot, devices
 
 Playlist/project:
   playlistId, playlistName, playlistCoverUrl, tracks, project,
@@ -92,6 +93,7 @@ Tape planning:
 Recording:
   recordMode, activeRecordSide, sideAStartedAt,
   sideAElapsedBeforePause, spotifySideElapsedMs,
+  lastSideProgressMs, lastRecordingStateSaveAt,
   timerId, cueTimerId, pollingId
 
 Rate limit:
@@ -114,6 +116,8 @@ J-card:
 ```
 
 `state.project` is the most important long-lived data structure after a playlist is loaded or a JSON config is imported. UI state can still exist outside it, but cassette planning data should flow through the project model.
+
+Startup restores the saved project before the first planning render and restores recording state after that render. This ordering keeps project-derived UI available before recording countdown/progress values are applied.
 
 ## Mixtape project model
 
@@ -236,10 +240,18 @@ Dry Run intentionally avoids Spotify playback API calls in recording flow. Simul
 The app stores small local preferences:
 
 ```text
+activeCassetteId
+activeDeckId
+cassetteOptimizerCurrentProject
+cassetteOptimizerRecordingState
+cassetteProfiles
+deckProfiles
 spotify_client_id
 spotify_client_secret only when explicitly enabled
 spotify_token
+spotify_selected_device
 tape_inventory
+tapeCollection
 deck_checklist
 recording_calibration
 spotify_device_id
@@ -247,6 +259,10 @@ dry_run_mode
 ```
 
 Do not store Spotify client secrets by default. The app only saves a client secret when the local-only checkbox is enabled.
+
+`cassetteOptimizerCurrentProject` stores the active project using the same compact playlist-profile shape used for profile-folder exports. `cassetteOptimizerRecordingState` stores only the active recording timeline and validation anchors, not audio. `spotify_selected_device` is a sanitized UI snapshot of the selected Spotify Connect device so the Device readiness row and dropdown can recover before Spotify returns a fresh device list.
+
+The LAN monitor server does not persist these keys. They are browser-local and origin-scoped.
 
 ## LAN monitor boundary
 
