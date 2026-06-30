@@ -63,7 +63,7 @@ For Windows users who do not want to install Node.js or run npm commands, downlo
 4. Keep the launcher window open while using the app.
 5. Close the launcher window to stop the app.
 
-You still need to create your own Spotify app Client ID and add `http://127.0.0.1:8787/callback` as the redirect URI.
+Before clicking `Connect Spotify`, create your own Spotify app Client ID, add `http://127.0.0.1:8787/callback` as the redirect URI, and paste the Client ID into the app. The portable `.exe` removes the Node/npm setup, but Spotify still requires your own Client ID.
 
 ### Developer setup
 
@@ -156,7 +156,24 @@ Client Secret auth remains disabled on Tailscale. Use normal PKCE with your Spot
 
 ## Spotify App Configuration
 
-Create your own Spotify app and paste its Client ID into the app UI. The repository does not ship with a default Client ID.
+Create your own Spotify app and paste its Client ID into the app UI before clicking `Connect Spotify`. The repository does not ship with a default Client ID.
+
+Minimum Spotify setup:
+
+1. Open the Spotify Developer Dashboard.
+2. Create an app.
+3. Add this Redirect URI exactly:
+
+```text
+http://127.0.0.1:8787/callback
+```
+
+4. Save the Spotify app settings.
+5. Copy the app's Client ID.
+6. Paste it into `Spotify Client ID` in Cassette Optimizer.
+7. Click `Connect Spotify`.
+
+If `Connect Spotify` appears to do nothing, check the visible log at the bottom of the Input panel. A missing Client ID logs `Add your Spotify Client ID first.`
 
 The app defaults to OAuth PKCE without a Client Secret. The optional Client Secret field is advanced, local-only, and should not be used on public hosting or LAN devices.
 
@@ -176,25 +193,26 @@ user-modify-playback-state
 ## Basic Usage
 
 1. Open `http://127.0.0.1:8787/`.
-2. Click `Connect Spotify`.
-3. Click `Refresh` under `Your Spotify playlists`.
-4. Choose a playlist from the dropdown or paste a playlist URL/ID.
-5. Click `Load playlist` in the playlist block.
-6. Review or create a `Deck profile`; use `Save deck profile` after edits, or `Delete` / `Delete all` when cleaning up profiles.
-7. Review or create cassette model profiles; use `Save cassette profile` after edits, or `Delete` / `Delete all` when cleaning up cassette models.
-8. Add owned physical cassettes with the plus controls under `Tapes you have`. First-run inventory starts empty, and creating a cassette profile does not automatically add a physical tape.
-9. Choose a tape format.
-10. For multi-tape plans, choose the exact owned cassette model for each physical tape when needed.
-11. Review the physical tape plan, Side A, Side B, remaining blank tape, warnings, and J-card preview.
-12. Confirm the Tape row in Recording Readiness is green; it turns red if `Tapes you have` is empty, too small, or short of the formats the plan needs.
-13. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
-14. Refresh Spotify devices and explicitly choose the target device.
-15. Complete the recording checklist, or explicitly use `Skip checklist`.
-16. Use the seven Level Check checkpoints and `Level Check` tone only after turning the deck input gain down, then stop the tone before recording.
-17. Wait until all Recording Readiness rows are green.
-18. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
-19. After Side A auto-pauses, flip the cassette and use `Start Side B`.
-20. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+2. Paste your Spotify app Client ID into `Spotify Client ID`.
+3. Click `Connect Spotify`.
+4. Click `Refresh` under `Your Spotify playlists`.
+5. Choose a playlist from the dropdown or paste a playlist URL/ID.
+6. Click `Load playlist` in the playlist block.
+7. Review or create a `Deck profile`; use `Save deck profile` after edits, or `Delete` / `Delete all` when cleaning up profiles.
+8. Review or create cassette model profiles; use `Save cassette profile` after edits, or `Delete` / `Delete all` when cleaning up cassette models.
+9. Add owned physical cassettes with the plus controls under `Tapes you have`. First-run inventory starts empty, and creating a cassette profile does not automatically add a physical tape.
+10. Choose a tape format.
+11. For multi-tape plans, choose the exact owned cassette model for each physical tape when needed.
+12. Review the physical tape plan, Side A, Side B, remaining blank tape, warnings, and J-card preview.
+13. Confirm the Tape row in Recording Readiness is green; it turns red if `Tapes you have` is empty, too small, or short of the formats the plan needs.
+14. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
+15. Refresh Spotify devices and explicitly choose the target device.
+16. Complete the recording checklist, or explicitly use `Skip checklist`.
+17. Use the seven Level Check checkpoints and `Level Check` tone only after turning the deck input gain down, then stop the tone before recording.
+18. Wait until all Recording Readiness rows are green.
+19. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
+20. After Side A auto-pauses, flip the cassette and use `Start Side B`.
+21. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
 
 Playlist loading uses Spotify's current playlist items API and follows paging beyond the first 100 items, so long owned or collaborative playlists can be planned as one project. If Spotify allows playlist metadata but blocks track items for a public playlist owned by another account, the app keeps the playlist title/art visible and shows `No readable tracks`; cassette planning and recording remain blocked because track durations and URIs are not available.
 
@@ -297,6 +315,8 @@ For manual checklists:
 
 ## Troubleshooting
 
+- `Connect Spotify` does nothing: paste your Spotify app Client ID into `Spotify Client ID` first. The app logs `Add your Spotify Client ID first.` when the field is empty.
+- Spotify says the redirect URI is invalid: add `http://127.0.0.1:8787/callback` exactly to your Spotify app settings, save the Spotify app, then click `Connect Spotify` again.
 - `ERR_CONNECTION_REFUSED` after Spotify login: start `npm run start:local` and reload the callback URL.
 - `OAuth callback rejected`: start from `http://127.0.0.1:8787/` and connect again.
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.

@@ -54,6 +54,8 @@ New UI controls should follow the same pattern: keep the DOM element in `index.h
 
 The playlist controls are grouped together in the input panel: `playlistInput`, `loadBtn`, `playlistSelect`, and `loadPlaylistsBtn` sit in the same playlist block so loading by URL/ID and loading from the user's Spotify playlists share one place in the UI.
 
+Spotify setup is intentionally ordered: the user must paste a Spotify app Client ID before clicking `Connect Spotify`. `login()` stops early and logs `Add your Spotify Client ID first.` when the field is empty, so setup docs and onboarding copy should not describe Connect as the first action.
+
 The input panel sections are collapsible `<details>` blocks. The wrappers may be opened or closed by the user, but the controls stay mounted in the DOM so existing id-based event bindings remain valid:
 
 ```text

@@ -87,6 +87,8 @@ fetchAccounts(body)
 getClientSecret()
 ```
 
+`login()` reads `Spotify Client ID` before building the PKCE authorization URL. If the field is empty, it logs `Add your Spotify Client ID first.` and does not redirect. User-facing setup docs should therefore put Client ID entry before `Connect Spotify`.
+
 `spotifyFetch()` is the only function new Spotify Web API calls should normally use. It refreshes tokens, converts common player/device failures into clearer errors, and sets recovery copy for the Recording Readiness panel.
 
 401 responses trigger at most one access-token refresh retry. A second 401 is surfaced as an expired-login condition instead of looping.
