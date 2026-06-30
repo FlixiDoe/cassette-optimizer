@@ -10,6 +10,7 @@ Polish release for deck-profile calibration exports, explicit Spotify device rea
 - Move Recording Delay Calibration into the Deck profile editor so deck timing lives with deck metadata.
 - Rework the Input column as collapsible Spotify, Playlist, Deck, Cassette, Tape planning, and Files workflow sections.
 - Add keyboard focus polish, a skip link to recording controls, a collapsible deck checklist, and sticky phone-sized recording controls.
+- Add README screenshots and a Windows x64 portable release ZIP with `Cassette Optimizer.exe` for users who do not want to install Node.js.
 
 ### Fixes
 
@@ -18,7 +19,7 @@ Polish release for deck-profile calibration exports, explicit Spotify device rea
 
 ### Documentation
 
-- Document the collapsible input workflow sections, keyboard skip link, sticky mobile recording controls, deck-checklist details behavior, and explicit-device readiness rule.
+- Document the collapsible input workflow sections, keyboard skip link, sticky mobile recording controls, deck-checklist details behavior, explicit-device readiness rule, screenshots, and Windows portable build flow.
 
 ### Validation
 

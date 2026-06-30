@@ -4,6 +4,13 @@ A local-first Spotify playlist planner and playback controller for recording mix
 
 Cassette Optimizer keeps a Spotify playlist in order, plans it across one or more physical cassettes, shows a recording countdown, and controls Spotify playback so the user can record one side at a time.
 
+## Screenshots
+
+![Cassette Optimizer overview](docs/screenshots/cassette-optimizer-overview.png)
+
+![Deck profile timing controls](docs/screenshots/cassette-optimizer-deck-profile.png)
+
+![Mobile recording controls](docs/screenshots/cassette-optimizer-mobile-recording.png)
 
 ## Documentation
 
@@ -45,6 +52,20 @@ For the safest use, record only music you own, created yourself, or are otherwis
 For implementation details, read [docs/code-overview.md](docs/code-overview.md) and [docs/module-reference.md](docs/module-reference.md).
 
 ## Local Setup
+
+### Windows portable download
+
+For Windows users who do not want to install Node.js or run npm commands, download the `CassetteOptimizer-*-windows-x64-portable.zip` file from the latest GitHub release.
+
+1. Extract the ZIP.
+2. Double-click `Cassette Optimizer.exe`.
+3. Your browser opens `http://127.0.0.1:8787/`.
+4. Keep the launcher window open while using the app.
+5. Close the launcher window to stop the app.
+
+You still need to create your own Spotify app Client ID and add `http://127.0.0.1:8787/callback` as the redirect URI.
+
+### Developer setup
 
 Use Node.js 18 or newer for the local server and automated tests.
 

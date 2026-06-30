@@ -87,3 +87,19 @@ http://127.0.0.1:8787/
 ```
 
 Keep the local server running while Spotify redirects back to the app. If the server is stopped, Spotify will show `ERR_CONNECTION_REFUSED` after login.
+
+## Windows Portable Release Asset
+
+Build the no-Node Windows portable ZIP from a clean checkout:
+
+```powershell
+npm run build:windows-portable -- -Version 1.2.2
+```
+
+Before uploading the ZIP to GitHub Releases:
+
+- Extract it on Windows.
+- Double-click `Cassette Optimizer.exe`.
+- Confirm the browser opens `http://127.0.0.1:8787/`.
+- Confirm `http://127.0.0.1:8787/api/health` returns JSON with `"ok": true`.
+- Keep `dist/` out of git; upload the ZIP as a release asset instead.
