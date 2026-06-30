@@ -1,11 +1,29 @@
 # Changelog
 
-## Unreleased
+## Cassette Optimizer 1.2.2
+
+Polish release for deck-profile calibration exports, explicit Spotify device readiness, and recording workflow accessibility.
+
+### Highlights
+
+- Add `recordingDelayCalibration` to exported deck-profile JSON while keeping the legacy top-level timing fields for compatibility.
+- Move Recording Delay Calibration into the Deck profile editor so deck timing lives with deck metadata.
+- Rework the Input column as collapsible Spotify, Playlist, Deck, Cassette, Tape planning, and Files workflow sections.
+- Add keyboard focus polish, a skip link to recording controls, a collapsible deck checklist, and sticky phone-sized recording controls.
+
+### Fixes
+
+- Require an explicit current Spotify device selection before the Device readiness row or automatic checklist item turns green.
+- Replace `Default active device` copy with `Select a device` so the UI no longer implies that Spotify's default active device is enough.
 
 ### Documentation
 
-- Document the collapsible input workflow sections, keyboard skip link, sticky mobile recording controls, and deck-checklist details behavior.
-- Clarify that Spotify device readiness and the automatic checklist row require an explicit current device selection, not only Spotify's default active device.
+- Document the collapsible input workflow sections, keyboard skip link, sticky mobile recording controls, deck-checklist details behavior, and explicit-device readiness rule.
+
+### Validation
+
+- `npm test` passes: 27/27 tests.
+- Browser check on `http://127.0.0.1:8787/`: the app loads with no console errors, Deck details opens correctly, and Recording Delay Calibration remains inside the Deck section.
 
 ## Cassette Optimizer 1.2.1
 
