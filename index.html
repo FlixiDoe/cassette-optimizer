@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles/cassette.css">
 </head>
 <body>
+  <a class="skip-link" href="#recordingControls">Skip to recording controls</a>
   <main class="app">
     <header>
       <div>
@@ -27,10 +28,10 @@
       </div>
     </header>
     <section class="grid">
-      <aside class="panel stack">
-        <h2>Input</h2>
-        <div id="credentialsPanel" class="input-section">
-          <h3 class="input-section-title">Spotify</h3>
+      <aside class="panel stack" aria-labelledby="inputPanelTitle">
+        <h2 id="inputPanelTitle">Input</h2>
+        <details id="credentialsPanel" class="input-section" open>
+          <summary class="input-section-title">Spotify</summary>
           <div>
             <label class="label" for="clientId">Spotify Client ID</label>
             <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID">
@@ -47,9 +48,9 @@
               <span>Save Client Secret on this local device</span>
             </label>
           </details>
-        </div>
-        <div id="playlistPickerPanel" class="playlist-panel input-section">
-          <h3 class="input-section-title">Playlist</h3>
+        </details>
+        <details id="playlistPickerPanel" class="playlist-panel input-section" open>
+          <summary class="input-section-title">Playlist</summary>
           <label class="label" for="playlistSelect">Your Spotify playlists</label>
           <div class="row">
             <select id="playlistSelect" disabled>
@@ -62,9 +63,9 @@
             <label class="label" for="playlistInput">Playlist URL or ID</label>
             <input id="playlistInput" value="" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
           </div>
-        </div>
-        <div class="profile-panel input-section">
-          <h3 class="input-section-title">Deck</h3>
+        </details>
+        <details class="profile-panel input-section">
+          <summary class="input-section-title">Deck</summary>
           <div class="profile-toolbar">
             <label class="label" for="deckProfileSelect">Deck profile</label>
             <div class="row">
@@ -133,9 +134,9 @@
             <button id="importDeckProfileBtn" type="button">Import deck</button>
             <input id="importDeckProfileFile" type="file" accept="application/json,.json" hidden>
           </div>
-        </div>
-        <div class="profile-panel input-section">
-          <h3 class="input-section-title">Cassette</h3>
+        </details>
+        <details class="profile-panel input-section">
+          <summary class="input-section-title">Cassette</summary>
           <div class="profile-toolbar">
             <label class="label" for="cassetteProfileSelect">Cassette profile</label>
             <div class="row">
@@ -206,9 +207,9 @@
             <button id="importCassetteProfileBtn" type="button">Import cassette</button>
             <input id="importCassetteProfileFile" type="file" accept="application/json,.json" hidden>
           </div>
-        </div>
-        <div class="input-section">
-          <h3 class="input-section-title">Tape planning</h3>
+        </details>
+        <details class="input-section" open>
+          <summary class="input-section-title">Tape planning</summary>
           <div>
             <label class="label" for="tapeSelect">Tape format</label>
             <select id="tapeSelect"></select>
@@ -219,9 +220,9 @@
           </div>
           <span class="label">Tapes you have</span>
           <div class="tape-inventory" id="tapeInventory"></div>
-        </div>
-        <div class="input-section">
-          <h3 class="input-section-title">Files</h3>
+        </details>
+        <details class="input-section">
+          <summary class="input-section-title">Files</summary>
           <div class="config-actions">
             <button id="exportConfigBtn" type="button" disabled>Export Config</button>
             <button id="importConfigBtn" type="button">Import Config</button>
@@ -232,7 +233,7 @@
             <button id="exportProfileFolderBtn" type="button">Export profile folder</button>
             <button id="importProfileFolderBtn" type="button">Import profile folder</button>
           </div>
-        </div>
+        </details>
         <div class="small" id="profileStatus" aria-live="polite"></div>
         <button id="applyBtn" class="warn" disabled>Apply to Spotify</button>
         <div class="empty-state" id="inputEmptyState"></div>
@@ -314,8 +315,8 @@
         <div class="empty-state" id="splitEmptyState"></div>
       </section>
 
-      <aside class="panel transport">
-        <h2>Playback</h2>
+      <aside class="panel transport" aria-labelledby="playbackPanelTitle">
+        <h2 id="playbackPanelTitle">Playback</h2>
         <div>
           <label class="label" for="deviceSelect">Spotify device</label>
           <div class="row">
@@ -344,14 +345,14 @@
           <div class="record-row"><span>Active side</span><b id="recordSide">-</b></div>
           <div class="record-row"><span>Monitor</span><b id="recordMonitor">Waiting</b></div>
         </div>
-        <div class="deck-checklist incomplete" id="deckChecklist">
-          <div class="record-row"><span>Deck checklist</span><b id="deckChecklistStatus">0/12 ready</b></div>
+        <details class="deck-checklist incomplete" id="deckChecklist" open>
+          <summary class="record-row"><span>Deck checklist</span><b id="deckChecklistStatus">0/12 ready</b></summary>
           <div class="deck-checklist-items" id="deckChecklistItems"></div>
           <label class="check-row">
             <input id="skipDeckChecklist" type="checkbox">
             <span>Skip checklist</span>
           </label>
-        </div>
+        </details>
         <details class="level-helper" id="levelCheckHelper">
           <summary>Level check</summary>
           <div class="level-checkpoints" id="levelCheckItems">
@@ -391,19 +392,21 @@
             <button id="stopLevelToneBtn" type="button" class="danger" disabled>Stop Tone</button>
           </div>
         </details>
-        <div class="timer">
-          <strong id="countdown">00:00</strong>
-          <span id="countdownLabel">left on Side A</span>
-          <span id="finishTime" class="finish-time">Finish time pending</span>
+        <div class="record-controls" id="recordingControls" tabindex="-1">
+          <div class="timer">
+            <strong id="countdown">00:00</strong>
+            <span id="countdownLabel">left on Side A</span>
+            <span id="finishTime" class="finish-time">Finish time pending</span>
+          </div>
+          <div class="progress"><i id="playProgress"></i></div>
+          <div class="track-now" id="currentTrack">No active playback.</div>
+          <button id="startA" class="primary" disabled>Start Side A</button>
+          <button id="pauseBtn" class="danger" disabled>Pause</button>
+          <button id="abortBtn" class="danger" disabled>Abort Recording</button>
+          <div id="recordCue" class="record-cue" aria-live="assertive">PRESS RECORD NOW</div>
+          <div id="flipBanner" class="flip">FLIP THE CASSETTE!</div>
+          <button id="startB" class="warn" disabled>Start Side B</button>
         </div>
-        <div class="progress"><i id="playProgress"></i></div>
-        <div class="track-now" id="currentTrack">No active playback.</div>
-        <button id="startA" class="primary" disabled>Start Side A</button>
-        <button id="pauseBtn" class="danger" disabled>Pause</button>
-        <button id="abortBtn" class="danger" disabled>Abort Recording</button>
-        <div id="recordCue" class="record-cue" aria-live="assertive">PRESS RECORD NOW</div>
-        <div id="flipBanner" class="flip">FLIP THE CASSETTE!</div>
-        <button id="startB" class="warn" disabled>Start Side B</button>
       </aside>
     </section>
 
