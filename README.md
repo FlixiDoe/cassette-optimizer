@@ -273,9 +273,12 @@ cassette deck LINE IN / AUX IN / REC IN
 deck monitor output / headphones / speakers
 ```
 
+For the best recording quality, use the Spotify desktop app when possible. Desktop playback is the most likely path to expose exclusive, fixed-volume, or direct hardware output modes through your operating system or audio interface; browser and mobile playback may not offer the same output control.
+
 Before a real recording run:
 
 - Select the exact Spotify output device you will record from.
+- Prefer the Spotify desktop app for the recording source when your setup supports it.
 - Set Spotify Streaming quality to Lossless if available, otherwise choose the highest available quality.
 - Turn Auto-adjust quality, Crossfade, Normalize volume, Spotify EQ, and system sound enhancements off.
 - Use the same output device in Spotify and your operating system mixer.

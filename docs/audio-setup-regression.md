@@ -5,6 +5,7 @@ Use this checklist before a release or after changing recording setup copy, the 
 ## Documentation Checks
 
 - README mentions Spotify `Lossless`.
+- README recommends the Spotify desktop app for best recording quality when exclusive/fixed/direct output is available.
 - README says Auto-adjust quality should be off.
 - README says Crossfade should be `0 seconds`.
 - README says Normalize volume should be off.
@@ -37,6 +38,7 @@ Use this checklist before a release or after changing recording setup copy, the 
 ## Manual Recording Setup Check
 
 - Select the Spotify playback device that feeds the deck.
+- Prefer the Spotify desktop app as the recording source when the setup supports exclusive/fixed/direct output.
 - Set Spotify quality to Lossless.
 - Disable Auto-adjust quality.
 - Set Crossfade to 0 seconds.
