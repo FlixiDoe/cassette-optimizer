@@ -188,6 +188,12 @@
     .row { display: flex; gap: 10px; align-items: center; }
     .row > * { flex: 1; }
     .label { color: var(--muted); font-size: 12px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+    .field-error {
+      color: var(--danger);
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 6px 0 0;
+    }
 
     .profile-panel,
     .playlist-panel,

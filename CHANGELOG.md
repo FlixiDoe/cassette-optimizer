@@ -1,5 +1,23 @@
 # Changelog
 
+## Cassette Optimizer 1.2.3
+
+Bugfix release for clearer Spotify setup feedback.
+
+### Fixes
+
+- Show an inline Client ID error when `Connect Spotify` is clicked before a Spotify app Client ID is entered.
+- Focus the Client ID field and mark it invalid so first-time setup failure is visible instead of only appearing in the log.
+
+### Documentation
+
+- Clarify that missing Client ID now appears as an inline setup error.
+
+### Validation
+
+- `npm test` passes: 27/27 tests.
+- Browser check on `http://127.0.0.1:8787/`: clicking `Connect Spotify` with an empty Client ID shows the inline error, focuses the Client ID field, and keeps the page on the local app.
+
 ## Cassette Optimizer 1.2.2
 
 Polish release for deck-profile calibration exports, explicit Spotify device readiness, and recording workflow accessibility.

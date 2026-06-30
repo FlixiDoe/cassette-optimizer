@@ -774,7 +774,8 @@
     }
 
     function bindEvents() {
-      el.clientId.addEventListener("change", () => localStorage.setItem("spotify_client_id", el.clientId.value.trim()));
+      el.clientId.addEventListener("input", saveClientId);
+      el.clientId.addEventListener("change", saveClientId);
       el.clientSecret.addEventListener("change", persistClientSecretIfEnabled);
       el.saveClientSecret.addEventListener("change", updateClientSecretStorage);
       el.connectBtn.addEventListener("click", login);
@@ -914,7 +915,14 @@
         return;
       }
       // Without a client ID Spotify cannot identify this app at `/authorize`.
-      if (!clientId) return log("Add your Spotify Client ID first.");
+      if (!clientId) {
+        const message = "Paste your Spotify Client ID before connecting.";
+        setClientIdError(message);
+        el.authStatus.textContent = "Client ID required";
+        log("Add your Spotify Client ID first.");
+        return;
+      }
+      clearClientIdError();
       // The verifier is a high-entropy one-time secret that proves this browser initiated the login.
       const verifier = base64Url(randomBytes(64));
       // Spotify requires the S256 code challenge, which is SHA-256(verifier) encoded as base64url.
@@ -5171,6 +5179,24 @@
 
     function getClientId() {
       return el.clientId.value.trim() || localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
+    }
+
+    function saveClientId() {
+      const clientId = el.clientId.value.trim();
+      localStorage.setItem("spotify_client_id", clientId);
+      if (clientId) clearClientIdError();
+    }
+
+    function setClientIdError(message) {
+      if (!el.clientIdError) return;
+      el.clientIdError.textContent = message;
+      el.clientIdError.hidden = !message;
+      el.clientId.setAttribute("aria-invalid", message ? "true" : "false");
+      if (message) el.clientId.focus();
+    }
+
+    function clearClientIdError() {
+      setClientIdError("");
     }
 
     function getAppBaseUrl() {

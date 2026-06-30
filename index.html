@@ -34,7 +34,8 @@
           <summary class="input-section-title">Spotify</summary>
           <div>
             <label class="label" for="clientId">Spotify Client ID</label>
-            <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID">
+            <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID" aria-describedby="clientIdError">
+            <p class="field-error" id="clientIdError" role="alert" hidden></p>
           </div>
           <details class="advanced-secret" id="clientSecretAdvanced">
             <summary>Advanced local-only Client Secret</summary>

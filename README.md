@@ -173,7 +173,7 @@ http://127.0.0.1:8787/callback
 6. Paste it into `Spotify Client ID` in Cassette Optimizer.
 7. Click `Connect Spotify`.
 
-If `Connect Spotify` appears to do nothing, check the visible log at the bottom of the Input panel. A missing Client ID logs `Add your Spotify Client ID first.`
+If `Connect Spotify` is clicked before a Client ID is entered, the app now shows an inline setup error below `Spotify Client ID`, focuses the field, and also logs `Add your Spotify Client ID first.`
 
 The app defaults to OAuth PKCE without a Client Secret. The optional Client Secret field is advanced, local-only, and should not be used on public hosting or LAN devices.
 
@@ -315,7 +315,7 @@ For manual checklists:
 
 ## Troubleshooting
 
-- `Connect Spotify` does nothing: paste your Spotify app Client ID into `Spotify Client ID` first. The app logs `Add your Spotify Client ID first.` when the field is empty.
+- `Connect Spotify` shows a Client ID error: paste your Spotify app Client ID into `Spotify Client ID` first. The app keeps the error visible until you enter a value.
 - Spotify says the redirect URI is invalid: add `http://127.0.0.1:8787/callback` exactly to your Spotify app settings, save the Spotify app, then click `Connect Spotify` again.
 - `ERR_CONNECTION_REFUSED` after Spotify login: start `npm run start:local` and reload the callback URL.
 - `OAuth callback rejected`: start from `http://127.0.0.1:8787/` and connect again.
