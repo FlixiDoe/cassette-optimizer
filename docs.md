@@ -26,16 +26,16 @@ These files explain how the code works internally:
 
 Keep each topic in one place:
 
-```text
-User setup, safe use, profiles -> README.md
-Release notes                -> CHANGELOG.md
-Current active work          -> TODO.md
-Code architecture            -> docs/code-overview.md
-Runtime state and flow       -> docs/app-state-and-flow.md
-Function/module reference    -> docs/module-reference.md
-AI usage disclosure          -> docs/ai-usage.md
-Manual regression checklists -> docs/*.md checklist files
-```
+| Topic | Source |
+| --- | --- |
+| User setup, safe use, profiles | [README.md](README.md) |
+| Release notes | [CHANGELOG.md](CHANGELOG.md) |
+| Current active work | [TODO.md](TODO.md) |
+| Code architecture | [docs/code-overview.md](docs/code-overview.md) |
+| Runtime state and flow | [docs/app-state-and-flow.md](docs/app-state-and-flow.md) |
+| Function/module reference | [docs/module-reference.md](docs/module-reference.md) |
+| AI usage disclosure | [docs/ai-usage.md](docs/ai-usage.md) |
+| Manual regression checklists | [docs/*.md](docs/) checklist files |
 
 If a section starts repeating another file, replace it with a link instead of copying the same explanation again.
 

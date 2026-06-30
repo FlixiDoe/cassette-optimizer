@@ -239,15 +239,15 @@ Use `Export profiles` / `Import profiles` for a single JSON profile bundle. Use 
 
 Recording Readiness has seven rows:
 
-```text
-Spotify   Token valid
-Device    Explicit Spotify device selected or Dry Run active
-Playlist  At least one track loaded
-Tape      Inventory and plan are valid
-Checklist All deck checklist items complete or skipped
-API       No active rate limit or non-retryable API error
-Ready     All rows above are green
-```
+| Row | Ready when |
+| --- | --- |
+| Spotify | Token is valid |
+| Device | Explicit Spotify device is selected, or Dry Run is active |
+| Playlist | At least one track is loaded |
+| Tape | Inventory and plan are valid |
+| Checklist | All deck checklist items are complete or explicitly skipped |
+| API | No active rate limit or non-retryable API error exists |
+| Ready | All rows above are green |
 
 Start Side A/B is disabled, and the click handler also blocks, unless every Recording Readiness row is green.
 

@@ -15,23 +15,23 @@ There is no frontend build step. The cross-platform `npm run start:local` comman
 
 ## Main files
 
-```text
-index.html               DOM structure and element IDs used by src/app.js
-src/app.js               Main controller, state, event wiring, Spotify calls, rendering
-src/config-migration.js  JSON import migration and normalization defaults
-src/spotify.js           Small Spotify/auth helper functions and SpotifyApiError
-src/recording-preflight.js  Pure recording start validation
-src/recording.js         Recording timing helper for expected-track calculation
-src/tape.js              Pure cassette split, slack margin, duration, and formatting logic
-src/jcard.js             Pure J-card markup rendering and print title cleanup
-src/export.js            Current config version constant
-styles/                  Layout, cassette visual, print layout, responsive behavior
-server/server.js         Optional LAN monitor static server and /api/status endpoint
-scripts/start-local.ps1  Windows convenience wrapper for local serving
-scripts/start-lan.ps1    Windows convenience wrapper for LAN serving
-scripts/start-local.sh   Linux/macOS convenience wrapper for local serving
-scripts/start-lan.sh     Linux/macOS convenience wrapper for LAN serving
-```
+| Path | Responsibility |
+| --- | --- |
+| `index.html` | DOM structure and element IDs used by `src/app.js` |
+| `src/app.js` | Main controller, state, event wiring, Spotify calls, rendering |
+| `src/config-migration.js` | JSON import migration and normalization defaults |
+| `src/spotify.js` | Small Spotify/auth helper functions and `SpotifyApiError` |
+| `src/recording-preflight.js` | Pure recording start validation |
+| `src/recording.js` | Recording timing helper for expected-track calculation |
+| `src/tape.js` | Pure cassette split, slack margin, duration, and formatting logic |
+| `src/jcard.js` | Pure J-card markup rendering and print title cleanup |
+| `src/export.js` | Current config version constant |
+| `styles/` | Layout, cassette visual, print layout, responsive behavior |
+| `server/server.js` | Optional LAN monitor static server and `/api/status` endpoint |
+| `scripts/start-local.ps1` | Windows convenience wrapper for local serving |
+| `scripts/start-lan.ps1` | Windows convenience wrapper for LAN serving |
+| `scripts/start-local.sh` | Linux/macOS convenience wrapper for local serving |
+| `scripts/start-lan.sh` | Linux/macOS convenience wrapper for LAN serving |
 
 ## Code ownership boundaries
 
@@ -239,24 +239,24 @@ Dry Run intentionally avoids Spotify playback API calls in recording flow. Simul
 
 The app stores small local preferences:
 
-```text
-activeCassetteId
-activeDeckId
-cassetteOptimizerCurrentProject
-cassetteOptimizerRecordingState
-cassetteProfiles
-deckProfiles
-spotify_client_id
-spotify_client_secret only when explicitly enabled
-spotify_token
-spotify_selected_device
-tape_inventory
-tapeCollection
-deck_checklist
-recording_calibration
-spotify_device_id
-dry_run_mode
-```
+| Key | Purpose |
+| --- | --- |
+| `activeCassetteId` | Selected cassette profile id |
+| `activeDeckId` | Selected deck profile id |
+| `cassetteOptimizerCurrentProject` | Active project export payload |
+| `cassetteOptimizerRecordingState` | Active recording timeline snapshot |
+| `cassetteProfiles` | Saved cassette profile array |
+| `deckProfiles` | Saved deck profile array |
+| `spotify_client_id` | User-entered Spotify app Client ID |
+| `spotify_client_secret` | Optional local-only Client Secret, only when explicitly enabled |
+| `spotify_token` | Spotify OAuth token bundle |
+| `spotify_selected_device` | Sanitized selected-device UI snapshot |
+| `tape_inventory` | Legacy/exported unprofiled C-length counts |
+| `tapeCollection` | Owned cassette copies linked to cassette profiles |
+| `deck_checklist` | Deck checklist completion and skip state |
+| `recording_calibration` | Legacy timing calibration fallback |
+| `spotify_device_id` | Selected Spotify device id |
+| `dry_run_mode` | Dry Run toggle state |
 
 Do not store Spotify client secrets by default. The app only saves a client secret when the local-only checkbox is enabled.
 
