@@ -1,19 +1,20 @@
     :root {
       color-scheme: dark;
-      --bg: #0d0f0d;
-      --panel: #151914;
-      --panel-2: #1d231b;
-      --ink: #f2f0df;
-      --muted: #989b8e;
+      --bg: #10120f;
+      --panel: #171b16;
+      --panel-2: #20261d;
+      --ink: #f3f1e8;
+      --muted: #b9bdad;
       --text: var(--ink);
-      --line: #343b31;
-      --green: #9cff6a;
-      --amber: #ffbf49;
-      --red: #ff5b5b;
+      --line: #3e4738;
+      --green: #b3e678;
+      --amber: #e8b85a;
+      --red: #ff6d6d;
       --danger: var(--red);
-      --blue: #74d7ff;
+      --blue: #8ec8dd;
       --shadow: 0 3px 8px rgba(0, 0, 0, .32);
       --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--green);
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 
       /* Spacing scale, applied across panels/sections for consistent rhythm. */
       --space-1: 4px;
@@ -36,7 +37,21 @@
         var(--bg);
       background-size: 100% 32px, auto;
       color: var(--ink);
-      font: 14px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    code,
+    .log,
+    .metric b,
+    .timer strong,
+    .track .idx,
+    .track .dur,
+    .record-row b,
+    .side-fill em,
+    .cassette-label,
+    .j-spine,
+    .j-title {
+      font-family: var(--mono);
     }
 
     button,
@@ -63,7 +78,7 @@
     button.warn { background: #342513; border-color: #75551e; color: var(--amber); }
     button.danger { background: #321919; border-color: #743030; color: #ffd2d2; }
     button.blocked { border-color: #735d28; box-shadow: inset 0 0 0 1px rgba(255,191,73,.28); }
-    button:disabled { cursor: not-allowed; opacity: .5; }
+    button:disabled { cursor: not-allowed; opacity: .72; }
 
     input,
     select,
@@ -76,6 +91,12 @@
       border-radius: 6px;
       padding: 0 12px;
       outline: none;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #aeb4a6;
+      opacity: 1;
     }
 
     textarea {
@@ -149,8 +170,8 @@
 
     h1, h2, h3, p { margin: 0; }
     h1 { font-size: 34px; letter-spacing: 0; line-height: 1; font-weight: 800; }
-    h2 { font-size: 15px; color: var(--green); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
-    h3 { font-size: 13px; color: var(--amber); letter-spacing: .03em; font-weight: 600; }
+    h2 { font-size: 15px; color: var(--green); letter-spacing: 0; font-weight: 750; }
+    h3 { font-size: 13px; color: var(--amber); letter-spacing: 0; font-weight: 650; }
 
     .status {
       display: flex;
@@ -165,7 +186,6 @@
       height: 10px;
       border-radius: 50%;
       background: var(--red);
-      box-shadow: 0 0 12px currentColor;
     }
 
     .dot.ok { background: var(--green); color: var(--green); }
@@ -188,7 +208,14 @@
     .stack { display: grid; gap: 14px; }
     .row { display: flex; gap: 10px; align-items: center; }
     .row > * { flex: 1; }
-    .label { color: var(--muted); font-size: 12px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+      display: block;
+      width: fit-content;
+      max-width: 100%;
+    }
     .field-error {
       color: var(--danger);
       font-size: 12px;
@@ -200,11 +227,12 @@
       color: var(--muted);
       font-size: 12px;
       line-height: 1.45;
+      max-width: 68ch;
     }
 
     .setup-note code {
       color: var(--ink);
-      font-size: 11px;
+      font-size: 12px;
       overflow-wrap: anywhere;
     }
 
@@ -250,7 +278,6 @@
     .input-section-title {
       color: var(--amber);
       font-size: 12px;
-      text-transform: uppercase;
       letter-spacing: .04em;
     }
 
@@ -277,7 +304,7 @@
       flex: none;
       border: 1px solid var(--amber);
       border-radius: 50%;
-      font-size: 10px;
+      font-size: 12px;
       color: var(--amber);
     }
 
@@ -311,7 +338,6 @@
       color: var(--amber);
       cursor: pointer;
       font-weight: 700;
-      text-transform: uppercase;
     }
 
     .secret-warning {
@@ -368,7 +394,7 @@
       min-height: 34px;
       border: 1px solid var(--line);
       border-radius: 6px;
-      padding: 0 8px;
+      padding: 0 12px;
       background: #11150f;
       color: var(--ink);
       cursor: pointer;
@@ -436,20 +462,18 @@
     }
 
     .metric {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 10px;
-      background: #11150f;
+      border-top: 1px solid var(--line);
+      padding: 10px 0;
+      background: transparent;
     }
 
     .metric b { display: block; font-size: 18px; color: var(--ink); }
-    .metric span { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .metric span { color: var(--muted); font-size: 12px; }
 
     .recommendation {
-      border: 1px solid #45633c;
-      border-radius: 6px;
-      padding: 12px;
-      background: rgba(156,255,106,.08);
+      border-top: 1px solid #45633c;
+      padding: 12px 0;
+      background: transparent;
       color: var(--ink);
     }
 
@@ -458,18 +482,20 @@
       color: var(--green);
       font-size: 16px;
       margin-bottom: 4px;
+      width: fit-content;
+      max-width: 100%;
     }
 
     .recommendation span {
       color: var(--muted);
       display: block;
+      max-width: 70ch;
     }
 
     .split-explanation {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 10px;
-      background: #11150f;
+      border-top: 1px solid var(--line);
+      padding: 10px 0;
+      background: transparent;
       color: var(--muted);
       font-size: 12px;
     }
@@ -478,20 +504,21 @@
       display: block;
       color: var(--amber);
       margin-bottom: 4px;
-      text-transform: uppercase;
+      width: fit-content;
+      max-width: 100%;
     }
 
     .split-explanation span {
       display: block;
+      max-width: 72ch;
     }
 
     .manual-split {
       display: grid;
       gap: 8px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 10px;
-      background: #11150f;
+      border-top: 1px solid var(--line);
+      padding: 10px 0;
+      background: transparent;
     }
 
     .manual-split-header,
@@ -504,14 +531,12 @@
 
     .manual-split-header b {
       color: var(--amber);
-      text-transform: uppercase;
     }
 
     .manual-split-header span {
       color: var(--muted);
       text-align: right;
       font-size: 12px;
-      text-transform: uppercase;
     }
 
     .manual-split .small {
@@ -522,10 +547,13 @@
     .tape-plan {
       display: grid;
       gap: 8px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 12px;
-      background: #11150f;
+      border-top: 1px solid var(--line);
+      padding: 12px 0;
+      background: transparent;
+    }
+
+    #tapePlanSummary {
+      max-width: 72ch;
     }
 
     .per-tape-formats {
@@ -548,7 +576,6 @@
       color: var(--ink);
       font-size: 12px;
       font-weight: 700;
-      text-transform: uppercase;
       padding-top: 10px;
       white-space: nowrap;
     }
@@ -560,7 +587,7 @@
     .tape-format-row em {
       grid-column: 2 / -1;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 12px;
       font-style: normal;
     }
 
@@ -568,10 +595,11 @@
       min-height: 44px;
       border: 1px dashed #735d28;
       border-radius: 6px;
-      padding: 10px;
+      padding: 12px;
       color: #ffd98a;
       background: rgba(255,191,73,.07);
       white-space: pre-wrap;
+      max-width: 72ch;
     }
 
     .warnings:empty { display: none; }
@@ -580,10 +608,11 @@
       display: none;
       border: 1px dashed #45633c;
       border-radius: 6px;
-      padding: 10px;
+      padding: 12px;
       color: var(--muted);
       background: rgba(156,255,106,.05);
       font-size: 12px;
+      max-width: 72ch;
     }
 
     .empty-state.show {
@@ -594,7 +623,6 @@
       display: block;
       color: var(--green);
       margin-bottom: 3px;
-      text-transform: uppercase;
     }
 
     .cassette {
@@ -626,7 +654,6 @@
       justify-content: space-between;
       align-items: center;
       color: var(--green);
-      text-transform: uppercase;
       letter-spacing: 0;
       font-weight: 700;
     }
@@ -705,7 +732,7 @@
       display: flex;
       justify-content: space-between;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 12px;
       margin-bottom: 4px;
     }
 
@@ -713,7 +740,7 @@
       display: block;
       margin-top: 4px;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 12px;
     }
 
     .bar {
@@ -753,8 +780,9 @@
       border-radius: 6px;
       background: rgba(156,255,106,.06);
       color: var(--muted);
-      padding: 10px;
+      padding: 12px;
       font-size: 12px;
+      max-width: 70ch;
     }
 
     .mode-toggle {
@@ -767,7 +795,6 @@
       color: var(--ink);
       padding: 10px;
       font-size: 12px;
-      text-transform: uppercase;
     }
 
     .mode-toggle input {
@@ -790,7 +817,6 @@
       padding: 10px;
       font-weight: 900;
       text-align: center;
-      text-transform: uppercase;
     }
 
     .dry-run-log {
@@ -800,7 +826,7 @@
       border-radius: 6px;
       background: rgba(255,191,73,.06);
       color: #ffd98a;
-      padding: 8px;
+      padding: 12px;
       white-space: pre-wrap;
       font-size: 12px;
     }
@@ -810,23 +836,21 @@
       border-radius: 6px;
       background: rgba(255,191,73,.16);
       color: #ffd98a;
-      padding: 10px;
+      padding: 12px;
       text-align: center;
       font-weight: 700;
     }
 
     .spotify-status-panel {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #11150f;
-      padding: 10px;
+      border-top: 1px solid var(--line);
+      background: transparent;
+      padding: 10px 0;
       display: grid;
       gap: 8px;
     }
 
     .spotify-status-panel h3 {
       color: var(--green);
-      text-transform: uppercase;
     }
 
     .status-chips {
@@ -841,10 +865,9 @@
       gap: 8px;
       border: 1px solid var(--line);
       border-radius: 6px;
-      padding: 7px 8px;
+      padding: 10px 12px;
       color: var(--muted);
       font-size: 12px;
-      text-transform: uppercase;
     }
 
     .status-chip b,
@@ -883,13 +906,12 @@
       padding: 10px;
     }
 
-    .calibration-panel h4,
+    .calibration-panel h3,
     .calibration-panel summary {
       color: var(--amber);
       font-weight: 700;
       font-size: 12px;
       margin: 0;
-      text-transform: uppercase;
     }
 
     .calibration-panel summary {
@@ -929,7 +951,6 @@
       margin-top: 8px;
       color: var(--amber);
       font-size: 13px;
-      text-transform: uppercase;
       letter-spacing: .04em;
     }
 
@@ -956,17 +977,16 @@
       border: 1px solid var(--line);
       border-radius: 6px;
       background: #11150f;
-      padding: 10px;
+      padding: 12px;
       color: var(--muted);
     }
 
     .track-now b { color: var(--ink); display: block; }
 
     .record-mode {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #11150f;
-      padding: 10px;
+      border-top: 1px solid var(--line);
+      background: transparent;
+      padding: 10px 0;
       display: grid;
       gap: 8px;
     }
@@ -977,7 +997,6 @@
       gap: 10px;
       color: var(--muted);
       font-size: 12px;
-      text-transform: uppercase;
     }
 
     .record-row b {
@@ -1003,10 +1022,9 @@
     }
 
     .deck-checklist {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #11150f;
-      padding: 10px;
+      border-top: 1px solid var(--line);
+      background: transparent;
+      padding: 10px 0;
       display: grid;
       gap: 8px;
     }
@@ -1040,7 +1058,7 @@
     }
 
     .deck-checklist.incomplete {
-      border-color: #735d28;
+      border-top-color: #735d28;
       background: rgba(255,191,73,.06);
     }
 
@@ -1073,22 +1091,20 @@
     }
 
     .level-helper {
-      border: 1px solid #45633c;
-      border-radius: 6px;
+      border-top: 1px solid #45633c;
       background: rgba(156,255,106,.05);
-      padding: 10px;
+      padding: 10px 0;
     }
 
     .level-helper summary {
       color: var(--green);
       cursor: pointer;
       font-weight: 700;
-      text-transform: uppercase;
     }
 
     .level-helper p {
       margin-top: 8px;
-      color: var(--muted);
+      color: var(--ink);
       font-size: 12px;
     }
 
@@ -1243,10 +1259,9 @@
       top: 2mm;
       right: 2mm;
       color: #555;
-      font-size: 7px;
+      font-size: 12px;
       font-weight: 700;
       letter-spacing: 0;
-      text-transform: uppercase;
     }
 
     .j-spine {
@@ -1313,7 +1328,7 @@
     }
 
     .j-meta {
-      font-size: 10px;
+      font-size: 12px;
       color: #444;
       display: grid;
       gap: 2mm;
@@ -1333,7 +1348,6 @@
       padding-bottom: 2mm;
       margin-bottom: 3mm;
       font-size: 12px;
-      text-transform: uppercase;
     }
 
     .j-side ol {
@@ -1341,14 +1355,14 @@
       padding-left: 5mm;
       display: grid;
       gap: 1.4mm;
-      font-size: 9px;
-      line-height: 1.2;
+      font-size: 12px;
+      line-height: 1.25;
     }
 
     .jcard-print.compact .j-side ol {
       gap: .9mm;
-      font-size: 8px;
-      line-height: 1.12;
+      font-size: 11px;
+      line-height: 1.18;
     }
 
     .jcard-print.dense .j-front {
@@ -1363,13 +1377,13 @@
 
     .jcard-print.dense .j-side h3 {
       margin-bottom: 2mm;
-      font-size: 10px;
+      font-size: 11px;
     }
 
     .jcard-print.dense .j-side ol {
       gap: .45mm;
-      font-size: 7px;
-      line-height: 1.05;
+      font-size: 10px;
+      line-height: 1.12;
     }
 
     .j-side li {
@@ -1391,7 +1405,7 @@
 
     .j-empty {
       color: #555;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     .log {
@@ -1399,10 +1413,11 @@
       overflow: auto;
       border: 1px solid var(--line);
       border-radius: 6px;
-      padding: 10px;
+      padding: 12px;
       background: #0b0d0a;
       color: var(--muted);
       white-space: pre-wrap;
+      max-width: 72ch;
     }
 
     .small {
@@ -1720,6 +1735,39 @@
         box-shadow: none;
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
+      }
+
+      .j-panel-label {
+        font-size: 7px;
+        text-transform: uppercase;
+      }
+
+      .j-meta {
+        font-size: 10px;
+      }
+
+      .j-side h3 {
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .j-side ol {
+        font-size: 9px;
+        line-height: 1.2;
+      }
+
+      .jcard-print.compact .j-side ol {
+        font-size: 8px;
+        line-height: 1.12;
+      }
+
+      .jcard-print.dense .j-side h3 {
+        font-size: 10px;
+      }
+
+      .jcard-print.dense .j-side ol {
+        font-size: 7px;
+        line-height: 1.05;
       }
 
       .jcard-print,
