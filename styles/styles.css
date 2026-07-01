@@ -5,12 +5,14 @@
       --panel-2: #1d231b;
       --ink: #f2f0df;
       --muted: #989b8e;
+      --text: var(--ink);
       --line: #343b31;
       --green: #9cff6a;
       --amber: #ffbf49;
       --red: #ff5b5b;
+      --danger: var(--red);
       --blue: #74d7ff;
-      --shadow: 0 20px 60px rgba(0, 0, 0, .35);
+      --shadow: 0 3px 8px rgba(0, 0, 0, .32);
       --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--green);
 
       /* Spacing scale, applied across panels/sections for consistent rhythm. */
@@ -31,9 +33,8 @@
       min-height: 100vh;
       background:
         linear-gradient(transparent 31px, rgba(255,255,255,.025) 32px),
-        radial-gradient(circle at 45% 0%, rgba(156,255,106,.08), transparent 34rem),
         var(--bg);
-      background-size: auto, auto, auto;
+      background-size: 100% 32px, auto;
       color: var(--ink);
       font: 14px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
     }
@@ -147,7 +148,7 @@
     }
 
     h1, h2, h3, p { margin: 0; }
-    h1 { font-size: clamp(24px, 3vw, 42px); letter-spacing: 0; line-height: 1; font-weight: 800; }
+    h1 { font-size: 34px; letter-spacing: 0; line-height: 1; font-weight: 800; }
     h2 { font-size: 15px; color: var(--green); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
     h3 { font-size: 13px; color: var(--amber); letter-spacing: .03em; font-weight: 600; }
 
@@ -666,9 +667,11 @@
 
     .tape-fill {
       height: 100%;
-      width: 0%;
+      width: 100%;
       background: linear-gradient(90deg, var(--green), var(--amber));
-      transition: width .4s ease;
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform .4s ease;
     }
 
     .side-bars {
@@ -707,9 +710,11 @@
     .bar i {
       display: block;
       height: 100%;
-      width: 0%;
+      width: 100%;
       background: var(--green);
-      transition: width .35s ease;
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform .35s ease;
     }
 
     .bar.amber i { background: var(--amber); }
@@ -922,9 +927,11 @@
     .progress i {
       display: block;
       height: 100%;
-      width: 0%;
+      width: 100%;
       background: linear-gradient(90deg, var(--green), var(--blue));
-      transition: width .2s linear;
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform .2s linear;
     }
 
     .track-now {
@@ -1422,7 +1429,7 @@
       padding: 18px;
       background: var(--panel);
       color: var(--text);
-      box-shadow: 0 18px 48px rgba(0, 0, 0, .35);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, .38);
     }
 
     .confirm-dialog h3 {
@@ -1524,7 +1531,7 @@
         padding: 16px 12px calc(96px + env(safe-area-inset-bottom));
       }
 
-      h1 { font-size: clamp(20px, 7vw, 28px); }
+      h1 { font-size: 26px; }
 
       .panel { padding: 12px; }
 
@@ -1569,7 +1576,7 @@
         background: rgba(13,15,13,.97);
         backdrop-filter: blur(6px);
         border: 1px solid var(--line);
-        box-shadow: 0 -12px 24px rgba(0,0,0,.4);
+        box-shadow: 0 -3px 8px rgba(0,0,0,.42);
       }
     }
 

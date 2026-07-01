@@ -150,6 +150,19 @@
 
     init();
 
+    function normalizeProgressPercent(value) {
+      if (typeof value === "string" && value.trim().endsWith("%")) {
+        return Math.max(0, Math.min(100, Number.parseFloat(value) || 0));
+      }
+      return Math.max(0, Math.min(100, Number(value) || 0));
+    }
+
+    function setProgressFill(node, value) {
+      const percent = normalizeProgressPercent(value);
+      node.style.width = `${percent}%`;
+      node.style.transform = `scaleX(${percent / 100})`;
+    }
+
     function init() {
       initializeDeckProfiles();
       initializeCassetteProfiles();
@@ -2543,8 +2556,8 @@
         el.flipBanner.classList.remove("show");
         el.recordCue.classList.remove("show");
         el.currentTrack.textContent = "Recording aborted.";
-        el.playProgress.style.width = "0%";
-        el.tapeProgress.style.width = "0%";
+        setProgressFill(el.playProgress, 0);
+        setProgressFill(el.tapeProgress, 0);
         el.countdown.textContent = formatTime(duration(sideA()));
         el.countdownLabel.textContent = "left on Side A";
         el.finishTime.textContent = projectTracks().length ? `Side A done ca. ${formatClockTime(new Date(Date.now() + duration(sideA())))}` : "Finish time pending";
@@ -2594,8 +2607,9 @@
       el.countdown.textContent = formatTime(remaining);
       el.countdownLabel.textContent = `left on Side ${state.activeRecordSide || "A"}`;
       renderFinishTime(remaining);
-      el.playProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
-      el.tapeProgress.style.width = total ? `${Math.min(100, elapsed / total * 100)}%` : "0%";
+      const progressPercent = total ? Math.min(100, elapsed / total * 100) : 0;
+      setProgressFill(el.playProgress, progressPercent);
+      setProgressFill(el.tapeProgress, progressPercent);
       updateReelVisual(elapsed, total);
       persistRecordingState();
       if (state.recordMode === "recording_a" && total && remaining <= 0 && !state.autoPauseDone) {
@@ -2717,12 +2731,12 @@
       el.countdownLabel.textContent = remote.countdownLabel || "remote side status";
       el.finishTime.textContent = remote.finishTime || "Finish time pending";
       el.currentTrack.textContent = remote.currentTrack || "Waiting for remote status.";
-      el.playProgress.style.width = remote.playProgress || "0%";
-      el.tapeProgress.style.width = remote.tapeProgress || "0%";
+      setProgressFill(el.playProgress, remote.playProgress || 0);
+      setProgressFill(el.tapeProgress, remote.tapeProgress || 0);
       el.sideATime.textContent = remote.sideATime || "00:00 / 00:00";
       el.sideBTime.textContent = remote.sideBTime || "00:00 / 00:00";
-      el.sideAFill.style.width = remote.sideAFill || "0%";
-      el.sideBFill.style.width = remote.sideBFill || "0%";
+      setProgressFill(el.sideAFill, remote.sideAFill || 0);
+      setProgressFill(el.sideBFill, remote.sideBFill || 0);
       el.flipBanner.classList.toggle("show", Boolean(remote.flip));
       el.recordCue.classList.toggle("show", Boolean(remote.cue));
       if (remote.cue) el.recordCue.textContent = remote.cue;
@@ -3915,8 +3929,8 @@
       el.sideBTime.textContent = `${formatTime(bMs)} / ${formatTime(halfMs)}`;
       el.sideABlank.textContent = `Remaining blank tape: ${formatTime(Math.max(0, halfMs - aMs))}`;
       el.sideBBlank.textContent = `Remaining blank tape: ${formatTime(Math.max(0, halfMs - bMs))}`;
-      el.sideAFill.style.width = `${Math.min(100, aMs / halfMs * 100 || 0)}%`;
-      el.sideBFill.style.width = `${Math.min(100, bMs / halfMs * 100 || 0)}%`;
+      setProgressFill(el.sideAFill, Math.min(100, aMs / halfMs * 100 || 0));
+      setProgressFill(el.sideBFill, Math.min(100, bMs / halfMs * 100 || 0));
       el.sideACount.textContent = `${a.length} tracks`;
       el.sideBCount.textContent = `${b.length} tracks`;
       el.countdown.textContent = formatTime(aMs);
