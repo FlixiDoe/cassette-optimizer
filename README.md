@@ -51,6 +51,18 @@ This project is a cassette workflow tool, not a music ripping or redistribution 
 - Prints J-cards with title cleanup, manual print-only title overrides, and cover-derived theme colors.
 - Supports explicit tape slack margin tolerance with warnings when unofficial tape length is used.
 
+## Streaming Service Support
+
+Spotify is fully supported. Cassette Optimizer uses PKCE OAuth and does not require a backend.
+
+YouTube Music is on the roadmap. YouTube Music has no official public API for playlist access in the same way Spotify does. Implementation would require a contributor familiar with unofficial approaches or the YouTube Data API v3 workarounds. Open a GitHub issue if you want to help.
+
+Tidal is on the roadmap. Tidal has a developer API, but the maintainer does not use Tidal. A contributor with an active Tidal account and API access is needed. Open a GitHub issue if you want to help.
+
+Apple Music is on the roadmap. Support requires MusicKit JS and an Apple Developer account for testing. The maintainer does not own Apple devices. A contributor who uses Apple Music and has developer access is needed. Open a GitHub issue if you want to help.
+
+Contributions from people who actually use these services are more valuable than speculative implementations.
+
 For implementation details, read [docs/code-overview.md](docs/code-overview.md) and [docs/module-reference.md](docs/module-reference.md).
 
 ## Local Setup

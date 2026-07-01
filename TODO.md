@@ -10,3 +10,9 @@ The P0-P3 work items previously tracked here were completed, tested, committed, 
 - Add printable outer cassette shell stickers.
 - Add local project history and automated session recovery.
 - Add a Smart Gap-Filler routine for significant trailing silence.
+
+## Streaming Service Roadmap
+
+- [ ] YouTube Music support — needs contributor with API access and active account
+- [ ] Tidal support — needs contributor with API access and active account
+- [ ] Apple Music / MusicKit JS support — needs contributor with Apple Developer account
