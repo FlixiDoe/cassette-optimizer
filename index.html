@@ -32,6 +32,10 @@
         <h2 id="inputPanelTitle">Input</h2>
         <details id="credentialsPanel" class="input-section" open>
           <summary class="input-section-title">Spotify</summary>
+          <p class="setup-note">
+            Create a Spotify Developer app first, add <code>http://127.0.0.1:8787/callback</code> as the redirect URI, then paste its Client ID here.
+            <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">Open Spotify Dashboard</a>
+          </p>
           <div>
             <label class="label" for="clientId">Spotify Client ID</label>
             <input id="clientId" autocomplete="off" placeholder="Paste your Spotify app client ID" aria-describedby="clientIdError">

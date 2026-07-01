@@ -1,5 +1,26 @@
 # Changelog
 
+## Cassette Optimizer 1.3.1
+
+Setup clarity release for first-time Spotify connection and shorter onboarding.
+
+### Highlights
+
+- Add an inline Spotify setup note with the required redirect URI and a direct Spotify Developer Dashboard link.
+- Change the header connection button to `Add Client ID first` while the Spotify Client ID field is empty.
+- Update the connection button immediately when a Client ID is entered so the setup order is visible before OAuth starts.
+- Replace the long Basic Usage list with a shorter Quick Start and move the detailed recording guidance into a separate workflow section.
+
+### Documentation
+
+- Document the first-time Spotify setup order in the app-state flow notes.
+- Keep cassette, deck, inventory, readiness, slack, level-check, and multi-tape details available without making the first-run path look daunting.
+
+### Validation
+
+- `npm test` passes: 27/27 tests.
+- Browser check on a fresh `http://localhost:8787/` origin: empty Client ID shows `Add Client ID first`, entering a Client ID changes the button to `Connect Spotify`, the inline setup note is visible, and no console warnings or errors appear.
+
 ## Cassette Optimizer 1.3.0
 
 Stability release for reload- and close-resistant recording sessions.

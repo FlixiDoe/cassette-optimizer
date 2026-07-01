@@ -193,29 +193,25 @@ user-read-playback-state
 user-modify-playback-state
 ```
 
-## Basic Usage
+## Quick Start
 
 1. Open `http://127.0.0.1:8787/`.
-2. Paste your Spotify app Client ID into `Spotify Client ID`.
+2. Create or open a Spotify Developer app, add `http://127.0.0.1:8787/callback` as a redirect URI, and paste the app's Client ID into `Spotify Client ID`.
 3. Click `Connect Spotify`.
-4. Click `Refresh` under `Your Spotify playlists`.
-5. Choose a playlist from the dropdown or paste a playlist URL/ID.
-6. Click `Load playlist` in the playlist block.
-7. Review or create a `Deck profile`; use `Save deck profile` after edits, or `Delete` / `Delete all` when cleaning up profiles.
-8. Review or create cassette model profiles; use `Save cassette profile` after edits, or `Delete` / `Delete all` when cleaning up cassette models.
-9. Add owned physical cassettes with the plus controls under `Tapes you have`. First-run inventory starts empty, and creating a cassette profile does not automatically add a physical tape.
-10. Choose a tape format.
-11. For multi-tape plans, choose the exact owned cassette model for each physical tape when needed.
-12. Review the physical tape plan, Side A, Side B, remaining blank tape, warnings, and J-card preview.
-13. Confirm the Tape row in Recording Readiness is green; it turns red if `Tapes you have` is empty, too small, or short of the formats the plan needs.
-14. Optionally set `Tape Slack Margin (seconds)` if you intentionally want to use unofficial tape headroom.
-15. Refresh Spotify devices and explicitly choose the target device.
-16. Complete the recording checklist, or explicitly use `Skip checklist`.
-17. Use the seven Level Check checkpoints and `Level Check` tone only after turning the deck input gain down, then stop the tone before recording.
-18. Wait until all Recording Readiness rows are green.
-19. Click `Start Side A` and start the cassette deck when `PRESS RECORD NOW` appears.
-20. After Side A auto-pauses, flip the cassette and use `Start Side B`.
-21. For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
+4. Refresh your playlists, choose one or paste a playlist URL/ID, then click `Load playlist`.
+5. Add the physical tapes you own under `Tapes you have`, choose a tape format, and review the Side A / Side B split.
+6. Refresh Spotify devices, choose the target device, complete or skip the deck checklist, and wait until Recording Readiness is green.
+7. Click `Start Side A`, start the deck when `PRESS RECORD NOW` appears, then flip and continue with `Start Side B`.
+
+## Recording Workflow Details
+
+- Deck profiles store recorder timing and capability fields: leader tape delay, motor latency, safety margin, default slack margin, Dolby NR, Type II/IV support, auto recording level, and notes.
+- Cassette profiles describe reusable tape models. They do not add inventory by themselves; use the plus controls under `Tapes you have` to add real physical copies.
+- Multi-tape plans can assign an exact owned cassette model to each physical tape when matching copies are available.
+- The Tape row in Recording Readiness turns red when inventory is empty, short of the required formats, or too small for a planned side.
+- `Tape Slack Margin (seconds)` intentionally allows unofficial headroom and shows warnings when the plan relies on it.
+- The Level Check tone is optional. Turn deck input gain down before starting it, raise levels slowly, and stop the tone before recording.
+- For multi-tape projects, choose the next physical cassette from the plan selector and repeat Side A / Side B.
 
 Playlist loading uses Spotify's current playlist items API and follows paging beyond the first 100 items, so long owned or collaborative playlists can be planned as one project. If Spotify allows playlist metadata but blocks track items for a public playlist owned by another account, the app keeps the playlist title/art visible and shows `No readable tracks`; cassette planning and recording remain blocked because track durations and URIs are not available.
 

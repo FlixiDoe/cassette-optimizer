@@ -196,6 +196,23 @@
       margin: 6px 0 0;
     }
 
+    .setup-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .setup-note code {
+      color: var(--ink);
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+
+    .setup-note a {
+      display: inline-block;
+      margin-top: 4px;
+    }
+
     .profile-panel,
     .playlist-panel,
     .profile-toolbar {

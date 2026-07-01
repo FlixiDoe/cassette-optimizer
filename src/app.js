@@ -5357,9 +5357,10 @@
 
     function renderAuth() {
       const connected = Boolean(state.token);
+      const hasClientId = Boolean(getClientId());
       el.authDot.classList.toggle("ok", connected);
       el.authStatus.textContent = connected ? "Connected" : "Disconnected";
-      el.connectBtn.textContent = connected ? "Reconnect Spotify" : "Connect Spotify";
+      el.connectBtn.textContent = connected ? "Reconnect Spotify" : hasClientId ? "Connect Spotify" : "Add Client ID first";
       if (!connected) state.playlists = [];
       if (!connected) state.devices = [];
       renderPlaylistOptions();
@@ -5440,6 +5441,7 @@
       const clientId = el.clientId.value.trim();
       localStorage.setItem("spotify_client_id", clientId);
       if (clientId) clearClientIdError();
+      renderAuth();
     }
 
     function setClientIdError(message) {
