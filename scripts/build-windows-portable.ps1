@@ -32,7 +32,6 @@ $itemsToCopy = @(
   "src",
   "styles",
   "index.html",
-  "README.md",
   "LICENSE"
 )
 

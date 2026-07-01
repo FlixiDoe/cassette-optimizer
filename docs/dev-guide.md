@@ -24,5 +24,5 @@ node scratch/test_project_model.cjs
 
 For manual checklists:
 
-- [docs/j-card-print-regression.md](docs/j-card-print-regression.md)
-- [docs/audio-setup-regression.md](docs/audio-setup-regression.md)
+- [j-card-print-regression.md](j-card-print-regression.md)
+- [audio-setup-regression.md](audio-setup-regression.md)

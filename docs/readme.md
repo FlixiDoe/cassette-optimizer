@@ -2,19 +2,19 @@
 
 A local-first Spotify playlist planner and playback controller for recording mixtapes to cassette. Cassette Optimizer keeps a Spotify playlist in order, plans it across one or more physical cassettes, shows a recording countdown, and controls Spotify playback so the user can record one side at a time.
 
-For screenshots, see [docs/screenshots](docs/screenshots).
+For screenshots, see [screenshots](screenshots).
 
 ## Documentation
 
-- [docs.md](docs.md) - documentation index.
-- [docs/setup.md](docs/setup.md) - setup, first run, recording preparation, profiles, dry run, rate limits, and troubleshooting.
-- [docs/dev-guide.md](docs/dev-guide.md) - regression test commands and manual checklist links.
-- [docs/code-overview.md](docs/code-overview.md) - how the code is structured.
-- [docs/app-state-and-flow.md](docs/app-state-and-flow.md) - how state moves through the app.
-- [docs/module-reference.md](docs/module-reference.md) - file-by-file code reference.
-- [docs/ai-usage.md](docs/ai-usage.md) - AI tools used for research, prompting, implementation, and repository maintenance.
-- [CHANGELOG.md](CHANGELOG.md) - release notes and feature highlights.
-- [TODO.md](TODO.md) - short-lived task list; currently no active implementation tasks.
+- [index.md](index.md) - documentation index.
+- [setup.md](setup.md) - setup, first run, recording preparation, profiles, dry run, rate limits, and troubleshooting.
+- [dev-guide.md](dev-guide.md) - regression test commands and manual checklist links.
+- [code-overview.md](code-overview.md) - how the code is structured.
+- [app-state-and-flow.md](app-state-and-flow.md) - how state moves through the app.
+- [module-reference.md](module-reference.md) - file-by-file code reference.
+- [ai-usage.md](ai-usage.md) - AI tools used for research, prompting, implementation, and repository maintenance.
+- [changelog.md](changelog.md) - release notes and feature highlights.
+- [todo.md](todo.md) - short-lived task list; currently no active implementation tasks.
 
 ## Responsible Use
 
@@ -40,9 +40,9 @@ This project is a cassette workflow tool, not a music ripping or redistribution 
 - Prints J-cards with title cleanup, manual print-only title overrides, and cover-derived theme colors.
 - Supports explicit tape slack margin tolerance with warnings when unofficial tape length is used.
 
-For setup and first run, see [docs/setup.md](docs/setup.md).
+For setup and first run, see [setup.md](setup.md).
 
-For regression tests and manual checklists, see [docs/dev-guide.md](docs/dev-guide.md).
+For regression tests and manual checklists, see [dev-guide.md](dev-guide.md).
 
 ## Security
 
@@ -51,4 +51,4 @@ For regression tests and manual checklists, see [docs/dev-guide.md](docs/dev-gui
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](../LICENSE).

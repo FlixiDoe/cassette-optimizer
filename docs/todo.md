@@ -14,6 +14,6 @@ The P0-P3 work items previously tracked here were completed, tested, committed, 
 
 ## Streaming Service Roadmap
 
-- [ ] Apple Music / MusicKit JS — technically feasible, needs contributor with Apple Developer account. See docs/streaming-services.md.
-- [ ] Tidal — blocked on playback control API. See docs/streaming-services.md.
-- YouTube Music — removed from roadmap. No stable public API. See docs/streaming-services.md.
+- [ ] Apple Music / MusicKit JS — technically feasible, needs contributor with Apple Developer account. See streaming-services.md.
+- [ ] Tidal — blocked on playback control API. See streaming-services.md.
+- YouTube Music — removed from roadmap. No stable public API. See streaming-services.md.

@@ -128,9 +128,9 @@ contains("Shared status explicit capability flag", "health?.statusApi === true")
 contains("Shared status disabled unless available", "if (!state.statusApiAvailable) return");
 
 const server = fs.readFileSync(path.join(root, "server", "server.js"), "utf8");
-const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
-const docs = fs.readFileSync(path.join(root, "docs.md"), "utf8");
-const publishing = fs.readFileSync(path.join(root, "PUBLISHING.md"), "utf8");
+const readme = fs.readFileSync(path.join(root, "docs", "readme.md"), "utf8");
+const docs = fs.readFileSync(path.join(root, "docs", "index.md"), "utf8");
+const publishing = fs.readFileSync(path.join(root, "docs", "publishing.md"), "utf8");
 const audioChecklist = fs.readFileSync(path.join(root, "docs", "audio-setup-regression.md"), "utf8");
 const packageJson = fs.readFileSync(path.join(root, "package.json"), "utf8");
 assert.ok(server.includes('"/api/status"'), "Missing LAN status API");

@@ -21,8 +21,8 @@ rg -n "secret|token|ghp_|github_pat_|sk-|client_secret|refresh_token|access_toke
 ```
 
 2. Do not keep personal Spotify Client IDs in source. Users should create their own Spotify app and paste the Client ID locally.
-3. Confirm `README.md` uses neutral cassette-workflow language and does not describe the project as a ripping tool.
-4. Confirm `README.md` includes the responsible-use notice.
+3. Confirm `docs/readme.md` uses neutral cassette-workflow language and does not describe the project as a ripping tool.
+4. Confirm `docs/readme.md` includes the responsible-use notice.
 5. Confirm `LICENSE` is present.
 6. Keep the app local-only unless a separate hosting plan is reviewed.
 7. If hosting publicly in the future, add the final public callback URL to the Spotify Developer Dashboard.
@@ -31,20 +31,20 @@ rg -n "secret|token|ghp_|github_pat_|sk-|client_secret|refresh_token|access_toke
 
 Before a release, confirm the recording guides and in-app checklist cover these manual audio setup items:
 
-- README mentions Spotify Streaming quality set to Lossless.
-- README mentions Auto-adjust quality off.
-- README mentions Crossfade set to 0 seconds.
-- README mentions Normalize volume off.
-- README mentions Spotify EQ off.
-- README mentions selecting the exact Spotify output device.
-- README mentions exclusive, fixed-volume, or direct hardware output where available.
-- README mentions operating system output device matching Spotify.
-- README mentions system output volume at 100% / maximum.
-- README explains that final recording gain is adjusted on the cassette deck input while watching deck meters for clipping or distortion.
+- docs/readme.md mentions Spotify Streaming quality set to Lossless.
+- docs/readme.md mentions Auto-adjust quality off.
+- docs/readme.md mentions Crossfade set to 0 seconds.
+- docs/readme.md mentions Normalize volume off.
+- docs/readme.md mentions Spotify EQ off.
+- docs/readme.md mentions selecting the exact Spotify output device.
+- docs/readme.md mentions exclusive, fixed-volume, or direct hardware output where available.
+- docs/readme.md mentions operating system output device matching Spotify.
+- docs/readme.md mentions system output volume at 100% / maximum.
+- docs/readme.md explains that final recording gain is adjusted on the cassette deck input while watching deck meters for clipping or distortion.
 - In-app Deck Checklist has compact confirmations for Spotify quality, output device, exclusive/fixed/direct output, and system volume.
 - In-app Recording readiness panel shows Spotify connection, selected device, playback sync, Dry Run, and audio checklist state at a glance.
 - In-app Level check helper explains that the app does not measure audio level automatically.
-- README documents Export / Import Config for saving and restoring the full cassette project.
+- docs/readme.md documents Export / Import Config for saving and restoring the full cassette project.
 
 ## Optional Public Repo Settings
 
