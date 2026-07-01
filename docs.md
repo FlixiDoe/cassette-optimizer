@@ -4,7 +4,9 @@ This file is the documentation index. It intentionally avoids repeating the READ
 
 ## Start here
 
-- [README.md](README.md) — short user setup, Spotify configuration, responsible use, profile/tape collection workflow, and recording checklist.
+- [README.md](README.md) — short project overview, responsible use, feature summary, and documentation links.
+- [docs/setup.md](docs/setup.md) — setup, first run, recording preparation, profiles, dry run, rate limits, and troubleshooting.
+- [docs/dev-guide.md](docs/dev-guide.md) — regression test commands and manual checklist links.
 - [CHANGELOG.md](CHANGELOG.md) — release notes and feature highlights.
 - [TODO.md](TODO.md) — short-lived active task list; currently empty except later ideas.
 
@@ -28,7 +30,9 @@ Keep each topic in one place:
 
 | Topic | Source |
 | --- | --- |
-| User setup, safe use, profiles | [README.md](README.md) |
+| Project overview and responsible use | [README.md](README.md) |
+| User setup, Spotify configuration, profiles, and troubleshooting | [docs/setup.md](docs/setup.md) |
+| Developer regression tests | [docs/dev-guide.md](docs/dev-guide.md) |
 | Release notes | [CHANGELOG.md](CHANGELOG.md) |
 | Current active work | [TODO.md](TODO.md) |
 | Code architecture | [docs/code-overview.md](docs/code-overview.md) |
