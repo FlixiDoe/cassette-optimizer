@@ -14,7 +14,7 @@ function migrateLegacyConfig(input) {
   const tapeMinutes = normalizeTapeMinutes(input.tapeMinutes || input.tapeFormat || input.selectedTapeMinutes || 90);
   const sourceTracks = normalizeTracks(input.sourceTracks || input.tracks || []);
   const tapes = Array.isArray(input.tapes) && input.tapes.length
-    ? input.tapes.map((tape, index) => normalizeTape(tape, index, tapeMinutes))
+    ? normalizeTapes(input.tapes, tapeMinutes)
     : [normalizeTape({
         tapeNumber: 1,
         tapeTitle: input.projectTitle || input.playlistName || "Imported mixtape",
@@ -46,7 +46,7 @@ function migrateLegacyConfig(input) {
 
 function migrateVersionOne(input) {
   const tapes = Array.isArray(input.tapes)
-    ? input.tapes.map((tape, index) => normalizeTape(tape, index, tapeFallback(input)))
+    ? normalizeTapes(input.tapes, tapeFallback(input))
     : [];
 
   return {
@@ -77,10 +77,22 @@ function migrateFutureConfig(input) {
   });
 }
 
-function normalizeTape(input, index, fallbackTapeMinutes) {
+function normalizeTapes(tapes, fallbackTapeMinutes) {
+  let nextStartIndex = 0;
+  return tapes.map((tape, index) => {
+    const normalized = normalizeTape(tape, index, fallbackTapeMinutes, nextStartIndex);
+    nextStartIndex = normalized.sideBEndIndex;
+    return normalized;
+  });
+}
+
+function normalizeTape(input, index, fallbackTapeMinutes, nextStartIndex = 0) {
   const tapeMinutes = normalizeTapeMinutes(input.tapeFormat || input.tapeMinutes || fallbackTapeMinutes);
   const sideA = normalizeTracks(input.sideA || []);
   const sideB = normalizeTracks(input.sideB || []);
+  const sideAStartIndex = normalizeNumber(input.sideAStartIndex, nextStartIndex, 0, Number.MAX_SAFE_INTEGER);
+  const sideAEndIndex = normalizeNumber(input.sideAEndIndex, sideAStartIndex + sideA.length, 0, Number.MAX_SAFE_INTEGER);
+  const sideBStartIndex = normalizeNumber(input.sideBStartIndex, sideAEndIndex, 0, Number.MAX_SAFE_INTEGER);
   const sideLengthMs = normalizeNumber(input.sideLengthMs, tapeMinutes * 60 * 1000 / 2, 0, Number.MAX_SAFE_INTEGER);
 
   return {
@@ -91,10 +103,10 @@ function normalizeTape(input, index, fallbackTapeMinutes) {
     tapeMinutes,
     tapeFormat: tapeMinutes,
     sideLengthMs,
-    sideAStartIndex: normalizeNumber(input.sideAStartIndex, 0, 0, Number.MAX_SAFE_INTEGER),
-    sideAEndIndex: normalizeNumber(input.sideAEndIndex, sideA.length, 0, Number.MAX_SAFE_INTEGER),
-    sideBStartIndex: normalizeNumber(input.sideBStartIndex, sideA.length, 0, Number.MAX_SAFE_INTEGER),
-    sideBEndIndex: normalizeNumber(input.sideBEndIndex, sideA.length + sideB.length, 0, Number.MAX_SAFE_INTEGER),
+    sideAStartIndex,
+    sideAEndIndex,
+    sideBStartIndex,
+    sideBEndIndex: normalizeNumber(input.sideBEndIndex, sideBStartIndex + sideB.length, 0, Number.MAX_SAFE_INTEGER),
     sideA,
     sideB,
     splitMode: input.splitMode === "manual" ? "manual" : "automatic",

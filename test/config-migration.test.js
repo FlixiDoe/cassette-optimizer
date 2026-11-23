@@ -71,3 +71,19 @@ test("imports drop zero-length tracks", () => {
   assert.deepEqual(migrated.sourceTracks.map(track => track.uri), ["spotify:track:one"]);
   assert.deepEqual(migrated.tapes[0].sideA.map(track => track.uri), ["spotify:track:one"]);
 });
+
+test("multi-tape imports retain absolute track boundaries when indexes are omitted", () => {
+  const track = id => ({ id, name: id, duration_ms: 60000 });
+  const [one, two, three, four] = ["same", "two", "same", "four"].map(track);
+  for (const configVersion of [0, CURRENT_CONFIG_VERSION]) {
+    const saved = {
+      configVersion,
+      sourceTracks: [one, two, three, four],
+      tapes: [{ sideA: [one], sideB: [two] }, { sideA: [three], sideB: [four] }]
+    };
+    const { tapes, sourceTracks } = migrateImportedConfig(JSON.parse(JSON.stringify(saved)));
+    assert.deepEqual(tapes.map(t => [t.sideAStartIndex, t.sideAEndIndex, t.sideBStartIndex, t.sideBEndIndex]),
+      [[0, 1, 1, 2], [2, 3, 3, 4]]);
+    assert.deepEqual(sourceTracks.slice(tapes[1].sideBStartIndex, tapes[1].sideBEndIndex), tapes[1].sideB);
+  }
+});
