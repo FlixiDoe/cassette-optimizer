@@ -81,8 +81,10 @@ contains("Deck checklist system volume item", "System output volume set to 100%"
 contains("Deck checklist persistence", 'localStorage.setItem("deck_checklist"');
 contains("Deck checklist render", "function renderDeckChecklist");
 containsHtml("Level check helper", 'id="levelCheckHelper"');
-containsHtml("Level check helper mentions Lossless", "set Spotify to Lossless");
-containsHtml("Level check helper mentions deck input", "adjust the cassette deck input level");
+const levelHelper = html.match(/<details[^>]*id="levelCheckHelper"[^>]*>([\s\S]*?)<\/details>/)?.[1] || "";
+for (const checkpoint of ["Lossless", "Crossfade 0 s", "Normalize volume off", "EQ off", "System volume 100 %", "Deck in record-pause", "no clipping"]) {
+  assert.ok(levelHelper.includes(checkpoint), `Missing level check checkpoint: ${checkpoint}`);
+}
 containsHtml("Dry Run toggle markup", 'id="dryRunToggle"');
 contains("Dry Run state persistence", 'localStorage.setItem("dry_run_mode"');
 contains("Dry Run skips Spotify playback", "if (!state.dryRun) {");
@@ -92,7 +94,7 @@ containsHtml("Lead-in calibration input", 'id="leadInDelay"');
 containsHtml("Motor latency calibration input", 'id="motorLatency"');
 containsHtml("Safety margin calibration input", 'id="safetyMargin"');
 contains("Recording calibration persistence", 'localStorage.setItem("recording_calibration"');
-contains("Recording cue includes calibration", "return RECORD_CUE_SECONDS + state.calibration.leadInSeconds + state.calibration.motorLatencySeconds");
+contains("Recording cue includes calibration", "return RECORD_CUE_SECONDS + timing.leaderTapeDelay + timing.motorLatency");
 contains("Recording cue leader tape text", "Advancing past leader tape");
 contains("Safety margin warning", "safety margin remaining");
 containsHtml("Record cue banner", 'id="recordCue"');
@@ -128,7 +130,7 @@ contains("Shared status explicit capability flag", "health?.statusApi === true")
 contains("Shared status disabled unless available", "if (!state.statusApiAvailable) return");
 
 const server = fs.readFileSync(path.join(root, "server", "server.js"), "utf8");
-const readme = fs.readFileSync(path.join(root, "docs", "readme.md"), "utf8");
+const setup = fs.readFileSync(path.join(root, "docs", "setup.md"), "utf8");
 const docs = fs.readFileSync(path.join(root, "docs", "index.md"), "utf8");
 const publishing = fs.readFileSync(path.join(root, "docs", "publishing.md"), "utf8");
 const audioChecklist = fs.readFileSync(path.join(root, "docs", "audio-setup-regression.md"), "utf8");
@@ -138,10 +140,10 @@ assert.ok(server.includes('"/api/health"'), "Missing LAN status health API");
 assert.ok(server.includes('"dryRun"'), "LAN status should allow Dry Run flag");
 assert.ok(server.includes("statusApi: true"), "LAN health endpoint should advertise status API support");
 assert.ok(fs.readFileSync(path.join(root, "api", "health"), "utf8").includes('"statusApi":false'), "Static health fallback should disable status API");
-assert.ok(readme.includes("## Deck and Audio Setup"), "README should include deck setup guide");
-assert.ok(readme.includes("cassette deck LINE IN / AUX IN / REC IN"), "README should show deck signal path");
-assert.ok(readme.includes("Disable notification sounds before recording."), "README should include notification warning");
-for (const text of [readme, publishing, audioChecklist]) {
+assert.ok(setup.includes("## Deck and Audio Setup"), "Setup guide should include deck setup guide");
+assert.ok(setup.includes("cassette deck LINE IN / AUX IN / REC IN"), "Setup guide should show deck signal path");
+assert.ok(setup.includes("Disable notification sounds before recording."), "Setup guide should include notification warning");
+for (const text of [setup, publishing, audioChecklist]) {
   assert.ok(text.includes("Lossless"), "Recording guides should mention Lossless");
   assert.ok(text.includes("Auto-adjust quality"), "Recording guides should mention Auto-adjust quality");
   assert.ok(text.includes("Crossfade"), "Recording guides should mention Crossfade");
