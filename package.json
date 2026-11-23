@@ -8,6 +8,10 @@
     "start:local": "node server/server.js --host 127.0.0.1",
     "start:lan": "node server/server.js --host 0.0.0.0",
     "build:windows-portable": "powershell -ExecutionPolicy Bypass -File scripts/build-windows-portable.ps1",
-    "test": "node --test"
+    "test": "node --test",
+    "test:recording": "node scratch/check-cue-reload.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.65.1"
   }
 }

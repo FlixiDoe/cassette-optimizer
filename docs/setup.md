@@ -235,3 +235,16 @@ When the Retry-After countdown ends or a replay fails, the app clears the active
 - Playlist loads but shows `No readable tracks`: Spotify allowed playlist metadata but did not allow this token to read the track items. Use an owned or collaborative playlist, duplicate the public playlist into your library/account, or choose a playlist whose items Spotify exposes to your token.
 - Connect Spotify not visible on plain phone/LAN IP: this is by design. Open `http://127.0.0.1:8787` on the host machine, or use Tailscale Serve with the `https://...ts.net/callback` redirect URI registered in Spotify.
 - Tailscale URL shows disconnected: tokens are per origin; connect Spotify again on the `https://...ts.net/` URL.
+
+## Check recording and cue recovery
+
+Use Node.js 22 and npm for the browser regression. From the repository root:
+
+```sh
+npm ci
+npx playwright-core install --only-shell chromium
+npm test
+npm run test:recording
+```
+
+The setup downloads the pinned Playwright dependency and its matching Chromium headless shell. On a fresh Linux runner, add `--with-deps` to the browser installation command. The regression runs the app in an offline browser context, imports a synthetic two-sided cassette, and checks the playback requests after reloading fresh, paused and legacy cues on each side. The test serves the project and simulated Spotify responses from local fixtures. GitHub Actions runs both test commands for pull requests and pushes to `main`.

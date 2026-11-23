@@ -1,7 +1,3 @@
-// Optional browser regression, run from the repository root:
-// npm install --no-save --package-lock=false playwright-core
-// npx playwright-core install chromium
-// node scratch/check-cue-reload.mjs
 // CHROMIUM_PATH can select an existing Chromium executable. Every request stays in the fixture.
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
@@ -15,7 +11,7 @@ const browser = await chromium.launch({
 });
 
 try {
-  const page = await browser.newPage();
+  const page = await browser.newPage({ offline: true, serviceWorkers: "block" });
   const plays = [];
   await page.route("**/*", async route => {
     const { origin: requestOrigin, pathname } = new URL(route.request().url());
