@@ -21,6 +21,8 @@ test("legacy configs migrate to the current project shape", () => {
   assert.equal(migrated.projectTitle, "Legacy Mix");
   assert.equal(migrated.sourceTracks.length, 1);
   assert.equal(migrated.tapes.length, 1);
+  assert.equal(migrated.tapes[0].tapeFormat, 60);
+  assert.equal(migrated.tapes[0].sideLengthMs, 30 * 60 * 1000);
   assert.equal(migrated.slackMarginSeconds, 120);
   assert.deepEqual(migrated.jCardOverrides, { "spotify:track:1": "One Clean" });
 });

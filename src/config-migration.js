@@ -11,7 +11,7 @@ export function migrateImportedConfig(payload) {
 }
 
 function migrateLegacyConfig(input) {
-  const tapeMinutes = normalizeTapeMinutes(input.tapeMinutes || input.tapeFormat || 90);
+  const tapeMinutes = normalizeTapeMinutes(input.tapeMinutes || input.tapeFormat || input.selectedTapeMinutes || 90);
   const sourceTracks = normalizeTracks(input.sourceTracks || input.tracks || []);
   const tapes = Array.isArray(input.tapes) && input.tapes.length
     ? input.tapes.map((tape, index) => normalizeTape(tape, index, tapeMinutes))
