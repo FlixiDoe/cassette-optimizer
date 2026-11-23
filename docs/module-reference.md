@@ -317,9 +317,9 @@ Rate-limit countdown completion sets `state.rateLimit.active` back to false. Buf
 
 Timer ticks run through a guard so async side-completion work cannot overlap across 250 ms interval ticks.
 
-`persistRecordingState()` stores the active recording snapshot in `localStorage.cassetteOptimizerRecordingState` while `isRecordingLockActive()` is true. It is throttled during timer ticks and forced at cue/start/pause/flip transitions plus `beforeunload`. The snapshot includes record mode, active side, selected tape index, tape minutes, elapsed side time, Spotify side elapsed anchor, last progress floor, project identity, track fingerprint, and save timestamp.
+`persistRecordingState()` stores the active recording snapshot in `localStorage.cassetteOptimizerRecordingState` while `isRecordingLockActive()` is true. It is throttled during timer ticks and forced at recording start, pause and flip transitions. The snapshot includes record mode, active side, selected tape index, tape minutes, elapsed side time, Spotify side elapsed anchor, last progress floor, project identity, track fingerprint, and save timestamp.
 
-`restoreRecordingState()` validates project identity, track fingerprint, tape index, and tape minutes before applying a snapshot. Running `recording_a` or `recording_b` states add wall-clock time since the last save and restart the local timer. Cue states restore as paused rather than auto-starting playback. `abortRecording()`, fresh project loads, and `completeSideB()` clear the saved snapshot.
+`restoreRecordingState()` validates project identity, track fingerprint, tape index, and tape minutes before applying a snapshot. Running `recording_a` or `recording_b` states add wall-clock time since the last save and restart the local timer. During a cue, including page unload, the preceding idle, flip or paused checkpoint stays intact. Legacy cue snapshots offer a fresh start on that side. `abortRecording()`, fresh project loads, and `completeSideB()` clear the saved snapshot.
 
 ### Spotify monitoring functions
 

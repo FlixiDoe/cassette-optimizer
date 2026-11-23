@@ -227,6 +227,7 @@ When the Retry-After countdown ends or a replay fails, the app clears the active
 - `No active Spotify device found`: open Spotify on desktop/mobile, start playback once, then retry.
 - Wrong target device: click `Refresh` under `Spotify device`, select the intended Spotify Connect device, then retry.
 - Recording Readiness Tape row is red: add the missing cassette quantity under `Tapes you have`, choose a larger format, or adjust the plan so every side fits.
+- Reload during the countdown: if the side was about to start, arm the deck and choose Start for that side again. If it was already paused, choose Resume to continue from the saved elapsed time. Older saved countdowns offer Start because their playback history is unknown.
 - Playback command sent but Spotify stays idle: wake the target Spotify device by playing any song, then retry or pause/resume the side.
 - Rate limited: wait for the app's retry countdown in the Recording Readiness panel.
 - Expired token: reconnect Spotify and refresh devices.
