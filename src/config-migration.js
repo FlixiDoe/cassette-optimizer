@@ -13,16 +13,18 @@ export function migrateImportedConfig(payload) {
 function migrateLegacyConfig(input) {
   const tapeMinutes = normalizeTapeMinutes(input.tapeMinutes || input.tapeFormat || input.selectedTapeMinutes || 90);
   const sourceTracks = normalizeTracks(input.sourceTracks || input.tracks || []);
-  const tapes = Array.isArray(input.tapes) && input.tapes.length
-    ? normalizeTapes(input.tapes, tapeMinutes)
-    : [normalizeTape({
-        tapeNumber: 1,
-        tapeTitle: input.projectTitle || input.playlistName || "Imported mixtape",
-        tapeMinutes,
-        tapeFormat: tapeMinutes,
-        sideA: input.sideA || [],
-        sideB: input.sideB || []
-      }, 0, tapeMinutes)];
+  let tapes = [];
+  if (Array.isArray(input.tapes) && input.tapes.length) {
+    tapes = normalizeTapes(input.tapes, tapeMinutes);
+  } else if (input.sideA?.length || input.sideB?.length) {
+    tapes = [normalizeTape({
+      tapeNumber: 1,
+      tapeTitle: input.projectTitle || input.playlistName || "Imported mixtape",
+      tapeMinutes,
+      sideA: input.sideA || [],
+      sideB: input.sideB || []
+    }, 0, tapeMinutes)];
+  }
 
   return {
     ...input,
@@ -32,6 +34,7 @@ function migrateLegacyConfig(input) {
     sourcePlaylistName: input.sourcePlaylistName || input.playlistName || input.projectTitle || "",
     coverUrl: input.coverUrl || input.playlistCoverUrl || "",
     sourceTracks,
+    selectedTapeMinutes: input.selectedTapeMinutes || tapeMinutes,
     selectedTapeIndex: clampIndex(input.selectedTapeIndex, tapes.length),
     tapes,
     splitMode: input.splitMode || (tapes.some(tape => tape.splitMode === "manual") ? "manual" : "automatic"),

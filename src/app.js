@@ -1693,9 +1693,9 @@
       return project;
     }
 
-    function buildProjectTapes(project, fallbackTapeMinutes, tapeFormats = []) {
+    function buildProjectTapes(project, fallbackTapeMinutes, tapeFormats = [], slackMarginMs = getSlackMarginMs()) {
       const formats = tapeFormats.length ? tapeFormats : [fallbackTapeMinutes];
-      return splitTracksIntoTapesByFormats(project.sourceTracks, formats, fallbackTapeMinutes, getSlackMarginMs()).map(layout => ({
+      return splitTracksIntoTapesByFormats(project.sourceTracks, formats, fallbackTapeMinutes, slackMarginMs).map(layout => ({
         ...layout,
         tapeNumber: layout.number,
         tapeTitle: project.sourceTracks.length > layout.sideA.length + layout.sideB.length || layout.number > 1
@@ -3237,6 +3237,7 @@
       const selectedDeviceReady = isSpotifyDeviceReady();
       const selectedDeviceLabel = selectedDevice?.name || "";
       const tokenValid = Boolean(state.token && Date.now() <= state.expiresAt);
+      const spotifyReady = state.dryRun || tokenValid;
       const playlistLoaded = Boolean(state.project);
       const playlistReady = projectTracks().length >= 1;
       const tapeStatus = getTapeReadinessStatus(playlistLoaded, playlistReady);
@@ -3245,9 +3246,9 @@
       const statuses = [
         {
           label: "Spotify",
-          state: tokenValid ? "ok" : "bad",
-          icon: tokenValid ? "✅" : "❌",
-          value: tokenValid ? "Token valid" : "Not connected / token missing"
+          state: spotifyReady ? "ok" : "bad",
+          icon: spotifyReady ? "✅" : "❌",
+          value: state.dryRun ? "Dry Run playback skipped" : tokenValid ? "Token valid" : "Not connected / token missing"
         },
         {
           label: "Device",
@@ -4745,7 +4746,7 @@
       };
       project.tapes = rawTapes.length
         ? rawTapes.map((tape, index) => normalizeImportedTape(tape, index, sourceTracks, project.slackMarginSeconds))
-        : buildProjectTapes(project, Number(payload.selectedTapeMinutes) || state.tapeMinutes, [Number(payload.selectedTapeMinutes) || state.tapeMinutes]);
+        : buildProjectTapes(project, Number(payload.selectedTapeMinutes) || state.tapeMinutes, [], project.slackMarginSeconds * 1000);
       project.selectedTapeIndex = clampTapeIndex(payload.selectedTapeIndex, project.tapes.length);
       return project;
     }

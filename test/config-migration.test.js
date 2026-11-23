@@ -87,3 +87,13 @@ test("multi-tape imports retain absolute track boundaries when indexes are omitt
     assert.deepEqual(sourceTracks.slice(tapes[1].sideBStartIndex, tapes[1].sideBEndIndex), tapes[1].sideB);
   }
 });
+
+test("legacy track-only projects leave tape placement to the planner", () => {
+  const imported = migrateImportedConfig({
+    selectedTapeMinutes: 60,
+    tracks: [{ name: "Opening", duration_ms: 1800000 }, { name: "Next side", duration_ms: 120000 }]
+  });
+  assert.equal(imported.sourceTracks.length, 2);
+  assert.deepEqual(imported.tapes, []);
+  assert.equal(imported.selectedTapeMinutes, 60);
+});
