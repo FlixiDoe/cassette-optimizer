@@ -168,7 +168,7 @@ spotify_selected_device         -> sanitized selected Spotify device snapshot
 
 The device snapshot stores only non-secret Spotify Connect metadata needed for UI recovery: id, name, type, active flag, and restricted flag. `renderDeviceOptions()` merges that snapshot into `state.devices` when Spotify's device list is still empty after reload, so the Device readiness row and dropdown can stay aligned with the previous explicit selection.
 
-`persistRecordingState()` writes a throttled recording snapshot while the recording lock is active and also forces saves at cue/start/pause/flip transitions and before unload. The snapshot includes:
+`persistRecordingState()` writes a throttled recording snapshot while the recording lock is active and also forces saves at recording start, pause and flip transitions. The snapshot includes:
 
 ```text
 recordMode
@@ -184,7 +184,7 @@ projectId
 savedAtMs
 ```
 
-`restoreRecordingState()` validates the project id, track fingerprint, selected tape, and tape minutes before applying a snapshot. Running `recording_a` / `recording_b` sessions add wall-clock time since `savedAtMs` and restart the local timer. Cue states restore as paused rather than auto-starting Spotify. Abort, loading/replacing a project, and Side B completion clear the saved recording snapshot.
+`restoreRecordingState()` validates the project id, track fingerprint, selected tape, and tape minutes before applying a snapshot. Running `recording_a` / `recording_b` sessions add wall-clock time since `savedAtMs` and restart the local timer. During the countdown, the last checkpoint stays intact. Reloading a fresh cue offers Start Side A or Start Side B. Reloading a cue after a pause offers Resume and preserves the paused elapsed time. Older snapshots that only identify a cue restart that side from the first track. Abort, loading/replacing a project, and Side B completion clear the saved recording snapshot.
 
 ## Tape recomputation flow
 

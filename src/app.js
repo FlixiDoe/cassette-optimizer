@@ -1785,6 +1785,8 @@
     }
 
     function persistRecordingState({ force = false } = {}) {
+      // A cue has not issued a playback command. Keep the preceding idle, flip or paused checkpoint.
+      if (state.recordMode === "cue_a" || state.recordMode === "cue_b") return;
       if (!isRecordingLockActive()) {
         clearPersistedRecordingState();
         return;
@@ -1833,6 +1835,21 @@
       state.selectedTapeIndex = clampTapeIndex(saved.selectedTapeIndex, state.tapeLayouts.length);
       if (state.project) state.project.selectedTapeIndex = state.selectedTapeIndex;
       state.tapeMinutes = selectedTapeMinutes();
+      // Older snapshots saved the countdown without recording whether playback had ever started.
+      // Restart that side explicitly so an unrelated Spotify queue cannot be resumed.
+      if (saved.recordMode === "cue_a") {
+        clearPersistedRecordingState();
+        return;
+      }
+      if (saved.recordMode === "cue_b") {
+        saved.recordMode = "flip";
+        saved.activeRecordSide = "A";
+        saved.sideDurationMs = duration(sideA());
+        saved.elapsedMs = saved.sideDurationMs;
+        saved.spotifySideElapsedMs = 0;
+        saved.lastSideProgressMs = saved.elapsedMs;
+        saved.autoPauseDone = true;
+      }
       state.activeRecordSide = saved.activeRecordSide === "B" ? "B" : "A";
       const wasRecording = saved.recordMode === "recording_a" || saved.recordMode === "recording_b";
       const closedElapsedMs = wasRecording ? Math.max(0, Date.now() - Number(saved.savedAtMs || Date.now())) : 0;
@@ -1849,6 +1866,7 @@
       el.currentTrack.textContent = wasRecording
         ? `Restored running Side ${state.activeRecordSide} at ${formatTime(restoredElapsedMs)}.`
         : `Restored Side ${state.activeRecordSide} at ${formatTime(restoredElapsedMs)}. Resume when the deck and Spotify are ready.`;
+      if (state.recordMode === "flip") el.currentTrack.textContent = "Side A is complete. Flip the cassette and start Side B.";
       runTimerTick();
       if (wasRecording) startTimer();
       renderRecordMode("Restored");
@@ -2240,7 +2258,6 @@
         el.flipBanner.classList.remove("show");
         state.recordMode = "cue_a";
         state.activeRecordSide = "A";
-        persistRecordingState({ force: true });
         if (!resuming) {
           // Fresh starts reset elapsed tracking; resumes keep elapsed time accumulated before pause.
           state.sideAElapsedBeforePause = 0;
@@ -2307,7 +2324,6 @@
         el.flipBanner.classList.remove("show");
         state.recordMode = "cue_b";
         state.activeRecordSide = "B";
-        persistRecordingState({ force: true });
         if (!resuming) {
           // Side B gets its own elapsed baseline because the flip physically starts a new cassette side.
           state.spotifySideElapsedMs = 0;
